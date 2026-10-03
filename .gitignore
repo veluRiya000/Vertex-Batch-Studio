@@ -361,3 +361,20 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# VertexBatchStudio
+.venv/
+.env
+settings.json
+secrets/*
+!secrets/.gitkeep
+data/
+.runtime/
+__pycache__/
+*.egg-info/
+dist/
+build/
+node_modules/
+.vs/
+.DS_Store
+Thumbs.db
