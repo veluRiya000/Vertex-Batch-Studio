@@ -69,8 +69,9 @@ class Studio:
             raise ValueError("批次至少需要一条任务")
 
     def update_task(self, batch_id: str, task_id: str, value: TaskInput) -> dict:
-        with self.repo.lock(batch_id):
+        with self.repo.lock(batch_id), self.repo.reference_lock():
             batch = self.repo.editable(batch_id)
+            self.repo.validate_public_refs([value])
             tasks = self.repo.tasks(batch_id)
             from .models import Task
             changed = False
@@ -88,8 +89,9 @@ class Studio:
     def append_task(self, batch_id: str, value: TaskInput) -> dict:
         from .models import Task
         import uuid
-        with self.repo.lock(batch_id):
+        with self.repo.lock(batch_id), self.repo.reference_lock():
             batch = self.repo.editable(batch_id)
+            self.repo.validate_public_refs([value])
             tasks = self.repo.tasks(batch_id)
             task = Task(id=uuid.uuid4().hex, created_at=now(), **value.model_dump())
             tasks.append(task)

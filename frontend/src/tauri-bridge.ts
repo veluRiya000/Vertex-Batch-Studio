@@ -12,7 +12,7 @@ export async function notifyRendererReady(): Promise<void> {
     if (config.project || config.bucket) throw new Error('Smoke tests require an unconfigured isolated directory')
     const batch = await bridge.api('POST', '/batches', { project_name: '桌面迁移验收' }) as Batch
     const png = await fetch(new URL('../src-tauri/icons/icon.png', import.meta.url)).then(response => response.arrayBuffer())
-    const reference = await bridge.upload('验收参考图.png', png, { category: 'styles' })
+    const reference = await bridge.upload(`验收参考图-${batch.id}.png`, png, { category: 'styles' })
     const image = await bridge.image('/references/file?' + new URLSearchParams({ path: reference.path }))
     if (!image.startsWith('data:image/png;base64,')) throw new Error('Image bridge failed')
     const task = await bridge.api('POST', `/batches/${batch.id}/tasks`, {
@@ -36,6 +36,15 @@ export async function notifyRendererReady(): Promise<void> {
     if (!rejected) throw new Error('Unconfigured submission should be rejected')
     const cancelled = await bridge.api('POST', `/batches/${batch.id}/cancel`) as Batch
     if (cancelled.phase !== 'cancelled') throw new Error('Local cancellation failed')
+    const referencePath = '/references?' + new URLSearchParams({ path: reference.path })
+    let protectedReference = false
+    try { await bridge.api('DELETE', referencePath) } catch { protectedReference = true }
+    if (!protectedReference) throw new Error('Referenced library image was not protected')
+    const archived = await bridge.api('POST', `/workspaces/${batch.workspace_id}/archive`) as Batch[]
+    if (!archived.every(value => value.archived)) throw new Error('Project archive failed')
+    await bridge.api('DELETE', `/workspaces/${batch.workspace_id}`)
+    const remaining = await bridge.api('DELETE', referencePath) as Reference[]
+    if (remaining.some(value => value.path === reference.path)) throw new Error('Library deletion failed')
     await invoke('window_action', { action: 'maximize' })
     await invoke('window_action', { action: 'maximize' })
     if (!document.querySelector('.titlebar') || !document.querySelector('.composer')) throw new Error('Studio UI did not render')

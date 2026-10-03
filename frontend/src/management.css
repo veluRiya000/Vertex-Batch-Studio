@@ -1,0 +1,26 @@
+.project-context-menu { position: fixed; z-index: 120; width: 190px; padding: 6px; border-radius: 14px; background: #fff; box-shadow: 0 8px 32px #24476426; border: 1px solid #dceaf4; animation: reveal .12s ease-out; }
+.project-context-menu button { width: 100%; justify-content: flex-start; padding: 10px 12px; border-radius: 9px; }
+.project-context-menu button:hover:not(:disabled) { background: var(--selected); }
+.archive-panel { min-width: 0; }
+.archived-projects { display: flex; flex-direction: column; gap: 10px; max-height: 340px; overflow-y: auto; }
+.archived-project { display: flex; align-items: center; gap: 12px; padding: 13px; background: #f3f8fc; border-radius: 14px; }
+.archived-project > div { flex: 1; min-width: 0; }
+.archived-project strong { display: block; overflow-wrap: anywhere; font-weight: 500; }
+.archived-project small { display: block; margin-top: 5px; color: var(--muted); }
+.archive-empty { padding: 48px 10px; color: var(--muted); text-align: center; }
+.archive-confirm { background: #f3f8fc; padding: 18px; border-radius: 16px; }
+.archive-confirm strong { display: block; overflow-wrap: anywhere; font-size: 14px; }
+.archive-confirm p { margin: 12px 0; color: var(--muted); line-height: 1.8; }
+.archive-confirm-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.primary-button.destructive { background: #c74b60; color: white; }
+.primary-button.destructive:hover:not(:disabled) { background: #b54054; }
+.reference-delete { position: absolute; left: 4px; top: 4px; width: 23px; height: 23px; padding: 0; border-radius: 7px; background: #ffffffed; color: #a65865; border: 1px solid #eadbe0; }
+.reference-delete:hover:not(:disabled) { background: #fff0f3; color: #bd3f56; }
+.list-mode .reference-preview { padding-right: 62px; }
+.list-mode .reference-delete { left: auto; right: 33px; top: 50%; transform: translateY(-50%); }
+.list-mode .reference-delete:active { transform: translateY(-50%); }
+.reference-delete-message { line-height: 1.8; overflow-wrap: anywhere; }
+[data-theme="dark"] .project-context-menu { background: #22384b; border-color: var(--line); }
+[data-theme="dark"] :is(.archived-project, .archive-confirm) { background: #22384b; }
+[data-theme="dark"] .reference-delete { background: #302c3b; color: #f5b7c2; border-color: #6b485b; }
+[data-theme="dark"] .reference-delete:hover:not(:disabled) { background: #483043; }

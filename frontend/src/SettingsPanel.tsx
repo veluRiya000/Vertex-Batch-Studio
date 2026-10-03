@@ -1,6 +1,5 @@
 import { useRef, useState } from "react";
 import {
-  Archive,
   Check,
   FileKey,
   LoaderCircle,
@@ -11,21 +10,24 @@ import {
 } from "lucide-react";
 import { api } from "./api";
 import { Modal, Picker } from "./components";
+import { ArchivePanel } from "./ArchivePanel";
 import { usePreferences } from "./preferences";
 import { useTranslation } from "./i18n";
-import type { PublicConfig } from "./types";
+import type { PublicConfig, Workspace } from "./types";
 
 export function SettingsPanel({
   config,
   close,
   configured,
-  archive,
+  archivedProjects = [],
+  deleteArchived,
   checkConnection,
 }: {
   config?: PublicConfig;
   close: () => void;
   configured: (value: PublicConfig) => void;
-  archive?: () => Promise<void>;
+  archivedProjects?: Workspace[];
+  deleteArchived?: (id: string) => Promise<void>;
   checkConnection?: () => Promise<void>;
 }) {
   const t = useTranslation(),
@@ -114,6 +116,9 @@ export function SettingsPanel({
           >
             {t("Google Cloud 登录")}
           </button>
+          <button className={tab === "archive" ? "selected" : ""} onClick={() => setTab("archive")}>
+            {t("归档")}
+          </button>
         </nav>
         <div className="settings-content">
           {tab === "general" ? (
@@ -165,21 +170,6 @@ export function SettingsPanel({
               )}
               <div className="settings-divider" />
               <div className="settings-management">
-                {archive && (
-                  <button
-                    className="secondary-button"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(async () => {
-                        await archive();
-                        close();
-                      })
-                    }
-                  >
-                    <Archive size={15} />
-                    {t("归档当前项目")}
-                  </button>
-                )}
                 {window.studio && (
                   <button
                     className="text-button danger"
@@ -191,6 +181,8 @@ export function SettingsPanel({
                 )}
               </div>
             </>
+          ) : tab === "archive" ? (
+            <ArchivePanel projects={archivedProjects} remove={deleteArchived || (async () => {})} />
           ) : (
             <form
               className="cloud-form"

@@ -7,11 +7,15 @@ from pathlib import Path
 import uuid
 import re
 import warnings
+import shutil
+from contextlib import ExitStack
 from .config import Settings
-from .files import read_json, write_json, project_name, operation_lock
+from .files import read_json, write_json, project_name, operation_lock, beneath
 from .models import Task, TaskInput
 
 BEIJING = timezone(timedelta(hours=8))
+ARCHIVABLE = {"draft", "prepared", "completed", "completed_with_errors", "failed",
+              "cancelled", "upload_failed", "submission_failed"}
 
 
 def now() -> str:
@@ -55,7 +59,7 @@ class Repository:
             folder = base if index == 1 else f"{base}_{index:02d}"
             directory = self.settings.data_dir / "batches" / folder
             # Archived folders also reserve their original cloud prefix.
-            if (self.settings.data_dir / "archive" / folder).exists():
+            if (self.settings.data_dir / "archive" / folder).exists() or folder in self.reserved_folders():
                 index += 1
                 continue
             try:
@@ -128,8 +132,9 @@ class Repository:
         return batch
 
     def replace_tasks(self, batch_id: str, tasks: list[TaskInput]) -> list[Task]:
-        with self.lock(batch_id):
+        with self.lock(batch_id), self.reference_lock():
             batch = self.editable(batch_id)
+            self.validate_public_refs(tasks)
             existing_ids = {t.id for t in self.tasks(batch_id)}
             items = []
             for task in tasks:
@@ -155,27 +160,97 @@ class Repository:
             self.save(batch)
             return batch
 
+    def reference_lock(self):
+        return operation_lock(self.settings.data_dir / ".locks/assets.lock")
+
+    def validate_public_refs(self, tasks: list[TaskInput]) -> None:
+        # Coordinate task edits with library deletion, including brand-new batches.
+        for task in tasks:
+            for ref in task.refs:
+                if ref.startswith("references/") and not beneath(self.settings.data_dir / "references", ref[11:]).is_file():
+                    raise ValueError("参考图已被删除，请重新选择图片")
+
     def archive(self, batch_id: str) -> dict:
         with self.lock(batch_id):
             batch = self.get(batch_id)
-            if batch["archived"]:
-                return batch
-            if batch["phase"] not in {"draft", "prepared", "completed", "completed_with_errors", "failed", "cancelled"}:
-                raise ValueError("运行中或尚待处理的批次不能归档")
-            source = self.directory(batch_id)
-            target = self.settings.data_dir / "archive" / source.name
-            if target.exists():
-                raise ValueError("归档目录已存在")
-            source.rename(target)
-            report_path = target / "outputs/results.json"
-            if report_path.exists():
-                report = read_json(report_path)
-                for task in report.get("tasks", []):
-                    for image in task.get("images", []):
-                        old_path = Path(image["path"])
-                        if old_path.is_relative_to(source):
-                            image["path"] = str(target / old_path.relative_to(source))
-                write_json(report_path, report)
-            batch["archived"] = True
-            self.save(batch)
+            return self._archive_locked(batch)
+
+    def _archive_locked(self, batch: dict) -> dict:
+        if batch["archived"]:
             return batch
+        if batch["phase"] not in ARCHIVABLE:
+            raise ValueError("运行中或尚待处理的批次不能归档")
+        source = self.directory(batch["id"])
+        target = self.settings.data_dir / "archive" / source.name
+        if target.exists():
+            raise ValueError("归档目录已存在")
+        source.rename(target)
+        report_path = target / "outputs/results.json"
+        if report_path.exists():
+            report = read_json(report_path)
+            for task in report.get("tasks", []):
+                for image in task.get("images", []):
+                    old_path = Path(image["path"])
+                    if old_path.is_relative_to(source):
+                        image["path"] = str(target / old_path.relative_to(source))
+            write_json(report_path, report)
+        batch["archived"] = True
+        self.save(batch)
+        return batch
+
+    def workspace_batches(self, workspace_id: str) -> list[dict]:
+        if not re.fullmatch(r"[a-f0-9]{32}", workspace_id):
+            raise KeyError("项目 ID 无效")
+        batches = self.list()
+        by_id = {batch["id"]: batch for batch in batches}
+        def root_id(batch):
+            visited = set()
+            while batch["source_batch_id"] in by_id and batch["id"] not in visited:
+                visited.add(batch["id"])
+                batch = by_id[batch["source_batch_id"]]
+            return batch["workspace_id"]
+        members = [batch for batch in batches if root_id(batch) == workspace_id]
+        if not members:
+            raise KeyError("找不到项目")
+        return sorted(members, key=lambda batch: batch["id"])
+
+    def archive_workspace(self, workspace_id: str) -> list[dict]:
+        with ExitStack() as locks:
+            members = self.workspace_batches(workspace_id)
+            for batch in members:
+                locks.enter_context(self.lock(batch["id"]))
+            members = [self.get(batch["id"]) for batch in members]
+            # Validate every round before moving any, so a running round cannot split a project.
+            if any(not batch["archived"] and batch["phase"] not in ARCHIVABLE for batch in members):
+                raise ValueError("项目中有运行中或尚待处理的批次，请完成或取消后再归档")
+            for batch in members:
+                if not batch["archived"] and (self.settings.data_dir / "archive" / batch["folder"]).exists():
+                    raise ValueError("归档目录已存在")
+            return [self._archive_locked(batch) for batch in members]
+
+    def reserved_folders(self) -> set[str]:
+        path = self.settings.data_dir / ".deleted-folders.json"
+        return set(read_json(path)) if path.exists() else set()
+
+    def delete_workspace(self, workspace_id: str) -> dict:
+        with ExitStack() as locks:
+            members = self.workspace_batches(workspace_id)
+            for batch in members:
+                locks.enter_context(self.lock(batch["id"]))
+            members = [self.get(batch["id"]) for batch in members]
+            if any(not batch["archived"] for batch in members):
+                raise ValueError("只能删除完全归档的项目")
+            archive_root = (self.settings.data_dir / "archive").resolve()
+            directories = []
+            for batch in members:
+                directory = self.directory(batch["id"])
+                if directory.is_symlink() or directory.resolve().parent != archive_root:
+                    raise ValueError("归档路径不安全，不能删除")
+                directories.append(directory.resolve())
+            # Keep names reserved: deleting local data must not reuse an old cloud prefix.
+            with operation_lock(self.settings.data_dir / ".locks/reservations.lock"):
+                reserved = self.reserved_folders() | {batch["folder"] for batch in members}
+                write_json(self.settings.data_dir / ".deleted-folders.json", sorted(reserved))
+            for directory in directories:
+                shutil.rmtree(directory)
+            return {"deleted": True, "workspace_id": workspace_id, "batch_count": len(members)}

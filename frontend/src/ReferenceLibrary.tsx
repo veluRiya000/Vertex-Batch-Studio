@@ -6,8 +6,9 @@ import {
   LayoutGrid,
   List,
   Plus,
+  Trash2,
 } from "lucide-react";
-import { Media } from "./components";
+import { Media, Modal } from "./components";
 import { useTranslation } from "./i18n";
 import type { Reference } from "./types";
 
@@ -18,6 +19,7 @@ export function ReferenceLibrary({
   importFiles,
   chooseFiles,
   add,
+  remove,
   preview,
   reorder,
   error,
@@ -29,12 +31,14 @@ export function ReferenceLibrary({
   importFiles: (files: File[]) => void;
   chooseFiles: () => void;
   add: (ref: Reference) => void;
+  remove?: (ref: Reference) => Promise<void>;
   preview: (refs: Reference[], index: number) => void;
   reorder: (paths: string[]) => Promise<void>;
   error: (message: string) => void;
   busy: boolean;
 }) {
   const t = useTranslation();
+  const [deleting, setDeleting] = useState<Reference>(), [deleteBusy, setDeleteBusy] = useState(false), [deleteError, setDeleteError] = useState("");
   const [mode, setMode] = useState<"grid" | "list">(() => {
     try {
       return localStorage.getItem("vbs-reference-view") === "list"
@@ -247,6 +251,11 @@ export function ReferenceLibrary({
             >
               <Plus size={14} />
             </button>
+            {remove && <button className="reference-delete" aria-label={t("删除参考图 ") + name(ref)}
+              title={t("删除参考图")} disabled={busy || saving || deleteBusy} draggable={false}
+              onClick={(event) => { event.stopPropagation(); setDeleteError(""); setDeleting(ref); }}>
+              <Trash2 size={13} />
+            </button>}
           </div>
         ))}
         {!items.length && (
@@ -259,6 +268,20 @@ export function ReferenceLibrary({
           </button>
         )}
       </div>
+      {deleting && <Modal title={t("删除参考图")} close={() => { if (!deleteBusy) setDeleting(undefined) }}>
+        <p className="reference-delete-message">{t("从参考图库中删除")}「{name(deleting)}」？</p>
+        {deleteError && <p className="settings-error" role="alert">{deleteError}</p>}
+        <div className="archive-confirm-actions">
+          <button className="secondary-button" disabled={deleteBusy} onClick={() => setDeleting(undefined)}>{t("取消")}</button>
+          <button className="primary-button destructive" disabled={deleteBusy} onClick={async () => {
+            if (!remove || deleteBusy) return;
+            setDeleteBusy(true); setDeleteError("");
+            try { await remove(deleting); setDeleting(undefined) }
+            catch (e) { setDeleteError(e instanceof Error ? e.message : t("删除失败")) }
+            finally { setDeleteBusy(false) }
+          }}><Trash2 size={14} />{t("确认删除")}</button>
+        </div>
+      </Modal>}
     </section>
   );
 }

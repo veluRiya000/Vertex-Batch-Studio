@@ -39,6 +39,7 @@ import { api, upload, watchBatch } from "./api";
 import { Media, Modal, Picker } from "./components";
 import { SettingsPanel } from "./SettingsPanel";
 import { ReferenceLibrary } from "./ReferenceLibrary";
+import { ProjectMenu } from "./ProjectMenu";
 import { usePreferences } from "./preferences";
 import { useCloudConnection } from "./cloud-connection";
 import { useTranslation } from "./i18n";
@@ -402,6 +403,8 @@ export default function App() {
   const [queue, setQueue] = useState(() => window.innerWidth > 990);
   const [queueAll, setQueueAll] = useState(false);
   const [sortName, setSortName] = useState(false);
+  const [projectMenu, setProjectMenu] = useState<{ id: string; x: number; y: number }>();
+  const closeProjectMenu = useCallback(() => setProjectMenu(undefined), []);
   const [modal, setModal] = useState<
     "new" | "settings" | "about" | "output" | null
   >(null);
@@ -511,6 +514,7 @@ export default function App() {
   const workspaces = groupBatches(batches).filter(
     (workspace) => !workspace.archived,
   );
+  const archivedProjects = groupBatches(batches).filter((item) => item.archived);
   const workspace = workspaces.find((item) => item.id === activeId);
   const rounds = workspace?.batches.filter((batch) => !batch.archived) || [];
   const latest = rounds.at(-1);
@@ -906,6 +910,11 @@ export default function App() {
               chooseFiles={() => referenceInput.current?.click()}
               importFiles={(files) => void addFiles(files, true)}
               add={selectRef}
+              remove={async (ref) => {
+                const value = await api<Reference[]>("/references?" + new URLSearchParams({ path: ref.path }), "DELETE");
+                setReferences(value);
+                setSelected((old) => old.filter((item) => item.path !== ref.path));
+              }}
               preview={(items, index) =>
                 setPreview({
                   paths: items.map((ref) => referencePath(ref)),
@@ -963,6 +972,17 @@ export default function App() {
                   >
                     <button
                       className="project-title"
+                      onContextMenu={(event) => {
+                        event.preventDefault();
+                        setProjectMenu({ id: item.id, x: event.clientX, y: event.clientY });
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+                          event.preventDefault();
+                          const box = event.currentTarget.getBoundingClientRect();
+                          setProjectMenu({ id: item.id, x: box.left + 20, y: box.bottom });
+                        }
+                      }}
                       aria-expanded={activeId === item.id && !treeCollapsed}
                       onClick={() =>
                         activeId === item.id
@@ -1611,24 +1631,29 @@ export default function App() {
           </div>
         </Modal>
       )}
+      {projectMenu && (
+        <ProjectMenu x={projectMenu.x} y={projectMenu.y} close={closeProjectMenu}
+          allowed={!busy && !!workspaces.find((item) => item.id === projectMenu.id)?.batches.every((batch) =>
+            batch.archived || editable(batch) || terminal(batch) || ["upload_failed", "submission_failed"].includes(batch.phase))}
+          archive={() => void run(async () => {
+            await api(`/workspaces/${projectMenu.id}/archive`, "POST");
+            if (activeId === projectMenu.id) { setEditing(undefined); setPrompt(""); setSelected([]); setActiveId(""); }
+            await refresh();
+            notify(t("项目已归档"));
+          })} />
+      )}
       {modal === "settings" && (
         <SettingsPanel
           config={config}
           close={() => setModal(null)}
           configured={setConfig}
           checkConnection={cloudConnection.check}
-          archive={
-            rounds.length > 0 &&
-            rounds.every((batch) => editable(batch) || terminal(batch))
-              ? async () => {
-                  for (const batch of rounds)
-                    await api(`/batches/${batch.id}/archive`, "POST");
-                  setActiveId("");
-                  await refresh();
-                  notify(t("项目已归档"));
-                }
-              : undefined
-          }
+          archivedProjects={archivedProjects}
+          deleteArchived={async (id) => {
+            await api(`/workspaces/${id}`, "DELETE");
+            await refresh();
+            notify(t("归档项目已删除"));
+          }}
         />
       )}
       {modal === "output" && (

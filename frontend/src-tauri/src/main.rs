@@ -105,10 +105,11 @@ fn allowed(method: &str, path: &str) -> bool {
                 "^/references/file$".into(),
                 format!("^/batches/{id}(/tasks|/results|/images/{id}/[0-9]+)?$")]),
             ("POST", vec!["^/(batches|references/import|cloud/check)$".into(),
-                format!("^/batches/{id}/(tasks|prepare|submit|poll|extract|cancel|retry|clone|archive|attach|import-jsonl)$")]),
+                format!("^/batches/{id}/(tasks|prepare|submit|poll|extract|cancel|retry|clone|archive|attach|import-jsonl)$"),
+                format!("^/workspaces/{id}/archive$")]),
             ("PUT", vec!["^/(preferences|cloud/configuration|references/order)$".into(),
                 format!("^/batches/{id}/(tasks|output-directory|tasks/{id})$")]),
-            ("DELETE", vec![format!("^/batches/{id}/tasks/{id}$")]),
+            ("DELETE", vec!["^/references$".into(), format!("^/workspaces/{id}$"), format!("^/batches/{id}/tasks/{id}$")]),
         ].into_iter().map(|(method, patterns)|
             (method, patterns.into_iter().map(|p: String| regex::Regex::new(&p).unwrap()).collect())
         ).collect()
@@ -794,7 +795,8 @@ async fn renderer_ready(app: AppHandle, studio: State<'_, Arc<Studio>>) -> Resul
         fs::write(studio.root.join(".runtime/tauri-smoke.json"),
             serde_json::to_vec(&json!({"packaged": !cfg!(debug_assertions), "rendererLoaded": true, "backendHealthy": true,
                 "imageImportPreview": true, "taskReferencesAndCount": true, "preferences": true, "sse": true, "windowControls": true,
-                "unconfiguredSubmissionRejected": true, "localCancellation": true, "cloudIndicator": true})).unwrap())
+                "unconfiguredSubmissionRejected": true, "localCancellation": true, "cloudIndicator": true,
+                "projectArchiveDelete": true, "referenceDeletion": true})).unwrap())
             .map_err(|e| e.to_string())?;
         app.exit(0);
     } else if !studio.preferences.lock().unwrap().start_minimized {
@@ -833,6 +835,14 @@ mod tests {
         let id = "a".repeat(32);
         assert!(allowed("GET", &format!("/batches/{id}/results")));
         assert!(allowed("GET", "/references/file?path=styles%2Fa.png"));
+        assert!(allowed("POST", &format!("/workspaces/{id}/archive")));
+        assert!(allowed("DELETE", &format!("/workspaces/{id}")));
+        assert!(allowed(
+            "DELETE",
+            "/references?path=references%2Fstyles%2Fa.png"
+        ));
+        assert!(!allowed("DELETE", "/batches"));
+        assert!(!allowed("DELETE", &format!("/workspaces/{id}/archive")));
         for path in [
             "//evil.test/config",
             "https://evil.test",

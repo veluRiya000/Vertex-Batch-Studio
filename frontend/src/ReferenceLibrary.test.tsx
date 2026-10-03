@@ -19,6 +19,7 @@ const refs = ["a", "b", "c"].map((name) => ({
   sha256: name,
 })) as Reference[];
 const preview = vi.fn(),
+  remove = vi.fn(),
   add = vi.fn(),
   reorder = vi.fn(),
   error = vi.fn();
@@ -32,6 +33,7 @@ function Fixture() {
       importFiles={() => {}}
       chooseFiles={() => {}}
       add={add}
+      remove={async (ref) => { await remove(ref); setItems((old) => old.filter((item) => item.path !== ref.path)); }}
       preview={preview}
       error={error}
       busy={false}
@@ -46,8 +48,26 @@ beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
   reorder.mockResolvedValue(undefined);
+  remove.mockResolvedValue(undefined);
 });
 afterEach(cleanup);
+it("两种模式都有删除按钮，取消不删除，错误保留图片，确认成功后移除", async () => {
+  const user = userEvent.setup();
+  render(<Fixture />);
+  await user.click(screen.getByRole("button", { name: "删除参考图 a.png" }));
+  expect(remove).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "取消" }));
+  await user.click(screen.getByRole("button", { name: "列表模式" }));
+  await user.click(screen.getByRole("button", { name: "删除参考图 a.png" }));
+  remove.mockRejectedValueOnce(new Error("此图片正在使用"));
+  await user.click(screen.getByRole("button", { name: "确认删除" }));
+  await screen.findByRole("alert");
+  expect(screen.getByRole("button", { name: "预览参考图 a.png" })).toBeTruthy();
+  await user.click(screen.getByRole("button", { name: "确认删除" }));
+  await waitFor(() => expect(screen.queryByRole("button", { name: "预览参考图 a.png" })).toBeNull());
+  expect(add).not.toHaveBeenCalled();
+  expect(preview).not.toHaveBeenCalled();
+});
 it("两种模式中点击条目只预览，独立加号才加入对话", async () => {
   const user = userEvent.setup();
   render(<Fixture />);

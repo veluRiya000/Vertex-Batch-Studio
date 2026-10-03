@@ -2,6 +2,21 @@ import { usePreferences } from "./preferences";
 
 // User prompts and project names are never translated.
 export const english: Record<string, string> = {
+  归档: "Archive",
+  项目操作: "Project actions",
+  归档项目: "Archive project",
+  归档项目已删除: "Archived project deleted",
+  删除归档项目: "Delete archived project",
+  "删除归档项目 ": "Delete archived project ",
+  "请完成或取消运行中的任务后再归档": "Complete or cancel running tasks before archiving",
+  "将永久删除此项目的本地任务、临时参考图和项目内输出。公共参考图库、外部输出目录及云端文件会保留。": "Permanently delete local tasks, temporary references and outputs inside this project. The shared library, external output folders and cloud files will be retained.",
+  "个批次": "rounds",
+  暂无归档项目: "No archived projects",
+  确认删除: "Confirm deletion",
+  删除失败: "Deletion failed",
+  删除参考图: "Delete reference",
+  "删除参考图 ": "Delete reference ",
+  从参考图库中删除: "Delete from the reference library",
   列表模式: "List view",
   窗格模式: "Tile view",
   加入参考图: "Add reference",

@@ -10,7 +10,8 @@ from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
 from .files import BusyError
-from .files import filename
+from .files import filename, read_json, beneath, sha256_file
+from .assets import inspect_image
 from .jsonl import import_jsonl
 from .models import (BatchCreate, ReferenceImport, TasksReplace, TaskInput,
                      JsonlImport, OutputDirectory, InputModel)
@@ -42,7 +43,7 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
         finally:
             await asyncio.to_thread(studio.close)
 
-    app = FastAPI(title="VertexBatchStudio", version="0.2.1", lifespan=lifespan)
+    app = FastAPI(title="VertexBatchStudio", version="0.2.2", lifespan=lifespan)
 
     @app.middleware("http")
     async def authenticate(request: Request, call_next):
@@ -69,7 +70,7 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "version": "0.2.1",
+        return {"status": "ok", "version": "0.2.2",
                 "project_configured": bool(studio.settings.project),
                 "bucket_configured": bool(studio.settings.bucket)}
 
@@ -80,6 +81,10 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
     @app.put('/references/order')
     def reorder_references(value: ReferenceOrder):
         return studio.assets.reorder(value.category, value.paths)
+
+    @app.delete("/references")
+    def delete_reference(path: str):
+        return studio.assets.delete(path)
 
     @app.get("/config")
     def public_config():
@@ -145,6 +150,16 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
     @app.get("/references/file")
     def reference_file(path: str, batch_id: str | None = None):
         # Only verified managed images, never an arbitrary file from the disk.
+        if batch_id:
+            directory = studio.repo.directory(batch_id)
+            manifest = directory / "inputs/manifest.json"
+            if manifest.is_file() and any(path in task.refs for task in studio.repo.tasks(batch_id)):
+                for asset in read_json(manifest).get("assets", []):
+                    if asset["source_path"] == path and asset["local_path"].startswith("inputs/assets/"):
+                        snapshot = beneath(directory / "inputs/assets", asset["local_path"][14:])
+                        if sha256_file(snapshot) != asset["sha256"]:
+                            raise ValueError("参考图快照损坏")
+                        return FileResponse(snapshot, media_type=inspect_image(snapshot)["mime_type"])
         for item in studio.assets.list(batch_id):
             if item["path"] == path:
                 return FileResponse(studio.settings.data_dir / path, media_type=item["mime_type"])
@@ -229,6 +244,14 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
     @app.post("/batches/{batch_id}/archive")
     def archive(batch_id: str):
         return studio.repo.archive(batch_id)
+
+    @app.post("/workspaces/{workspace_id}/archive")
+    def archive_workspace(workspace_id: str):
+        return studio.repo.archive_workspace(workspace_id)
+
+    @app.delete("/workspaces/{workspace_id}")
+    def delete_workspace(workspace_id: str):
+        return studio.repo.delete_workspace(workspace_id)
 
     @app.get("/batches/{batch_id}/results")
     def results(batch_id: str):

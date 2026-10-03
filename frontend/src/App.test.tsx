@@ -73,6 +73,42 @@ beforeEach(() => {
   });
 });
 afterEach(cleanup);
+it("右键归档隐藏项目，设置归档中确认后才删除", async () => {
+  const user = userEvent.setup(), base = vi.mocked(api).getMockImplementation()!;
+  let deleted = false;
+  vi.mocked(api).mockImplementation(async (path, method, body) => {
+    if (path === "/batches" && deleted) return [] as never;
+    if (path === `/workspaces/${batch.id}/archive`) {
+      batch.archived = true; batch.updated_at = "archived";
+      return [{ ...batch }] as never;
+    }
+    if (path === `/workspaces/${batch.id}` && method === "DELETE") {
+      deleted = true; return { deleted: true } as never;
+    }
+    return base(path, method, body);
+  });
+  render(<App />);
+  const title = await screen.findByRole("button", { name: "测试项目" });
+  fireEvent.contextMenu(title, { clientX: 100, clientY: 200 });
+  await user.click(screen.getByRole("menuitem", { name: "归档项目" }));
+  await waitFor(() => expect(screen.queryByRole("button", { name: "测试项目" })).toBeNull());
+  await user.click(screen.getByRole("button", { name: "设置" }));
+  await user.click(screen.getByRole("button", { name: "归档" }));
+  await user.click(screen.getByRole("button", { name: "删除归档项目 测试项目" }));
+  expect(deleted).toBe(false);
+  await user.click(screen.getByRole("button", { name: "取消" }));
+  expect(deleted).toBe(false);
+  await user.click(screen.getByRole("button", { name: "删除归档项目 测试项目" }));
+  await user.click(screen.getByRole("button", { name: "确认删除" }));
+  await screen.findByText("暂无归档项目");
+  expect(deleted).toBe(true);
+});
+it("运行中的项目不能从右键菜单归档", async () => {
+  batch.phase = "monitoring";
+  render(<App />);
+  fireEvent.contextMenu(await screen.findByRole("button", { name: "测试项目" }));
+  expect((screen.getByRole("menuitem", { name: "归档项目" }) as HTMLButtonElement).disabled).toBe(true);
+});
 it("没有云端凭证时不会显示已连接", async () => {
   render(<App />);
   expect(await screen.findByRole("button", { name: "Google Cloud：未配置" })).toBeTruthy();

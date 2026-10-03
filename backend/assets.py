@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from contextlib import ExitStack
 import shutil
 from PIL import Image
 from .files import beneath, filename, sha256_file, operation_lock, read_json, write_json
@@ -124,6 +125,39 @@ class Assets:
         if not any(path.is_relative_to(root.resolve()) for root in allowed):
             raise ValueError("参考图应位于公共库或当前批次的 custom_refs 中")
         return path
+
+    def delete(self, ref: str) -> list[dict]:
+        parts = ref.split("/")
+        if len(parts) < 3 or parts[0] != "references" or parts[1] not in {"styles", "characters", "scenes"}:
+            raise ValueError("只能删除公共参考图库中的图片")
+        root = self.repo.settings.data_dir / "references"
+        target = beneath(root, "/".join(parts[1:]))
+        if target.relative_to(self.repo.settings.data_dir.resolve()).as_posix() != ref:
+            raise ValueError("参考图路径不规范，不能删除")
+        if target.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"} or not target.is_file():
+            raise KeyError("找不到参考图")
+        with ExitStack() as locks:
+            locks.enter_context(operation_lock(self.repo.settings.data_dir / ".locks/assets.lock"))
+            for batch in sorted(self.repo.list(), key=lambda batch: batch["id"]):
+                locks.enter_context(self.repo.lock(batch["id"]))
+                if not any(ref in task.refs for task in self.repo.tasks(batch["id"])):
+                    continue
+                directory = self.repo.directory(batch["id"])
+                manifest_path = directory / "inputs/manifest.json"
+                snapshot = None
+                if batch["phase"] not in {"draft", "prepared"} and manifest_path.exists():
+                    snapshot = next((asset for asset in read_json(manifest_path).get("assets", [])
+                                     if asset["source_path"] == ref), None)
+                if not snapshot or not beneath(directory, snapshot["local_path"]).is_file():
+                    raise ValueError(f"参考图正在被项目「{batch['project_name']}」使用，请先移除任务中的引用")
+                if sha256_file(beneath(directory, snapshot["local_path"])) != snapshot["sha256"]:
+                    raise ValueError("任务中的参考图快照损坏，不能删除原图")
+            target.unlink()
+            order = self._order()
+            for category in order:
+                order[category] = [path for path in order[category] if path != ref]
+            write_json(root / ".order.json", order)
+            return self.list()
 
     def snapshot(self, ref: str, batch_id: str) -> dict:
         source = self.local(ref, batch_id)

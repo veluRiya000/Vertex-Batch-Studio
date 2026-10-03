@@ -17,7 +17,7 @@ The build is unsigned unless a signing certificate is configured separately.
 
 Run `cargo test --manifest-path frontend/src-tauri/Cargo.toml` from the repository root and `npm.cmd test` in `frontend/`.
 
-Run the installed `vertex-batch-studio.exe --smoke-test` to exercise renderer loading, the local backend, PNG import and preview, task references and image count, appearance settings, SSE snapshots, maximize/restore, rejection of an unconfigured submission and local cancellation. It uses `%APPDATA%/VertexBatchStudio-smoke-test/` and never submits a cloud job or changes the startup entry. The success report is `.runtime/tauri-smoke.json` under that test directory. Remove any previous report before each run.
+Run the installed `vertex-batch-studio.exe --smoke-test` to exercise renderer loading, the local backend, PNG import and preview, task references and image count, appearance settings, SSE snapshots, maximize/restore, rejection of an unconfigured submission, local cancellation, project archive/deletion and reference deletion with usage protection. It uses `%APPDATA%/VertexBatchStudio-smoke-test/` and never submits a cloud job or changes the startup entry. The success report is `.runtime/tauri-smoke.json` under that test directory. Remove any previous report before each run.
 
 The native directory picker and Windows tray/startup behavior also require interactive checks. Closing to tray keeps the backend running; actual exit shuts down the backend spawned by this application. An independently started development server is left running.
 
