@@ -14,11 +14,15 @@ const {
   mkdirSync,
   existsSync,
   createWriteStream,
+  writeFileSync,
 } = require("node:fs");
 const { resolve, join, isAbsolute } = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { spawn } = require("node:child_process");
-const root = resolve(__dirname, "../..");
+const smokeTest = process.argv.includes("--smoke-test");
+const root = app.isPackaged
+  ? join(app.getPath("appData"), smokeTest ? "VertexBatchStudio-install-test" : "VertexBatchStudio")
+  : resolve(__dirname, "../..");
 const runtime = join(root, ".runtime");
 mkdirSync(runtime, { recursive: true });
 app.setPath("userData", join(runtime, "desktop"));
@@ -71,7 +75,7 @@ function loginOptions(enabled) {
     name: "VertexBatchStudio",
     openAtLogin: enabled,
     path: process.execPath,
-    args: [app.getAppPath(), "--startup"],
+    args: app.isPackaged ? ["--startup"] : [app.getAppPath(), "--startup"],
   };
 }
 function updateTray() {
@@ -135,7 +139,9 @@ async function startBackend() {
       return;
     }
   } catch {}
-  const python = join(root, ".venv/Scripts/python.exe");
+  const python = app.isPackaged
+    ? join(process.resourcesPath, "backend", "vertex-backend.exe")
+    : join(root, ".venv/Scripts/python.exe");
   if (!existsSync(python))
     throw new Error("找不到 Python 环境，请先完成后端环境安装");
   const log = createWriteStream(join(runtime, "desktop-backend.log"), {
@@ -143,7 +149,9 @@ async function startBackend() {
   });
   backend = spawn(
     python,
-    ["-X", "utf8", "-m", "backend", "serve", "--port", "0"],
+    app.isPackaged
+      ? ["--root", root, "serve", "--port", "0"]
+      : ["-X", "utf8", "-m", "backend", "serve", "--port", "0"],
     {
       cwd: root,
       windowsHide: true,
@@ -482,6 +490,12 @@ else {
       Menu.setApplicationMenu(null);
       await window.loadFile(resolve(__dirname, "../dist/index.html"));
       console.log("Vertex Batch Studio ready");
+      if (smokeTest) {
+        const response = await request("/health");
+        if (!response.ok) throw new Error("Packaged backend health failed");
+        writeFileSync(join(runtime, "install-smoke.json"), JSON.stringify({ packaged: app.isPackaged, rendererLoaded: !window.webContents.isLoading(), backendHealthy: true }));
+        app.quit();
+      }
     } catch (error) {
       dialog.showErrorBox("工作室启动未完成", error.message);
       app.quit();

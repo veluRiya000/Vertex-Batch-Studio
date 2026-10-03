@@ -25,10 +25,10 @@ const connection = () => {
   return (lastConnection = info);
 };
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [react()],
   base: "./",
-  server: {
+  server: command === "serve" ? {
     host: "127.0.0.1",
     port: 5173,
     proxy: {
@@ -55,5 +55,5 @@ export default defineConfig({
         },
       },
     },
-  },
-});
+  } : undefined,
+}));

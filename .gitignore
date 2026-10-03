@@ -378,3 +378,9 @@ node_modules/
 .vs/
 .DS_Store
 Thumbs.db
+
+# Windows packaging
+release/
+packaging/backend/
+packaging/work/
+*.spec
