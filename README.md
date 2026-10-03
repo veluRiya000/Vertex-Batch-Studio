@@ -1,147 +1,269 @@
-# VertexBatchStudio
+# Vertex Batch Studio
 
-浏览器界面已可操作。双击根目录的 **`预览界面.cmd`**，自动启动后端、前端并打开浏览器。当前预览地址为 `http://127.0.0.1:5173`。关闭浏览器后，本地监控继续运行；停止后端使用 `停止后端.cmd`。
+一个用于 **Google Cloud Vertex AI 图片批量生成**的桌面应用。通过可视化界面管理提示词、参考图和生成任务，完成素材上传、批次提交、进度监控及图片保存。
 
-界面支持公共参考图库、本批次临时参考图、单条任务编辑、参数选择、提交与实时队列，以及结果多图预览。每次点击“加入任务”只添加一个任务；点击“提交批次”才会上传并调用真实 Vertex AI。提交后继续写提示词会创建同一项目的新一轮，不修改已提交输入。
+应用提供 Windows 桌面界面、浏览器开发界面、命令行和本地 HTTP API。默认模型为 `gemini-3.1-flash-image`，默认区域为 `global`。
 
-参考图库右上可切换列表或窗格。点击条目预览，点击图片旁的“＋”加入当前输入框；拖动条目调整排列顺序，重开后保留。风格、人设、场景分别保存顺序，图片原文件路径不变。
+## 目录
 
-浏览器无法直接弹出 Windows 文件夹选择器：输出目录在弹窗中填写绝对路径，结果区可复制保存路径。左上“关于”查看连接信息；左下“设置”切换主题和语言，并在 Google Cloud 登录页修改项目、桶名或导入任意文件名的服务账号 JSON 密钥。改动即时生效并写入 `.env`，旧密钥保留；运行中的批次完成或取消后才能更换连接。
+- [主要功能](#主要功能)
+- [安装与快速开始](#安装与快速开始)
+- [使用流程](#使用流程)
+- [配置](#配置)
+- [数据与文件管理](#数据与文件管理)
+- [从源码运行](#从源码运行)
+- [命令行使用](#命令行使用)
+- [开发与测试](#开发与测试)
+- [构建 Windows 安装包](#构建-windows-安装包)
+- [常见问题](#常见问题)
+- [贡献与许可](#贡献与许可)
 
-双击 **`启动界面.cmd`** 可打开 Electron 桌面窗口，自动连接或启动本机后端。默认关闭后驻留托盘；设置里可关闭该行为，也可启用开机自启动和启动时最小化至托盘。选择“退出工作室”会正常停止后端。主题、语言及侧栏宽度保存在本地 `settings.json`；拖动侧栏右边缘调宽，左下按钮快速收起或展开。桌面模式可使用 Windows 文件夹选择器和“打开输出文件夹”。运行组件目录的读取权限已按用户授权调整，沙箱保持开启；桌面启动已验证，托盘、开机启动、目录选择等系统交互仍需实际试用验证。尚未打包独立 EXE。
+## 主要功能
 
-本地 Vertex AI 图片批次工作室。Python 工作流、命令行、FastAPI、React 界面和 Electron 桌面入口共用同一份批次数据。
+- **参考图库**：按风格、角色和场景管理常用图片，支持列表与窗格视图、图片预览及拖动排序。
+- **批次素材**：导入当前批次专用的临时参考图，保留参考图引用顺序。
+- **任务编辑**：设置提示词、模型、画面比例、分辨率、温度和期望图片数量。
+- **批量生成**：将任务转换为 JSONL，上传至 Google Cloud Storage，并直接提交 Vertex AI 批次。
+- **增量上传**：根据文件内容哈希复用已上传素材，避免重复上传相同内容。
+- **进度与恢复**：展示生成队列，监控云端状态，重新启动后恢复未完成批次的本地处理。
+- **结果管理**：下载结果分片、保留原始 JSONL、解码所有返回图片，并支持多图预览及自定义输出目录。
+- **重试与归档**：复制批次、重试失败任务、重新解码已下载结果，以及归档本地批次。
+- **桌面设置**：浅色与深色主题、中英文界面、托盘驻留、开机启动和启动时最小化。
 
-默认模型 `gemini-3.1-flash-image`，区域 `global`。后台运行时每 30 秒检查云端任务，下载所有可用结果分片，保存原始 JSONL 并解码图片。
+参考图支持 PNG、JPEG 和 WebP。
 
-## 启动
+## 安装与快速开始
 
-在本项目目录打开终端，使用项目自己的解释器：
+### Windows 桌面版
 
-```powershell
-.\.venv\Scripts\python.exe -m backend doctor
-.\.venv\Scripts\python.exe -m backend serve
+运行 `VertexBatchStudio-Setup-<版本>-x64.exe`，按安装向导完成安装。安装版自带后端运行环境，无需额外安装 Python 或 Node.js。
+
+首次启动后：
+
+1. 打开左下角 **设置 → Google Cloud 登录**。
+2. 填写 Google Cloud 项目 ID 和 Cloud Storage 存储桶名称。
+3. 导入服务账号 JSON 密钥，文件名可以自行命名。
+4. 在 **关于** 中检查连接。
+5. 创建项目，添加任务，再提交批次。
+
+当前安装包未进行代码签名，Windows 可能显示未知发布者提示。
+
+### Google Cloud 准备
+
+云端生成需要具备以下条件：
+
+- 可调用目标模型的 Google Cloud 项目，并已启用 Vertex AI API 和计费。
+- 用于保存参考图、输入 JSONL 和生成结果的 Cloud Storage 存储桶。
+- 具备批次作业操作及相应存储桶访问权限的凭证。
+- Vertex AI 服务代理具备读取输入与参考图、写入结果所需的存储权限。
+
+模型可用性、配额及相关权限由 Google Cloud 决定。**提交批次会产生云端调用及存储费用**；本地编辑任务不会调用生图服务。
+
+## 使用流程
+
+```text
+创建项目 → 添加参考图与提示词 → 加入任务 → 提交批次
+                                           ↓
+                                上传素材并创建云端作业
+                                           ↓
+                                监控进度 → 下载并保存图片
 ```
 
-也可以双击 `检查配置.cmd` 或 `启动后端.cmd`。已运行的后端可通过 `停止后端.cmd` 正常退出；这不会取消云端生图任务。
+每次点击 **加入任务**，只创建一个任务，对应 JSONL 中的一行。可在同一草稿批次中添加多个任务，点击 **提交批次** 后统一生成。
 
-服务自动选择空闲端口，只监听 `127.0.0.1`。连接地址和随机令牌写入 `.runtime/connection.json`，正常退出后删除。所有接口需要 `X-VBS-Token` 请求头，包括 OpenAPI 接口。令牌不放在 URL 中。
+图库中的图片点击后进入预览；点击图片旁的 **＋** 才会添加到当前输入。拖动图库条目用于调整排列顺序。输入框也支持直接拖入本地图片。
 
-后台程序运行时会恢复此前未完成的任务。此阶段关闭终端会停止本地监控，已提交的云端任务继续执行；再次启动会恢复。窗口隐藏到托盘的行为属于后续 Electron 阶段。
+图片数量可选 1–4。选择多张时，应用会在原始提示词末尾追加生成数量说明，仍然只提交一条请求。**该数量是生成期望，实际返回数量由模型决定**；预览会展示所有返回图片。
+
+开始上传后，当前批次输入被冻结。后续修改或重新生成使用新批次，避免改动正在执行的请求。
 
 ## 配置
 
-你已经填写的 `.env` 和密钥保持原样。配置值的优先级为进程环境变量、`.env`、默认值。相对路径都以软件根目录为起点。
-
-关键配置：`GOOGLE_CLOUD_PROJECT`、`GCS_BUCKET`、`GOOGLE_APPLICATION_CREDENTIALS`。项目 ID 与你填写的批次项目名称是两个概念。凭证文件只在云端操作时加载，离线整理任务不需要访问 Google。
-
-只读检查连接，不上传、不创建任务：
+桌面版可通过设置界面配置云端连接。源码运行或命令行使用时，将根目录下的 `.env.example` 复制为 `.env`：
 
 ```powershell
-.\.venv\Scripts\python.exe -m backend check-cloud
+Copy-Item .env.example .env
 ```
 
-它检查调用账号能否列出任务、读取桶，以及拥有的桶权限；Google 服务代理的参考图读取和输出写入权限仍需首次真实生图确认。
+示例配置：
 
-## 从命令行跑一个批次
-
-下列命令中的 `<批次ID>` 替换成 `create` 返回的 `id`，不是目录名称。
-
-```powershell
-.\.venv\Scripts\python.exe -m backend create "夏日祭分镜"
-.\.venv\Scripts\python.exe -m backend set-tasks <批次ID> examples/tasks.json
-.\.venv\Scripts\python.exe -m backend prepare <批次ID>
+```dotenv
+GOOGLE_CLOUD_PROJECT=your-project-id
+GCS_BUCKET=your-storage-bucket
+GOOGLE_CLOUD_LOCATION=global
+VERTEX_MODEL=gemini-3.1-flash-image
+GOOGLE_APPLICATION_CREDENTIALS=secrets/service-account.json
+VBS_DATA_DIR=data
+VBS_POLL_SECONDS=30
 ```
 
-`prepare` 只做本地校验、参考图快照和 JSONL 编写，可查看批次目录内的 `inputs/prompts.jsonl`。
+| 配置项 | 用途 | 默认值 |
+| --- | --- | --- |
+| `GOOGLE_CLOUD_PROJECT` | Google Cloud 项目 ID | 必填 |
+| `GCS_BUCKET` | 存储桶名称，不含 `gs://` | 必填 |
+| `GOOGLE_CLOUD_LOCATION` | 模型调用区域 | `global` |
+| `VERTEX_MODEL` | 图片生成模型 ID | `gemini-3.1-flash-image` |
+| `GOOGLE_APPLICATION_CREDENTIALS` | 服务账号 JSON 密钥路径 | 自动检测 `secrets/key.json` |
+| `VBS_DATA_DIR` | 本地素材及批次数据目录 | `data` |
+| `VBS_POLL_SECONDS` | 云端状态查询间隔，单位秒 | `30` |
 
-准备好后提交，并监控：
+配置优先级为 **进程环境变量 → `.env` → 默认值**。相对路径以应用数据根目录为起点；源码模式下，该根目录默认是仓库根目录，也可通过命令行 `--root` 指定。
 
-```powershell
-.\.venv\Scripts\python.exe -m backend submit <批次ID>
-.\.venv\Scripts\python.exe -m backend watch <批次ID>
+未指定密钥且不存在 `secrets/key.json` 时，后端使用 Google Application Default Credentials（ADC）。密钥、`.env` 和生成数据应保留在本地，不应提交到仓库。
+
+## 数据与文件管理
+
+Windows 安装版的数据根目录为：
+
+```text
+%APPDATA%/VertexBatchStudio/
 ```
 
-`submit` 会上传本批次引用的参考图与输入文件，并创建云端任务。这一步开始调用收费的生图服务；示例文件包含两条任务。提交后也可以保持 `serve` 运行，让它自动监控。
-
-查看状态或输出：
-
-```powershell
-.\.venv\Scripts\python.exe -m backend status <批次ID>
-.\.venv\Scripts\python.exe -m backend results <批次ID>
-```
-
-## 导入与使用参考图
-
-```powershell
-.\.venv\Scripts\python.exe -m backend import-ref "D:\图片\画风.png" --category styles
-.\.venv\Scripts\python.exe -m backend import-ref "D:\图片\姿势.png" --batch <批次ID>
-.\.venv\Scripts\python.exe -m backend references --batch <批次ID>
-```
-
-导入返回受管理的 `path`，例如 `references/styles/画风.png`。将它放进任务的 `refs` 列表，顺序就是提示词里的参考图顺序。
-
-```json
-{
-  "name": "人物近景",
-  "prompt": "采用参考图一中的画风，绘制人物近景。",
-  "refs": ["references/styles/画风.png"],
-  "aspect_ratio": "16:9",
-  "image_size": "1K",
-  "temperature": 0.35
-}
-```
-
-公共素材分类为 `characters`、`scenes`、`styles`。临时素材复制到当前批次的 `custom_refs`。第一版支持 PNG、JPEG、WebP，检查实际文件格式；同名不同图不会覆盖。
-
-提交前保留参考图快照。云端图片文件名包含完整内容哈希，内容不变可复用；相同大小但不同内容也会上传新版本。上传清单只包含引用素材和该批次输入，凭证、代码、日志、归档和解码图片不回传。
-
-旧的 `prompts.jsonl` 可以通过 `import-jsonl <批次ID> <文件路径>` 导入。仅支持原脚本使用的“单轮 user、提示词在前、随后参考图”结构，兼容 snake_case 与 camelCase；不执行旧 Python 脚本。远程参考图必须位于当前桶中，原 URI 会保留。
-
-## 批次目录与恢复
+配置、导入的密钥、参考图和批次数据与安装文件分开保存；卸载默认保留用户数据。源码模式默认在仓库根目录保存这些文件。
 
 ```text
 data/
-├── references/{characters,scenes,styles}/
-├── batches/日期_项目名称/
-│   ├── batch.json
-│   ├── inputs/{tasks.json,prompts.jsonl,manifest.json,assets/}
-│   ├── custom_refs/
-│   ├── outputs/{raw/,images/,results.json}
-│   └── logs/events.jsonl
+├── references/
+│   ├── characters/
+│   ├── scenes/
+│   └── styles/
+├── batches/
+│   └── YYYYMMDD_项目名称/
+│       ├── batch.json
+│       ├── inputs/
+│       ├── custom_refs/
+│       ├── outputs/
+│       │   ├── raw/
+│       │   └── images/
+│       └── logs/
 └── archive/
 ```
 
-日期使用北京时间。同日同名自动加 `_02`、`_03`，归档名称也保持占用。内部 ID 留在 JSON 内。你前面练习创建的五字段 `batch.json` 会兼容读取，旧文件不会在读取时被覆盖；缺少 `tasks.json` 的草稿视为空任务。
+批次日期使用北京时间，同日同名目录依次追加 `_02`、`_03`，不会覆盖已有批次。批次内部 ID 与文件夹名称分别管理。
 
-输入从开始上传起冻结；已提交批次不能修改任务。重新生成使用 `clone`，只重新生成失败项使用 `retry`，都建立新批次，且不会自动提交。
+默认图片输出目录是批次的 `outputs/images/`，也可选择外部目录。原始响应保留在 `outputs/raw/`，便于重新解码或排查失败结果。
 
-```powershell
-.\.venv\Scripts\python.exe -m backend retry <批次ID>
-.\.venv\Scripts\python.exe -m backend clone <批次ID>
-.\.venv\Scripts\python.exe -m backend set-output <批次ID> "D:\生成图片"
-.\.venv\Scripts\python.exe -m backend extract <批次ID>
-.\.venv\Scripts\python.exe -m backend cancel <批次ID>
-.\.venv\Scripts\python.exe -m backend archive <批次ID>
-```
+上传仅包含批次引用的素材和输入文件。归档只移动本地批次，不移动或删除云端对象。
 
-- `extract` 从已下载原始结果重新导出，不重新生成；导出失败时可更换目录后重试。
-- 网络失败保留已完成分片的下载记录；重开后按任务编号继续。下载缓存损坏会重新下载。
-- 提交超时会进入 `submission_unknown`，程序核对云端记录，不会盲目再次创建。若多条任务对应同一批次，可用 `attach <批次ID> <完整云端任务编号>` 选择。
-- 结果按回传请求匹配，处理全部分片和图片，保留错误与缺失结果。相同请求按同组及固定任务 ID 顺序分配；不依赖云端行顺序。
-- 归档只移动本地批次，不移动云端对象；内部默认导出图片的路径也会更新。外部导出目录保持原位。
+## 从源码运行
 
-## 开发与测试
+### 开发环境
 
-项目 `.venv` 已安装本次使用的依赖。另一台 Windows/Python 3.12 环境可以按锁定版本安装：
+- Windows x64；当前安装包及桌面流程在 Windows 上验证。
+- Python 3.12 或更新版本，推荐使用 3.12 配合锁定依赖。
+- Node.js 22.12 或更新版本，以及 npm。
+
+下载或克隆源码后，在仓库根目录执行：
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.lock.txt
-.\.venv\Scripts\python.exe -m pip install --no-build-isolation --no-deps -e .
-.\.venv\Scripts\python.exe -m unittest discover -s tests -t . -v
+.\.venv\Scripts\python.exe -m pip install --no-deps -e .
+Copy-Item .env.example .env
+cd frontend
+npm.cmd ci
+cd ..
 ```
 
-所有自动测试使用临时目录和模拟云端，不读取真实密钥，不创建收费任务。包含真实本机 HTTP 服务的启动、令牌验证和正常关闭测试。现有 `backend/batches.py` 是你亲手写的教学脚本，可保留；正式流程使用 `Repository` 与 `Studio`。
+配置云端信息后，运行根目录的 `启动界面.cmd`，打开 Electron 桌面窗口。运行 `预览界面.cmd` 可启动浏览器界面；浏览器模式不提供原生文件夹选择器和系统托盘功能。
 
-接口列表与数据约定见 `docs/API.md`，实际完成和待完成的验收见 `docs/VALIDATION.md`。主要模块为配置、仓库、素材、JSONL、云端适配、结果提取和工作流；核心可以直接从 Python 调用，也可以通过命令行或 HTTP 使用。
+也可分别启动后端与前端开发服务器：
+
+```powershell
+# 终端一：仓库根目录
+.\.venv\Scripts\python.exe -m backend serve
+
+# 终端二：frontend 目录
+npm.cmd run dev
+```
+
+本地后端仅监听 `127.0.0.1`，默认自动选择空闲端口。连接信息写入 `.runtime/connection.json`，API 使用 `X-VBS-Token` 验证访问；该文件包含本地访问令牌。
+
+## 命令行使用
+
+以下命令在仓库根目录执行。将 `<batch-id>` 替换为 `create` 返回的内部 ID：
+
+```powershell
+# 检查本地配置与云端连接
+.\.venv\Scripts\python.exe -m backend doctor
+.\.venv\Scripts\python.exe -m backend check-cloud
+
+# 创建批次并导入任务
+.\.venv\Scripts\python.exe -m backend create "示例项目"
+.\.venv\Scripts\python.exe -m backend set-tasks <batch-id> examples/tasks.json
+.\.venv\Scripts\python.exe -m backend prepare <batch-id>
+
+# 提交并监控，此处开始调用云端服务
+.\.venv\Scripts\python.exe -m backend submit <batch-id>
+.\.venv\Scripts\python.exe -m backend watch <batch-id>
+
+# 查看状态与结果
+.\.venv\Scripts\python.exe -m backend status <batch-id>
+.\.venv\Scripts\python.exe -m backend results <batch-id>
+```
+
+`prepare` 仅执行本地校验及输入准备。`check-cloud` 检查连接与权限，不创建生图任务。完整命令可通过 `python -m backend --help` 查看，接口约定见 [API 文档](docs/API.md)。
+
+## 开发与测试
+
+项目由以下部分组成：
+
+| 目录 | 内容 |
+| --- | --- |
+| `backend/` | Python 工作流、命令行、FastAPI 及云端适配 |
+| `frontend/src/` | React 与 TypeScript 界面 |
+| `frontend/electron/` | 桌面主进程、托盘及受控 IPC |
+| `packaging/` | 后端打包入口与 Windows 构建脚本 |
+| `tests/` | 后端自动测试与模拟云端 |
+| `examples/` | 示例任务文件 |
+| `docs/` | 接口及开发文档 |
+
+运行检查：
+
+```powershell
+# 仓库根目录
+.\.venv\Scripts\python.exe -m unittest discover -s tests -t . -v
+
+# frontend 目录
+npm.cmd test
+npm.cmd run build
+```
+
+自动测试使用临时目录和模拟云端，不要求真实密钥，也不会创建收费的生图任务。真实云端联调需要单独准备配置。
+
+## 构建 Windows 安装包
+
+在已安装 Python 和 Node.js 的 Windows 环境中，从仓库根目录执行：
+
+```powershell
+python -m venv .venv
+powershell -ExecutionPolicy Bypass -File packaging/build-windows.ps1 -Python .venv/Scripts/python.exe
+```
+
+构建脚本使用 PyInstaller 打包后端，并通过 electron-builder 生成 x64 NSIS 安装程序。产物保存在 `release/`，个人配置、密钥和批次数据不包含在安装包中。
+
+更多说明见 [Windows 打包文档](packaging/README.md)。
+
+## 常见问题
+
+**关闭窗口后任务还会继续吗？**
+
+启用“关闭时最小化到托盘”后，桌面程序与本地监控继续运行。真正退出或关机后，本地处理停止，已经提交的云端任务仍可能继续；再次启动后恢复监控和下载。
+
+**图片数量为什么与选择值不一致？**
+
+数量设置通过提示词表达生成期望，并非服务端强制返回数量。应用会保存实际返回的所有图片。
+
+**下载或解码失败需要重新生成吗？**
+
+已有原始结果可以重新下载或解码，不必重新提交生图请求。失败任务重试会创建新批次，需要另行提交。
+
+**可以在运行中更换 Google Cloud 连接吗？**
+
+需要先完成或取消运行中的批次，再更换项目、存储桶或凭证。
+
+## 贡献与许可
+
+欢迎通过 Issue 报告问题或提出改进，也欢迎提交 Pull Request。问题报告请包含版本、复现步骤和已脱敏的错误信息，避免附上密钥或访问令牌。
+
+当前仓库尚未提供 `LICENSE` 文件；使用及分发授权以维护者声明为准。
