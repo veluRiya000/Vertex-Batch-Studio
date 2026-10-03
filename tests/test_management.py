@@ -110,6 +110,41 @@ class ManagementTests(unittest.TestCase):
         self.assertTrue((outside / "batch.json").is_file())
         directory.unlink()
 
+    def test_rename_updates_all_rounds_without_changing_files_or_cloud_identity(self):
+        batch = self.repo.create("原项目")
+        child = self.repo.create("原项目", source_batch_id=batch["id"])
+        other = self.repo.create("其他项目")
+        child["phase"] = "monitoring"
+        child["job_name"] = "projects/demo/locations/global/batchPredictionJobs/123"
+        self.repo.save(child)
+        snapshots = {b["id"]: self.repo.get(b["id"]) for b in [batch, child]}
+        paths = {b["id"]: self.repo.directory(b["id"]) for b in [batch, child]}
+        frozen = paths[child["id"]] / "inputs" / "prompts.jsonl"
+        frozen.write_text('original frozen request', encoding="utf-8")
+        self.repo.rename_workspace(batch["id"], "新名称 中文")
+        for id, before in snapshots.items():
+            after = self.repo.get(id)
+            self.assertEqual(after["project_name"], "新名称 中文")
+            self.assertEqual(self.repo.directory(id), paths[id])
+            for key in before.keys() - {"project_name", "updated_at"}:
+                self.assertEqual(after[key], before[key], key)
+        self.assertEqual(frozen.read_text(encoding="utf-8"), 'original frozen request')
+        self.assertEqual(self.repo.get(other["id"])["project_name"], "其他项目")
+        self.assertEqual(self.cloud.creates, 0)
+
+    def test_rename_validates_name_auth_and_missing_workspace(self):
+        batch = self.repo.create("原项目")
+        with TestClient(create_app(self.studio, "test-token", background=False)) as client:
+            path = f"/workspaces/{batch['id']}"
+            self.assertEqual(client.put(path, json={"project_name": "新名称"}).status_code, 401)
+            client.headers["X-VBS-Token"] = "test-token"
+            for invalid in ["", "   ", "a/b", "a" * 81]:
+                self.assertEqual(client.put(path, json={"project_name": invalid}).status_code, 422)
+            self.assertEqual(self.repo.get(batch["id"])["project_name"], "原项目")
+            self.assertEqual(client.put(path, json={"project_name": "新名称"}).status_code, 200)
+            self.assertEqual(self.repo.get(batch["id"])["project_name"], "新名称")
+            self.assertEqual(client.put('/workspaces/' + 'f' * 32, json={"project_name": "新"}).status_code, 404)
+
     def test_management_endpoints_require_auth_and_archive_before_deletion(self):
         batch = self.repo.create("接口项目")
         ref = self.reference()

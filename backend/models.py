@@ -20,6 +20,15 @@ class BatchCreate(InputModel):
         return project_name(value)
 
 
+class WorkspaceRename(InputModel):
+    project_name: str
+
+    @field_validator("project_name")
+    @classmethod
+    def valid_name(cls, value: str) -> str:
+        return project_name(value)
+
+
 class TaskInput(InputModel):
     name: str = Field(min_length=1, max_length=120)
     prompt: str = Field(min_length=1)

@@ -108,6 +108,7 @@ fn allowed(method: &str, path: &str) -> bool {
                 format!("^/batches/{id}/(tasks|prepare|submit|poll|extract|cancel|retry|clone|archive|attach|import-jsonl)$"),
                 format!("^/workspaces/{id}/archive$")]),
             ("PUT", vec!["^/(preferences|cloud/configuration|references/order)$".into(),
+                format!("^/workspaces/{id}$"),
                 format!("^/batches/{id}/(tasks|output-directory|tasks/{id})$")]),
             ("DELETE", vec!["^/references$".into(), format!("^/workspaces/{id}$"), format!("^/batches/{id}/tasks/{id}$")]),
         ].into_iter().map(|(method, patterns)|
@@ -837,6 +838,8 @@ mod tests {
         assert!(allowed("GET", "/references/file?path=styles%2Fa.png"));
         assert!(allowed("POST", &format!("/workspaces/{id}/archive")));
         assert!(allowed("DELETE", &format!("/workspaces/{id}")));
+        assert!(allowed("PUT", &format!("/workspaces/{id}")));
+        assert!(!allowed("PUT", &format!("/workspaces/{id}/archive")));
         assert!(allowed(
             "DELETE",
             "/references?path=references%2Fstyles%2Fa.png"

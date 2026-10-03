@@ -214,6 +214,19 @@ class Repository:
             raise KeyError("找不到项目")
         return sorted(members, key=lambda batch: batch["id"])
 
+    def rename_workspace(self, workspace_id: str, name: str) -> list[dict]:
+        # Display metadata only: frozen inputs, directories and GCS objects keep their identities.
+        name = project_name(name)
+        with ExitStack() as locks:
+            members = self.workspace_batches(workspace_id)
+            for batch in members:
+                locks.enter_context(self.lock(batch["id"]))
+            members = [self.get(batch["id"]) for batch in members]
+            for batch in members:
+                batch["project_name"] = name
+                self.save(batch)
+            return members
+
     def archive_workspace(self, workspace_id: str) -> list[dict]:
         with ExitStack() as locks:
             members = self.workspace_batches(workspace_id)

@@ -2,6 +2,13 @@ import { usePreferences } from "./preferences";
 
 // User prompts and project names are never translated.
 export const english: Record<string, string> = {
+  重命名项目: "Rename project",
+  项目已重命名: "Project renamed",
+  保存名称: "Save name",
+  展开全文: "Expand text",
+  收起: "Collapse",
+  打开输出目录: "Open output folder",
+  设置输出目录: "Set output folder",
   归档: "Archive",
   项目操作: "Project actions",
   归档项目: "Archive project",

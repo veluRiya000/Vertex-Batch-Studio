@@ -30,6 +30,7 @@
 
 | 请求 | 行为 |
 |---|---|
+| `PUT /workspaces/{workspace_id}` | 重命名项目所有批次的显示名称；body 为 `{"project_name":"新名称"}`，目录、冻结请求和云端路径保持不变 |
 | `POST /batches` | 创建批次，返回内部 ID 和完整状态 |
 | `GET /batches` | 按创建时间列出批次，包含归档 |
 | `GET /batches/{id}` | 查询批次状态、错误与完成数量 |

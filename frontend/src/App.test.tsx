@@ -295,3 +295,42 @@ it("三张图片仍只发一个原文任务，切换数量不会修改旧任务"
   await user.click(screen.getByRole("option", { name: "4" }));
   expect(tasks[0].image_count).toBe(3);
 });
+
+it("项目右键重命名保留目录，取消不会保存", async () => {
+  const user = userEvent.setup(), base = vi.mocked(api).getMockImplementation()!;
+  vi.mocked(api).mockImplementation(async (path, method, body) => {
+    if (path === `/workspaces/${batch.id}` && method === "PUT") {
+      batch.project_name = (body as { project_name: string }).project_name;
+      batch.updated_at = "renamed";
+      return [{ ...batch }] as never;
+    }
+    return base(path, method, body);
+  });
+  render(<App />);
+  fireEvent.contextMenu(await screen.findByRole("button", { name: "测试项目" }));
+  await user.click(screen.getByRole("menuitem", { name: "重命名项目" }));
+  const name = screen.getByRole("textbox", { name: "项目名称" });
+  expect((name as HTMLInputElement).value).toBe("测试项目");
+  await user.clear(name);
+  await user.type(name, "修改后的项目");
+  await user.click(screen.getByRole("button", { name: "保存名称" }));
+  await screen.findByRole("button", { name: "修改后的项目" });
+  expect(batch.folder).toBe("20261003_测试项目");
+  fireEvent.contextMenu(screen.getByRole("button", { name: "修改后的项目" }));
+  await user.click(screen.getByRole("menuitem", { name: "重命名项目" }));
+  await user.type(screen.getByRole("textbox", { name: "项目名称" }), "未保存");
+  fireEvent.keyDown(document, { key: "Escape" });
+  expect(batch.project_name).toBe("修改后的项目");
+});
+
+it("打开输出目录按钮打开当前批次而非进入设置", async () => {
+  const user = userEvent.setup();
+  const openOutput = vi.fn().mockResolvedValue(undefined);
+  window.studio = { openOutput } as never;
+  try {
+    render(<App />);
+    await user.click(await screen.findByRole("button", { name: "打开输出目录" }));
+    expect(openOutput).toHaveBeenCalledWith(batch.id);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  } finally { delete window.studio; }
+});

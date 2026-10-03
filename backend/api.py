@@ -14,7 +14,7 @@ from .files import filename, read_json, beneath, sha256_file
 from .assets import inspect_image
 from .jsonl import import_jsonl
 from .models import (BatchCreate, ReferenceImport, TasksReplace, TaskInput,
-                     JsonlImport, OutputDirectory, InputModel)
+                     JsonlImport, OutputDirectory, InputModel, WorkspaceRename)
 from .service import Studio
 from .preferences import Preferences, load_preferences, save_preferences
 from .connection import CloudConfiguration, configure_cloud
@@ -43,7 +43,7 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
         finally:
             await asyncio.to_thread(studio.close)
 
-    app = FastAPI(title="VertexBatchStudio", version="0.2.2", lifespan=lifespan)
+    app = FastAPI(title="VertexBatchStudio", version="0.2.3", lifespan=lifespan)
 
     @app.middleware("http")
     async def authenticate(request: Request, call_next):
@@ -70,7 +70,7 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "version": "0.2.2",
+        return {"status": "ok", "version": "0.2.3",
                 "project_configured": bool(studio.settings.project),
                 "bucket_configured": bool(studio.settings.bucket)}
 
@@ -244,6 +244,10 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
     @app.post("/batches/{batch_id}/archive")
     def archive(batch_id: str):
         return studio.repo.archive(batch_id)
+
+    @app.put("/workspaces/{workspace_id}")
+    def rename_workspace(workspace_id: str, value: WorkspaceRename):
+        return studio.repo.rename_workspace(workspace_id, value.project_name)
 
     @app.post("/workspaces/{workspace_id}/archive")
     def archive_workspace(workspace_id: str):

@@ -40,6 +40,7 @@ import { Media, Modal, Picker } from "./components";
 import { SettingsPanel } from "./SettingsPanel";
 import { ReferenceLibrary } from "./ReferenceLibrary";
 import { ProjectMenu } from "./ProjectMenu";
+import { CollapsiblePrompt } from "./CollapsiblePrompt";
 import { usePreferences } from "./preferences";
 import { useCloudConnection } from "./cloud-connection";
 import { useTranslation } from "./i18n";
@@ -210,7 +211,7 @@ function TaskCard({
             ))}
           </div>
         )}
-        <p>{task.prompt}</p>
+        <CollapsiblePrompt text={task.prompt} />
         <div className="request-footer">
           <span>
             {task.aspect_ratio} · {task.image_size}
@@ -406,9 +407,10 @@ export default function App() {
   const [projectMenu, setProjectMenu] = useState<{ id: string; x: number; y: number }>();
   const closeProjectMenu = useCallback(() => setProjectMenu(undefined), []);
   const [modal, setModal] = useState<
-    "new" | "settings" | "about" | "output" | null
+    "new" | "rename" | "settings" | "about" | "output" | null
   >(null);
   const [newName, setNewName] = useState("");
+  const [renameProject, setRenameProject] = useState<{ id: string; name: string }>();
   const [output, setOutput] = useState("");
   const [preview, setPreview] = useState<Preview>();
   const [busy, setBusy] = useState(false);
@@ -795,7 +797,7 @@ export default function App() {
       else {
         await navigator.clipboard.writeText(
           batch.image_output_dir ||
-            config!.data_dir + "/batches/" + batch.folder + "/outputs/images",
+            config!.data_dir + (batch.archived ? "/archive/" : "/batches/") + batch.folder + "/outputs/images",
         );
         notify(t("输出路径已复制"));
       }
@@ -1184,6 +1186,9 @@ export default function App() {
               </button>
             )}
             <span className="context-space" />
+            {latest && <button className="text-button" onClick={() => void openFolder(latest)}>
+              <FolderOpen size={14} />{t("打开输出目录")}
+            </button>}
             {latest && (
               <button
                 className="text-button output-setting"
@@ -1193,7 +1198,7 @@ export default function App() {
                 }}
               >
                 <FolderOpen size={13} />
-                {t("输出目录")}
+                {t("设置输出目录")}
               </button>
             )}
           </div>
@@ -1591,6 +1596,27 @@ export default function App() {
           </form>
         </Modal>
       )}
+      {modal === "rename" && renameProject && (
+        <Modal title={t("重命名项目")} close={() => setModal(null)}>
+          <form onSubmit={(event) => {
+            event.preventDefault();
+            void run(async () => {
+              await api(`/workspaces/${renameProject.id}`, "PUT", { project_name: renameProject.name });
+              await refresh();
+              setModal(null);
+              notify(t("项目已重命名"));
+            });
+          }}>
+            <label className="form-label">{t("项目名称")}
+              <input autoFocus value={renameProject.name} maxLength={80}
+                onChange={(event) => setRenameProject({ ...renameProject, name: event.target.value })} />
+            </label>
+            <button className="primary-button" type="submit" disabled={busy || !renameProject.name.trim()}>
+              <Check size={16} />{t("保存名称")}
+            </button>
+          </form>
+        </Modal>
+      )}
       {modal === "about" && (
         <Modal title={t("关于")} close={() => setModal(null)}>
           <div className="settings-summary">
@@ -1633,6 +1659,10 @@ export default function App() {
       )}
       {projectMenu && (
         <ProjectMenu x={projectMenu.x} y={projectMenu.y} close={closeProjectMenu}
+          rename={() => {
+            const project = workspaces.find(item => item.id === projectMenu.id);
+            if (project) { setRenameProject({ id: project.id, name: project.name }); setModal("rename"); }
+          }}
           allowed={!busy && !!workspaces.find((item) => item.id === projectMenu.id)?.batches.every((batch) =>
             batch.archived || editable(batch) || terminal(batch) || ["upload_failed", "submission_failed"].includes(batch.phase))}
           archive={() => void run(async () => {

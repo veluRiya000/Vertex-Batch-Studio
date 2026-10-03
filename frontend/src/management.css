@@ -24,3 +24,6 @@
 [data-theme="dark"] :is(.archived-project, .archive-confirm) { background: #22384b; }
 [data-theme="dark"] .reference-delete { background: #302c3b; color: #f5b7c2; border-color: #6b485b; }
 [data-theme="dark"] .reference-delete:hover:not(:disabled) { background: #483043; }
+
+.request-bubble .prompt-collapsed { max-height: 9.25em; overflow: hidden; }
+.request-bubble .prompt-toggle { margin-top: 6px; font-size: 11px; }
