@@ -1,15 +1,16 @@
 {
   "name": "vertex-batch-studio",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "tsc --noEmit && vite build",
+    "build": "npm run build:icons && tsc --noEmit && vite build",
     "desktop": "electron .",
     "test": "vitest run",
-    "package:win": "npm run build && electron-builder --win nsis --x64"
+    "package:win": "npm run build && electron-builder --win nsis --x64",
+    "build:icons": "node scripts/build-icons.mjs"
   },
   "dependencies": {
     "lucide-react": "1.51.0",
@@ -17,6 +18,7 @@
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@testing-library/react": "16.3.3",
     "@testing-library/user-event": "14.6.7",
     "@types/node": "26.6.4",
@@ -62,7 +64,9 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "deleteAppDataOnUninstall": false,
-      "artifactName": "VertexBatchStudio-Setup-${version}-${arch}.${ext}"
+      "artifactName": "VertexBatchStudio-Setup-${version}-${arch}.${ext}",
+      "installerIcon": "electron/icon.ico",
+      "uninstallerIcon": "electron/icon.ico"
     }
   },
   "description": "Desktop studio for Vertex AI image batches"

@@ -93,34 +93,15 @@ const time = (value: string) =>
     hour12: false,
   });
 
+const studioLogo = new URL("./assets/logo.svg", import.meta.url).href;
 export function Logo({ large = false }: { large?: boolean }) {
   return (
-    <svg
+    <img
       className={large ? "studio-logo large" : "studio-logo"}
-      viewBox="0 0 40 40"
-      fill="none"
+      src={studioLogo}
+      alt=""
       aria-hidden
-    >
-      <rect
-        x="7"
-        y="5"
-        width="25"
-        height="28"
-        rx="8"
-        transform="rotate(-11 7 5)"
-        fill="#DBEFFB"
-      />
-      <rect x="9" y="9" width="25" height="28" rx="8" fill="#237CAB" />
-      <path d="M15 27l5-6 4 4 3-4 3 6H15z" fill="#fff" />
-      <circle cx="27" cy="16" r="3.5" fill="#F6C75D" />
-      <path
-        d="M14 14h5"
-        stroke="white"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        opacity=".6"
-      />
-    </svg>
+    />
   );
 }
 export function ModelMark() {
