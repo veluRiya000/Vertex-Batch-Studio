@@ -119,7 +119,7 @@ class Settings:
         不符合要求时抛出 ValueError，由后续界面显示错误信息。
         """
         if not self.project or not self.bucket:
-            raise ValueError("请在 .env 配置 GOOGLE_CLOUD_PROJECT 和 GCS_BUCKET")
+            raise ValueError("请先配置 Google Cloud 项目 ID 和存储桶")
         if "/" in self.bucket or self.bucket.startswith("gs:"):
             raise ValueError("GCS_BUCKET 只填写桶名，不包含 gs:// 或路径")
         if check_credentials and self.credentials_file and not self.credentials_file.is_file():

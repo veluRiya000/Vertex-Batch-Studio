@@ -379,8 +379,11 @@ node_modules/
 .DS_Store
 Thumbs.db
 
-# Windows packaging
 release/
 packaging/backend/
 packaging/work/
 *.spec
+
+# Tauri compiler outputs and generated schemas
+frontend/src-tauri/target/
+frontend/src-tauri/gen/

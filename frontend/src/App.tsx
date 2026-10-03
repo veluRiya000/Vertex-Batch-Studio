@@ -40,6 +40,7 @@ import { Media, Modal, Picker } from "./components";
 import { SettingsPanel } from "./SettingsPanel";
 import { ReferenceLibrary } from "./ReferenceLibrary";
 import { usePreferences } from "./preferences";
+import { useCloudConnection } from "./cloud-connection";
 import { useTranslation } from "./i18n";
 import {
   editable,
@@ -321,13 +322,11 @@ function TaskCard({
         {batch.last_error && <p className="task-error">{batch.last_error}</p>}
         {!editable(batch) && (
           <div className="result-actions">
-            <button
-              className="text-button"
-              onClick={() => action(batch, "poll")}
-            >
-              <RefreshCw size={13} />
-              {t("刷新结果")}
-            </button>
+            {(batch.job_name || ["submitting", "submission_unknown"].includes(batch.phase)) && (
+              <button className="text-button" onClick={() => action(batch, "poll")}>
+                <RefreshCw size={13} />{t("刷新结果")}
+              </button>
+            )}
             {terminal(batch) && (
               <button
                 className="text-button"
@@ -352,7 +351,7 @@ function TaskCard({
                 {t("重新提交本轮")}
               </button>
             )}
-            {batch.job_name && !terminal(batch) && (
+            {!terminal(batch) && (
               <button
                 className="text-button"
                 onClick={() => action(batch, "cancel")}
@@ -411,6 +410,7 @@ export default function App() {
   const [preview, setPreview] = useState<Preview>();
   const [busy, setBusy] = useState(false);
   const [connected, setConnected] = useState(false);
+  const cloudConnection = useCloudConnection(config, connected);
   const [notice, setNotice] = useState<{ message: string; error: boolean }>();
   const [dragging, setDragging] = useState(false);
   const textarea = useRef<HTMLTextAreaElement>(null);
@@ -464,7 +464,7 @@ export default function App() {
     const values = await api<Batch[]>("/batches");
     // HTTP is authoritative; don't release an optimistic submission lock until the worker changes phase.
     const visible = values.map((batch) => {
-      if (pending.current.has(batch.id) && !editable(batch))
+      if (pending.current.has(batch.id) && (!editable(batch) || batch.last_error))
         pending.current.delete(batch.id);
       return pending.current.has(batch.id)
         ? { ...batch, phase: "submitting" }
@@ -560,7 +560,7 @@ export default function App() {
       .filter(Boolean)
       .map((id) =>
         watchBatch(id, (snapshot) => {
-          if (!editable(snapshot.batch)) pending.current.delete(id);
+          if (!editable(snapshot.batch) || snapshot.batch.last_error) pending.current.delete(id);
           const batch = pending.current.has(id)
             ? { ...snapshot.batch, phase: "submitting" }
             : snapshot.batch;
@@ -776,7 +776,7 @@ export default function App() {
       );
       try {
         await api(`/batches/${draft.id}/submit`, "POST");
-        notify(t("批次已提交，图片返回后会自动保存"));
+        notify(t("批次已加入提交队列"));
       } catch (error) {
         pending.current.delete(draft.id);
         throw error;
@@ -826,7 +826,6 @@ export default function App() {
           <strong>
             Vertex<span>Studio</span>
           </strong>
-          <span className="brand-divider" />
         </div>
         <div className="top-actions">
           <button
@@ -841,10 +840,13 @@ export default function App() {
           <button onClick={() => setModal("about")}>{t("关于")}</button>
         </div>
         <div className="titlebar-space" />
-        <span className={"connection " + (connected ? "online" : "offline")}>
+        <button className={"connection " + (cloudConnection.state === "online" ? "online" : "offline")}
+          title={t("检查 Google Cloud 连接")} aria-label={t("Google Cloud：") + t(cloudConnection.label)}
+          disabled={!connected || cloudConnection.state === "checking"}
+          onClick={() => void run(() => cloudConnection.check())}>
           <i />
-          {connected ? t("已连接") : t("连接中")}
-        </span>
+          {t(cloudConnection.label)}
+        </button>
         {window.studio && (
           <div className="window-buttons">
             <button
@@ -1441,7 +1443,7 @@ export default function App() {
                 {t("提交批次")}
               </button>
             )}
-            {latest && !editable(latest) && !terminal(latest) && (
+            {latest && !terminal(latest) && (!editable(latest) || !!latest.last_error) && (
               <button
                 className="text-button"
                 disabled={busy}
@@ -1598,7 +1600,7 @@ export default function App() {
               className="secondary-button"
               onClick={() =>
                 void run(async () => {
-                  await api("/cloud/check", "POST");
+                  await cloudConnection.check();
                   notify(t("连接正常"));
                 })
               }
@@ -1614,6 +1616,7 @@ export default function App() {
           config={config}
           close={() => setModal(null)}
           configured={setConfig}
+          checkConnection={cloudConnection.check}
           archive={
             rounds.length > 0 &&
             rounds.every((batch) => editable(batch) || terminal(batch))

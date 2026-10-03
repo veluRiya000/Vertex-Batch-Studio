@@ -15,7 +15,7 @@ export interface ImageResult { path: string; mime_type: string; sha256: string; 
 export interface TaskResult { task_id: string; state: string; name: string; images: ImageResult[]; error: string | null }
 export interface Results { tasks: TaskResult[]; counts: Record<string, number>; final: boolean; row_errors: unknown[] }
 export interface Snapshot { batch: Batch; results: Results }
-export interface PublicConfig { project: string; bucket: string; model: string; location: string; data_dir: string; root: string; poll_seconds: number; credentials_configured: boolean; credential_name?: string | null }
+export interface PublicConfig { project: string; bucket: string; model: string; location: string; data_dir: string; root: string; poll_seconds: number; credentials_configured: boolean; credential_name?: string | null; authentication_mode?: 'service_account' | 'adc' }
 export interface Preferences {
   theme: 'light' | 'dark'; language: 'zh-CN' | 'en'; close_to_tray: boolean;
   auto_start: boolean; start_minimized: boolean; sidebar_width: number;

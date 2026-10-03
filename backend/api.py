@@ -42,7 +42,7 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
         finally:
             await asyncio.to_thread(studio.close)
 
-    app = FastAPI(title="VertexBatchStudio", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="VertexBatchStudio", version="0.2.1", lifespan=lifespan)
 
     @app.middleware("http")
     async def authenticate(request: Request, call_next):
@@ -69,7 +69,7 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "version": "0.1.0",
+        return {"status": "ok", "version": "0.2.1",
                 "project_configured": bool(studio.settings.project),
                 "bucket_configured": bool(studio.settings.bucket)}
 
@@ -88,6 +88,7 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
                 "location": settings.location, "data_dir": str(settings.data_dir),
                 "root": str(settings.root), "poll_seconds": settings.poll_seconds,
                 "credentials_configured": bool(settings.credentials_file),
+                "authentication_mode": "service_account" if settings.credentials_file else "adc",
                 "credential_name": settings.credentials_file.name if settings.credentials_file else None}
 
     @app.get("/preferences")

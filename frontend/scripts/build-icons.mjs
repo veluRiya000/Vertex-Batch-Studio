@@ -20,8 +20,9 @@ sizes.forEach((size, index) => {
   header.writeUInt32LE(offset, entry + 12);
   offset += images[index].length;
 });
-writeFileSync(resolve(root, 'electron/icon.ico'), Buffer.concat([header, ...images]));
-writeFileSync(resolve(root, 'electron/icon.png'), images.at(-1));
+mkdirSync(resolve(root, 'src-tauri/icons'), { recursive: true });
+writeFileSync(resolve(root, 'src-tauri/icons/icon.ico'), Buffer.concat([header, ...images]));
+writeFileSync(resolve(root, 'src-tauri/icons/icon.png'), images.at(-1));
 mkdirSync(resolve(root, 'public'), { recursive: true });
 writeFileSync(resolve(root, 'public/icon.svg'), svg);
 console.log('Generated desktop, installer and browser icons from logo.svg');

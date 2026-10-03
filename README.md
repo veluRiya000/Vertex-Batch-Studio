@@ -1,4 +1,4 @@
-# Vertex Batch Studio
+﻿# Vertex Batch Studio
 
 一个用于 **Google Cloud Vertex AI 图片批量生成**的桌面应用。通过可视化界面管理提示词、参考图和生成任务，完成素材上传、批次提交、进度监控及图片保存。
 
@@ -37,6 +37,8 @@
 ### Windows 桌面版
 
 运行 `VertexBatchStudio-Setup-<版本>-x64.exe`，按安装向导完成安装。安装版自带后端运行环境，无需额外安装 Python 或 Node.js。
+
+桌面版从 0.2.0 起使用 Tauri 和系统 WebView2，不再随安装包附带完整浏览器内核。若电脑未安装 WebView2，安装向导会联网下载该运行环境。
 
 首次启动后：
 
@@ -152,6 +154,7 @@ data/
 - Windows x64；当前安装包及桌面流程在 Windows 上验证。
 - Python 3.12 或更新版本，推荐使用 3.12 配合锁定依赖。
 - Node.js 22.12 或更新版本，以及 npm。
+- 编译桌面版还需要最新稳定版 Rust，以及 Visual Studio Build Tools 的“使用 C++ 的桌面开发”组件和 Windows SDK。
 
 下载或克隆源码后，在仓库根目录执行：
 
@@ -165,7 +168,7 @@ npm.cmd ci
 cd ..
 ```
 
-配置云端信息后，运行根目录的 `启动界面.cmd`，打开 Electron 桌面窗口。运行 `预览界面.cmd` 可启动浏览器界面；浏览器模式不提供原生文件夹选择器和系统托盘功能。
+配置云端信息后，运行根目录的 `启动界面.cmd`，编译并打开 Tauri 桌面窗口。运行 `预览界面.cmd` 可启动浏览器界面；浏览器模式不提供原生文件夹选择器和系统托盘功能。
 
 也可分别启动后端与前端开发服务器：
 
@@ -212,7 +215,7 @@ npm.cmd run dev
 | --- | --- |
 | `backend/` | Python 工作流、命令行、FastAPI 及云端适配 |
 | `frontend/src/` | React 与 TypeScript 界面 |
-| `frontend/electron/` | 桌面主进程、托盘及受控 IPC |
+| `frontend/src-tauri/` | Rust 桌面外壳、托盘及受控 IPC |
 | `packaging/` | 后端打包入口与 Windows 构建脚本 |
 | `tests/` | 后端自动测试与模拟云端 |
 | `examples/` | 示例任务文件 |
@@ -233,14 +236,14 @@ npm.cmd run build
 
 ## 构建 Windows 安装包
 
-在已安装 Python 和 Node.js 的 Windows 环境中，从仓库根目录执行：
+在已安装 Python、Node.js、Rust 和 C++ 构建工具的 Windows 环境中，从仓库根目录执行：
 
 ```powershell
 python -m venv .venv
 powershell -ExecutionPolicy Bypass -File packaging/build-windows.ps1 -Python .venv/Scripts/python.exe
 ```
 
-构建脚本使用 PyInstaller 打包后端，并通过 electron-builder 生成 x64 NSIS 安装程序。产物保存在 `release/`，个人配置、密钥和批次数据不包含在安装包中。
+构建脚本使用 PyInstaller 打包后端，并通过 Tauri 生成 x64 NSIS 安装程序。产物保存在 `release/`，个人配置、密钥和批次数据不包含在安装包中。已安装用户的配置和图片目录与旧版一致。
 
 更多说明见 [Windows 打包文档](packaging/README.md)。
 

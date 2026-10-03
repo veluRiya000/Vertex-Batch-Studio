@@ -5,6 +5,8 @@ import copy
 import json
 import unittest
 import time
+import threading
+from unittest.mock import patch
 from backend.assets import inspect_image
 from backend.config import Settings
 from backend.files import BusyError, read_json, write_json, operation_lock
@@ -296,6 +298,60 @@ class BackendTests(unittest.TestCase):
         self.studio.cancel(bid)
         self.assertEqual(self.studio.poll(bid)["phase"], "cancelled")
         self.assertEqual(self.studio.results(bid)["counts"]["images"], 1)
+
+    def test_missing_credentials_fail_without_freezing_and_can_cancel_locally(self):
+        bid = self.make()
+        self.studio._cloud = None
+        with patch("backend.service.GoogleCloud", side_effect=ValueError("未配置凭证")):
+            self.assertTrue(self.studio.enqueue(bid, "submit"))
+            deadline = time.monotonic() + 3
+            while self.studio._inflight and time.monotonic() < deadline:
+                time.sleep(0.01)
+        batch = self.repo.get(bid)
+        self.assertEqual(batch["phase"], "draft")
+        self.assertEqual(batch["last_error"], "未配置凭证")
+        self.assertFalse((self.repo.directory(bid) / "inputs/manifest.json").exists())
+        self.assertEqual(self.studio.cancel(bid)["phase"], "cancelled")
+        self.assertIsNone(self.repo.get(bid)["last_error"])
+        self.assertEqual(self.studio.poll(bid)["phase"], "cancelled")
+
+    def test_cancel_queued_submission_never_creates_a_cloud_job(self):
+        bid = self.make()
+        pending = []
+        with patch.object(self.studio._executor, "submit", side_effect=lambda work: pending.append(work)):
+            self.studio.enqueue(bid, "submit")
+        self.studio.cancel(bid)
+        pending[0]()
+        self.assertEqual(self.repo.get(bid)["phase"], "cancelled")
+        self.assertEqual(self.cloud.creates, 0)
+        self.assertEqual(self.cloud.uploads, [])
+
+    def test_local_cancel_during_credential_discovery_prevents_upload(self):
+        bid = self.make()
+        entered, release = threading.Event(), threading.Event()
+        self.studio._cloud = None
+        def discover(_settings):
+            entered.set()
+            release.wait(3)
+            return self.cloud
+        with patch("backend.service.GoogleCloud", side_effect=discover):
+            self.studio.enqueue(bid, "submit")
+            try:
+                self.assertTrue(entered.wait(2))
+                self.assertEqual(self.studio.cancel(bid)["phase"], "cancelled")
+            finally:
+                release.set()
+            deadline = time.monotonic() + 3
+            while self.studio._inflight and time.monotonic() < deadline:
+                time.sleep(0.01)
+        self.assertEqual(self.cloud.creates, 0)
+        self.assertEqual(self.cloud.uploads, [])
+        self.assertIsNone(self.repo.get(bid)["last_error"])
+
+    def test_poll_unsubmitted_batch_reports_state_without_reading_manifest(self):
+        bid = self.make()
+        with self.assertRaisesRegex(ValueError, "尚未提交"):
+            self.studio.poll(bid)
 
     def test_legacy_jsonl_import_keeps_temperature(self):
         p = self.root / "legacy.jsonl"

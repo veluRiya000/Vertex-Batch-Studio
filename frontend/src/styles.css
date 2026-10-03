@@ -94,6 +94,7 @@ small {
   background: transparent;
 }
 .studio-shell {
+  background: #eff6fc;
   height: 100dvh;
   display: grid;
   grid-template-columns: 258px minmax(420px, 1fr) 218px;
@@ -115,8 +116,7 @@ small {
   display: flex;
   align-items: center;
   padding: 0 18px 0 17px;
-  border-bottom: 1px solid var(--line);
-  background: #fff;
+  background: transparent;
   -webkit-app-region: drag;
   user-select: none;
 }
@@ -208,7 +208,6 @@ small {
 }
 .sidebar {
   background: #eff6fc;
-  border-right: 1px solid var(--line);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -251,7 +250,6 @@ small {
 }
 .reference-library {
   padding: 0 4px 15px;
-  border-bottom: 1px solid #d7e6f1;
 }
 .category-tabs {
   display: flex;
@@ -602,7 +600,6 @@ small {
   align-items: center;
   justify-content: space-between;
   padding: 10px 4px 0;
-  border-top: 1px solid #d7e6f1;
 }
 .text-button {
   padding: 5px 3px;
@@ -617,6 +614,10 @@ small {
   color: #ad5260;
 }
 .workspace {
+  margin: 2px 8px 12px 6px;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 3px 18px #28465b06;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -631,7 +632,6 @@ small {
   align-items: center;
   justify-content: space-between;
   padding: 0 30px;
-  border-bottom: 1px solid #eaf1f6;
 }
 .workspace-heading > div {
   display: flex;
@@ -645,8 +645,6 @@ small {
 .workspace-heading small {
   font-size: 10px;
   color: #8aa0b2;
-  border-left: 1px solid #dce8f0;
-  padding-left: 12px;
 }
 .workspace-heading > .icon-button {
   color: #7597ae;
@@ -1036,7 +1034,7 @@ small {
   position: relative;
   border: 1px solid #d0e3f0;
   background: #fff;
-  border-radius: 20px;
+  border-radius: 28px;
   padding: 16px 15px 12px;
   box-shadow: 0 4px 25px #396e9408;
   transition:
@@ -1349,8 +1347,7 @@ small {
   color: #237cab;
 }
 .queue {
-  border-left: 1px solid var(--line);
-  background: #fff;
+  background: transparent;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -1395,7 +1392,6 @@ small {
   justify-content: start;
   text-align: left;
   padding: 13px 5px;
-  border-bottom: 1px solid #f0f4f8;
   border-radius: 10px;
 }
 .queue-item:hover {
@@ -1463,7 +1459,6 @@ small {
   color: #b0c2d0;
 }
 .queue-footer {
-  border-top: 1px solid #eaf1f6;
   display: flex;
   align-items: center;
   justify-content: center;

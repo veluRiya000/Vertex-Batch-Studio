@@ -73,6 +73,35 @@ beforeEach(() => {
   });
 });
 afterEach(cleanup);
+it("没有云端凭证时不会显示已连接", async () => {
+  render(<App />);
+  expect(await screen.findByRole("button", { name: "Google Cloud：未配置" })).toBeTruthy();
+  expect(screen.queryByText("已连接")).toBeNull();
+});
+it("后台凭证失败解除提交状态并允许取消本地批次", async () => {
+  const user = userEvent.setup(), base = vi.mocked(api).getMockImplementation()!;
+  tasks = [{ id: 'b'.repeat(32), name: '测试任务', prompt: 'draw', refs: [], temperature: null,
+    aspect_ratio: '16:9', image_size: '1K', image_count: 1, generation_config: {} }];
+  vi.mocked(api).mockImplementation(async (path, method, body) => {
+    if (path.endsWith('/submit')) {
+      batch.last_error = '未配置凭证'; batch.updated_at = 'submit-failed';
+      return { queued: true } as never;
+    }
+    if (path.endsWith('/cancel')) {
+      batch.phase = 'cancelled'; batch.last_error = null; batch.updated_at = 'cancelled';
+      return { ...batch } as never;
+    }
+    return base(path, method, body);
+  });
+  render(<App />);
+  await user.click(await screen.findByRole('button', { name: '提交批次' }));
+  await screen.findByText('未配置凭证');
+  expect(screen.queryByText('提交中')).toBeNull();
+  expect(screen.queryByRole('button', { name: '刷新结果' })).toBeNull();
+  await user.click(screen.getByRole('button', { name: '取消本轮' }));
+  await waitFor(() => expect(batch.phase).toBe('cancelled'));
+  expect(screen.getAllByText('已取消').length).toBeGreaterThan(0);
+});
 it("图库图片点击只预览，加号添加，图库排序拖入输入框不会添加", async () => {
   const user = userEvent.setup(),
     base = vi.mocked(api).getMockImplementation()!;

@@ -20,11 +20,13 @@ export function SettingsPanel({
   close,
   configured,
   archive,
+  checkConnection,
 }: {
   config?: PublicConfig;
   close: () => void;
   configured: (value: PublicConfig) => void;
   archive?: () => Promise<void>;
+  checkConnection?: () => Promise<void>;
 }) {
   const t = useTranslation(),
     { preferences, update } = usePreferences();
@@ -264,7 +266,8 @@ export function SettingsPanel({
                   disabled={busy}
                   onClick={() =>
                     void run(async () => {
-                      await api("/cloud/check", "POST");
+                      if (checkConnection) await checkConnection();
+                      else await api("/cloud/check", "POST");
                       setMessage(t("连接正常"));
                     })
                   }

@@ -50,7 +50,23 @@ class Studio:
             return manifest
 
     def manifest(self, batch_id: str) -> dict:
-        return read_json(self.repo.directory(batch_id) / "inputs/manifest.json")
+        try:
+            return read_json(self.repo.directory(batch_id) / "inputs/manifest.json")
+        except FileNotFoundError:
+            raise ValueError("批次缺少提交记录；尚未提交的任务请重新准备，已提交的任务请恢复输入记录") from None
+
+    def validate_submission(self, batch_id: str) -> None:
+        """Reject local configuration errors before accepting a background submission."""
+        batch = self.repo.get(batch_id)
+        if batch["archived"]:
+            raise ValueError("归档批次不能提交")
+        if batch["job_name"]:
+            return
+        if batch["phase"] == "cancelled":
+            raise ValueError("该批次已取消；重新生成请创建新批次")
+        self.settings.require_cloud()
+        if not self.repo.tasks(batch_id):
+            raise ValueError("批次至少需要一条任务")
 
     def update_task(self, batch_id: str, task_id: str, value: TaskInput) -> dict:
         with self.repo.lock(batch_id):
@@ -117,11 +133,18 @@ class Studio:
         return batch
 
     def submit(self, batch_id: str) -> dict:
+        before = self.repo.get(batch_id)
+        # Credential discovery can be slow. Keep the batch unlocked so a local
+        # cancellation can complete, then re-read its state before any upload.
+        if not before["archived"] and not before["job_name"] and before["phase"] != "cancelled":
+            cloud = self.cloud
         with self.repo.lock(batch_id):
             batch = self.repo.get(batch_id)
             if batch["archived"]:
                 raise ValueError("归档批次不能提交")
             if batch["job_name"]:
+                return batch
+            if batch["phase"] == "cancelled":
                 return batch
             if batch["phase"] == "draft":
                 manifest = prepare(self.repo, batch_id)
@@ -142,7 +165,6 @@ class Studio:
                 if sha256_file(directory / file) != manifest[key]:
                     raise ValueError("准备后的输入文件被修改，请重新准备；已开始提交时请建立新批次")
             # Initialization failures cannot create a job. Resolve credentials before marking submitting.
-            cloud = self.cloud
             batch.update(phase="uploading", last_error=None)
             self.repo.save(batch)
             try:
@@ -227,6 +249,10 @@ class Studio:
             batch = self.repo.get(batch_id)
             if batch["archived"]:
                 return batch
+            if not batch["job_name"] and batch["phase"] not in {"submitting", "submission_unknown"}:
+                if batch["phase"] == "cancelled":
+                    return batch
+                raise ValueError("该批次尚未提交，无需刷新云端结果")
             manifest = self.manifest(batch_id)
             self._check_context(manifest)
             try:
@@ -302,8 +328,15 @@ class Studio:
     def cancel(self, batch_id: str) -> dict:
         with self.repo.lock(batch_id):
             batch = self.repo.get(batch_id)
-            if batch["archived"] or not batch["job_name"]:
-                raise ValueError("只能取消已提交且未归档的任务")
+            if batch["archived"]:
+                raise ValueError("归档批次不能取消")
+            if not batch["job_name"]:
+                if batch["phase"] in {"submitting", "submission_unknown"}:
+                    raise ValueError("提交结果尚未确认；请检查云端连接并核对任务后再取消")
+                batch.update(phase="cancelled", cancel_requested=True, last_error=None)
+                self.repo.save(batch)
+                self.log(batch_id, "local_cancelled")
+                return batch
             self._check_context(self.manifest(batch_id))
             if batch["cloud_state"] not in TERMINAL:
                 self.cloud.cancel_job(batch["job_name"])
@@ -352,6 +385,8 @@ class Studio:
     def enqueue(self, batch_id: str, action: str = "poll") -> bool:
         if action not in {"submit", "poll", "cancel", "extract_local"}:
             raise ValueError("不支持的后台动作")
+        if action == "submit":
+            self.validate_submission(batch_id)
         with self._inflight_lock:
             if batch_id in self._inflight:
                 return False
@@ -366,8 +401,9 @@ class Studio:
                 try:
                     with self.repo.lock(batch_id):
                         batch = self.repo.get(batch_id)
-                        batch["last_error"] = str(exc)
-                        self.repo.save(batch)
+                        if batch["phase"] != "cancelled":
+                            batch["last_error"] = str(exc)
+                            self.repo.save(batch)
                 except (BusyError, KeyError):
                     pass
             finally:

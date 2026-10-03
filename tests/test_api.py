@@ -1,6 +1,7 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+from dataclasses import replace
 from fastapi.testclient import TestClient
 from backend.api import create_app
 from backend.config import Settings
@@ -27,6 +28,20 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.client.get("/health", headers={"X-VBS-Token": "wrong"}).status_code, 401)
         self.assertEqual(self.client.get("/health").status_code, 200)
         self.assertEqual(self.client.post("/batches", json={"project_name": "bad/name"}).status_code, 422)
+
+    def test_submit_without_configuration_is_rejected_and_local_cancel_succeeds(self):
+        batch = self.studio.repo.create("未配置的项目")
+        bid = batch["id"]
+        self.studio.append_task(bid, TaskInput(name="图", prompt="draw"))
+        self.studio.settings = replace(self.studio.settings, project="", bucket="")
+        response = self.client.post(f"/batches/{bid}/submit")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("项目 ID", response.json()["detail"])
+        self.assertEqual(self.studio.repo.get(bid)["phase"], "draft")
+        cancelled = self.client.post(f"/batches/{bid}/cancel")
+        self.assertEqual(cancelled.status_code, 200)
+        self.assertEqual(cancelled.json()["phase"], "cancelled")
+        self.assertEqual(self.cloud.creates, 0)
 
     def test_editing_tasks_and_prepare(self):
         batch = self.client.post("/batches", json={"project_name": "中文项目"}).json()

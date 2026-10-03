@@ -1,6 +1,6 @@
-# Vertex Batch Studio Frontend
+﻿# Vertex Batch Studio Frontend
 
-基于 React、TypeScript 和 Vite 的图片批次工作室界面，通过 Electron 提供 Windows 桌面功能。
+基于 React、TypeScript 和 Vite 的图片批次工作室界面，通过 Tauri 和系统 WebView2 提供 Windows 桌面功能。
 
 ## 开发
 
@@ -24,13 +24,12 @@ npm.cmd run dev
 安装依赖后，在本目录执行：
 
 ```powershell
-npm.cmd run build
 npm.cmd run desktop
 ```
 
-也可运行仓库根目录的 `启动界面.cmd`。Electron 会连接或启动本地后端，并提供文件夹选择、托盘和开机启动等系统功能。
+也可运行仓库根目录的 `启动界面.cmd`。源码桌面模式需要 Rust 和 Visual Studio C++ 构建工具；Tauri 会连接或启动本地后端，并提供文件夹选择、托盘和开机启动等系统功能。
 
-主进程持有后端访问令牌，通过受控 IPC 转发界面操作；渲染进程启用上下文隔离和沙箱。
+Rust 外壳持有后端访问令牌，通过受控 IPC 转发界面操作。页面只能调用列入清单的工作室操作，不获得令牌，也不能直接访问后端。图片拖入使用浏览器的文件事件，进度通过 Rust 转发 SSE。
 
 ## 测试与构建
 
@@ -44,7 +43,8 @@ Windows 安装包需先打包 Python 后端，请使用仓库根目录的 [Windo
 ## 代码结构
 
 - `src/`：界面、状态、API 客户端及组件测试。
-- `electron/`：桌面主进程、预加载脚本和应用图标。
+- `src-tauri/`：桌面外壳、系统操作、权限配置及应用图标。
+- `src/tauri-bridge.ts`：界面与桌面功能的连接及离线验收入口。
 - `scripts/`：本地预览启动工具。
 - `dist/`：生成的前端构建产物，不提交到 Git。
 
