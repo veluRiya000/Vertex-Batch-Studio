@@ -43,7 +43,7 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
         finally:
             await asyncio.to_thread(studio.close)
 
-    app = FastAPI(title="VertexBatchStudio", version="0.2.3", lifespan=lifespan)
+    app = FastAPI(title="VertexBatchStudio", version="0.2.4", lifespan=lifespan)
 
     @app.middleware("http")
     async def authenticate(request: Request, call_next):
@@ -70,7 +70,7 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "version": "0.2.3",
+        return {"status": "ok", "version": "0.2.4",
                 "project_configured": bool(studio.settings.project),
                 "bucket_configured": bool(studio.settings.bucket)}
 

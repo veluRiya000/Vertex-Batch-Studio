@@ -2,6 +2,9 @@ import { usePreferences } from "./preferences";
 
 // User prompts and project names are never translated.
 export const english: Record<string, string> = {
+  调整图库高度: "Resize reference library",
+  拖动调整图库与项目栏高度: "Drag to resize the library and project list",
+  "控制生成的随机程度；默认使用模型设置": "Controls generation randomness; default uses the model settings",
   重命名项目: "Rename project",
   项目已重命名: "Project renamed",
   保存名称: "Save name",

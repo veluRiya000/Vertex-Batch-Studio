@@ -61,8 +61,10 @@ export function Picker({
   icon,
   unit,
   className = "",
+  title,
 }: {
   label: string;
+  title?: string;
   value: string;
   onChange: (value: string) => void;
   options?: Option[];
@@ -137,6 +139,7 @@ export function Picker({
         type="button"
         className="picker-trigger"
         aria-label={`${label}：${current}`}
+        title={title}
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen(!open)}

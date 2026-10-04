@@ -27,3 +27,25 @@
 
 .request-bubble .prompt-collapsed { max-height: 9.25em; overflow: hidden; }
 .request-bubble .prompt-toggle { margin-top: 6px; font-size: 11px; }
+
+/* The library has its own scroll area; the project list always keeps usable space. */
+.reference-pane { flex: none; min-height: 0; min-width: 220px; overflow: hidden; }
+.reference-pane .reference-library { height: 100%; display: flex; flex-direction: column; padding-bottom: 0; }
+.reference-pane :is(.section-heading, .category-tabs) { flex-shrink: 0; }
+.reference-pane .reference-grid { flex: 1; min-height: 0; max-height: none; }
+.reference-pane .library-empty { min-height: 60px; height: 100%; }
+.library-height-handle { height: 14px; flex: none; cursor: ns-resize; touch-action: none; user-select: none; display: grid; place-items: center; outline: none; }
+.library-height-handle::after { content: ''; width: 32px; height: 3px; border-radius: 8px; background: #bad2e2; opacity: .65; transition: background .15s, opacity .15s; }
+.library-height-handle:is(:hover, :focus-visible, .dragging)::after { background: var(--accent); opacity: 1; }
+.sidebar-content .project-library { padding-top: 4px; }
+.queue-list { display: flex; flex-direction: column; gap: 6px; }
+.queue-item { flex: none; padding: 8px 10px; gap: 8px; border: 1px solid #e0edf6; border-radius: 13px; background: #fff; }
+.queue-item:hover { background: #f2f9ff; border-color: #bedcf0; }
+.queue-item-body { gap: 4px; }
+.queue-item strong { display: block; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; line-height: 17px; }
+.queue-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 14px; }
+.queue-meta small { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.queue-meta .queue-state { margin-top: 0; flex: none; white-space: nowrap; gap: 4px; }
+.temperature-picker .picker-trigger > .picker-caption { display: inline; }
+[data-theme="dark"] .queue-item { background: #22384b; border-color: var(--line); }
+[data-theme="dark"] .queue-item:hover { background: var(--selected); }

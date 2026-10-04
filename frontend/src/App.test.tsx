@@ -334,3 +334,16 @@ it("打开输出目录按钮打开当前批次而非进入设置", async () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   } finally { delete window.studio; }
 });
+
+it("队列卡片的时间和状态位于同一行，长名称保留完整悬停提示", async () => {
+  tasks = [{ id: 'b'.repeat(32), name: '一个用于验证单行省略的非常长的任务名称', prompt: 'draw', refs: [], temperature: null,
+    aspect_ratio: '16:9', image_size: '1K', image_count: 1, generation_config: {}, created_at: '2026-10-03T12:01:00+08:00' }];
+  render(<App />);
+  await screen.findByRole('button', { name: '测试项目' });
+  await waitFor(() => expect(document.querySelector('.queue-meta')).toBeTruthy());
+  const card = document.querySelector('.queue-item')!;
+  expect(card.querySelector('strong')?.getAttribute('title')).toBe(tasks[0].name);
+  const metadata = card.querySelector('.queue-meta')!;
+  expect(metadata.querySelector('small')?.textContent).toContain('12:01');
+  expect(metadata.querySelector('.queue-state')?.textContent).toBe('待提交');
+});

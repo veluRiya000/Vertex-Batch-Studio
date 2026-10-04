@@ -39,6 +39,7 @@ import { api, upload, watchBatch } from "./api";
 import { Media, Modal, Picker } from "./components";
 import { SettingsPanel } from "./SettingsPanel";
 import { ReferenceLibrary } from "./ReferenceLibrary";
+import { LibraryPane } from "./LibraryPane";
 import { ProjectMenu } from "./ProjectMenu";
 import { CollapsiblePrompt } from "./CollapsiblePrompt";
 import { usePreferences } from "./preferences";
@@ -904,7 +905,7 @@ export default function App() {
                 : Math.min(1, Math.max(0, (sidebarWidth - 64) / 100)),
             }}
           >
-            <ReferenceLibrary
+            <LibraryPane><ReferenceLibrary
               references={filteredRefs}
               category={category}
               setCategory={setCategory}
@@ -936,7 +937,7 @@ export default function App() {
                 );
               }}
               error={(message) => notify(message, true)}
-            />
+            /></LibraryPane>
             <section className="project-library">
               <div className="section-heading">
                 <span>
@@ -1415,7 +1416,8 @@ export default function App() {
                 label={t("温度")}
                 value={temperature}
                 onChange={setTemperature}
-                icon={<SlidersHorizontal size={15} />}
+                icon={<><SlidersHorizontal size={15} /><span className="picker-caption">{t("温度")}</span></>}
+                title={t("控制生成的随机程度；默认使用模型设置")}
                 options={[
                   { value: "default", label: t("默认") },
                   { value: "0.5", label: "0.5" },
@@ -1514,8 +1516,8 @@ export default function App() {
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <span className="queue-item-body">
-                  <strong>{entry.task.name}</strong>
-                  <small>
+                  <strong title={entry.task.name}>{entry.task.name}</strong>
+                  <span className="queue-meta"><small>
                     {time(entry.task.created_at || entry.batch.created_at)}
                   </small>
                   <span
@@ -1526,7 +1528,7 @@ export default function App() {
                   >
                     <i />
                     {t(taskLabel(entry))}
-                  </span>
+                  </span></span>
                 </span>
               </button>
             ))}
