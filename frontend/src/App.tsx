@@ -307,7 +307,7 @@ function TaskCard({
           </>
         ) : (
           <div className={"waiting-output " + color}>
-            {color === "generating" ? (
+            {(color === "generating" || color === "uploading") ? (
               <LoaderCircle className="spin" size={18} />
             ) : color === "failed" ? (
               <X size={18} />

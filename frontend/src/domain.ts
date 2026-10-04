@@ -44,5 +44,6 @@ export function statusClass(batch: Batch, state?: string): string {
   if (state === 'error' || state === 'missing' || ['failed','completed_with_errors','upload_failed','submission_failed'].includes(batch.phase)) return 'failed'
   if (['draft','prepared','paused','cancelled'].includes(batch.phase)) return 'pending'
   if (batch.phase === 'completed') return 'completed'
+  if (batch.phase === 'uploading') return 'uploading'
   return 'generating'
 }

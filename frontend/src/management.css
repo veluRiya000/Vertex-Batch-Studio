@@ -49,3 +49,12 @@
 .temperature-picker .picker-trigger > .picker-caption { display: inline; }
 [data-theme="dark"] .queue-item { background: #22384b; border-color: var(--line); }
 [data-theme="dark"] .queue-item:hover { background: var(--selected); }
+
+/* Uploading uses blue-violet; generation retains its distinct warm yellow. */
+.status-tag.uploading { color: #5143a7; background: #eeebff; }
+.status-tag.uploading i, .status-dot.uploading, .queue-state.uploading i { background: #8070e8; box-shadow: 0 0 0 3px #8070e817; animation: pulse 2s infinite; }
+.queue-state.uploading { color: #6b59c4; }
+.waiting-output.uploading { color: #6553ba; border-color: #cec5f8; background: #f7f5ff; }
+[data-theme="dark"] .status-tag.uploading { color: #d2c6ff; background: #39315a; }
+[data-theme="dark"] .queue-state.uploading { color: #c0acff; }
+[data-theme="dark"] .waiting-output.uploading { color: #c0acff; border-color: #62518e; background: #2a2641; }
