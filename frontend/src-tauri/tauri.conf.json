@@ -11,7 +11,7 @@
   "app": {
     "windows": [{
       "label": "main", "title": "Vertex Batch Studio",
-      "width": 1440, "height": 940, "minWidth": 900, "minHeight": 650,
+      "width": 1440, "height": 940, "minWidth": 1100, "minHeight": 650,
       "decorations": false, "visible": false, "dragDropEnabled": false
     }],
     "security": {

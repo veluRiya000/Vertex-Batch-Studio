@@ -389,7 +389,9 @@ export default function App() {
   const [temperature, setTemperature] = useState("default");
   const [editing, setEditing] = useState<Entry>();
   const [sidebarWidth, setSidebarWidth] = useState(preferences.sidebar_width);
-  const [narrow, setNarrow] = useState(() => window.innerWidth <= 690);
+  const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
+  const narrow = viewportWidth <= 690;
+  const queueOverlay = viewportWidth <= 990;
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [resizing, setResizing] = useState(false);
   const [treeCollapsed, setTreeCollapsed] = useState(false);
@@ -439,7 +441,7 @@ export default function App() {
     }
   }, [preferences.sidebar_width]);
   useEffect(() => {
-    const resize = () => setNarrow(window.innerWidth <= 690);
+    const resize = () => setViewportWidth(window.innerWidth);
     window.addEventListener("resize", resize);
     return () => window.removeEventListener("resize", resize);
   }, []);
@@ -824,7 +826,7 @@ export default function App() {
         gridTemplateColumns:
           paneWidth +
           "px minmax(0,1fr)" +
-          (queue && !narrow && window.innerWidth > 990 ? " 218px" : ""),
+          (queue && !queueOverlay ? " 218px" : ""),
       }}
     >
       <header className="titlebar">
@@ -1125,16 +1127,18 @@ export default function App() {
             <span>{workspace?.name || t("创作空间")}</span>
             {latest && <small>{latest.folder.slice(0, 8)}</small>}
           </div>
-          <button
-            className={"icon-button " + (queue ? "active" : "")}
-            aria-label={queue ? t("收起生成队列") : t("展开生成队列")}
-            onClick={() => {
-              setQueue(!queue);
-              if (narrow) setDrawerOpen(false);
-            }}
-          >
-            <Layers size={18} />
-          </button>
+          {!(queue && queueOverlay) && (
+            <button
+              className={"icon-button " + (queue ? "active" : "")}
+              aria-label={queue ? t("收起生成队列") : t("展开生成队列")}
+              onClick={() => {
+                setQueue(!queue);
+                if (narrow) setDrawerOpen(false);
+              }}
+            >
+              <Layers size={18} />
+            </button>
+          )}
         </div>
         <div className="conversation" ref={scroller}>
           {entries.map((entry) => (
@@ -1483,13 +1487,24 @@ export default function App() {
         </div>
       </main>
       {queue && (
-        <aside className="queue">
+        <aside className="queue" aria-label={t("生成队列")}>
           <div className="section-heading">
             <span>
               <Layers size={16} />
               {t("生成队列")}
             </span>
-            <small>{queued.length}</small>
+            <div>
+              <small>{queued.length}</small>
+              {queueOverlay && (
+                <button
+                  className="icon-button"
+                  aria-label={t("收起生成队列")}
+                  onClick={() => setQueue(false)}
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
           </div>
           <div className="queue-toggle">
             <button

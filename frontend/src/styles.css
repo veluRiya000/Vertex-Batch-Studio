@@ -1944,6 +1944,8 @@ small {
     top: 54px;
     bottom: 0;
     width: 218px;
+    /* A floating queue must cover the conversation beneath it. */
+    background: #eff6fc;
     z-index: 25;
     box-shadow: -8px 0 30px #304e7012;
   }

@@ -347,3 +347,37 @@ it("队列卡片的时间和状态位于同一行，长名称保留完整悬停�
   expect(metadata.querySelector('small')?.textContent).toContain('12:01');
   expect(metadata.querySelector('.queue-state')?.textContent).toBe('待提交');
 });
+
+
+it("队列跨过窄窗口阈值时立即切换布局，收起后恢复工作区", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByRole("button", { name: "测试项目" });
+  const shell = document.querySelector(".studio-shell") as HTMLElement;
+  expect(shell.style.gridTemplateColumns).toBe("258px minmax(0,1fr) 218px");
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 980 });
+  fireEvent(window, new Event("resize"));
+  expect(shell.style.gridTemplateColumns).toBe("258px minmax(0,1fr)");
+  const queue = screen.getByRole("complementary", { name: "生成队列" });
+  expect(screen.getByRole("button", { name: "收起生成队列" }).closest("aside")).toBe(queue);
+  await user.click(screen.getByRole("button", { name: "收起生成队列" }));
+  expect(screen.queryByRole("complementary", { name: "生成队列" })).toBeNull();
+  await user.click(screen.getByRole("button", { name: "展开生成队列" }));
+  expect(screen.getByRole("complementary", { name: "生成队列" })).toBeTruthy();
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 1100 });
+  fireEvent(window, new Event("resize"));
+  expect(shell.style.gridTemplateColumns).toBe("258px minmax(0,1fr) 218px");
+  expect(screen.getByRole("button", { name: "收起生成队列" }).closest("main")).toBeTruthy();
+});
+
+it("窄窗口打开队列后可从队列内部关闭", async () => {
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 });
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByRole("button", { name: "测试项目" });
+  expect(screen.queryByRole("complementary", { name: "生成队列" })).toBeNull();
+  await user.click(screen.getByRole("button", { name: "展开生成队列" }));
+  expect(screen.getByRole("button", { name: "收起生成队列" }).closest(".queue")).toBeTruthy();
+  await user.click(screen.getByRole("button", { name: "收起生成队列" }));
+  expect(screen.getByRole("button", { name: "展开生成队列" })).toBeTruthy();
+});
