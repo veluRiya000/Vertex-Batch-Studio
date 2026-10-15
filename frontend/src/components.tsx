@@ -62,9 +62,11 @@ export function Picker({
   unit,
   className = "",
   title,
+  disabled = false,
 }: {
   label: string;
   title?: string;
+  disabled?: boolean;
   value: string;
   onChange: (value: string) => void;
   options?: Option[];
@@ -75,6 +77,7 @@ export function Picker({
 }) {
   const t = useTranslation();
   const [open, setOpen] = useState(false);
+  useEffect(() => { if (disabled) setOpen(false); }, [disabled]);
   const trigger = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ left: 0, top: 0 });
@@ -138,6 +141,7 @@ export function Picker({
         ref={trigger}
         type="button"
         className="picker-trigger"
+        disabled={disabled}
         aria-label={`${label}：${current}`}
         title={title}
         aria-haspopup="listbox"
@@ -163,7 +167,7 @@ export function Picker({
         <ChevronDown size={13} className={open ? "turned" : ""} aria-hidden />
       </button>
       {unit && <span className="picker-unit">{unit}</span>}
-      {open &&
+      {open && !disabled &&
         createPortal(
           <div
             ref={menu}

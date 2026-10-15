@@ -1,3 +1,5 @@
+/* 界面摘录说明：参考图库的窗格/列表、点击预览、加号添加、拖动排序和删除。可改缩略图排版；保留预览/添加/排序/删除的各自事件和拖动数据。
+ * 仅此副本新增说明；原工程未改动。 */
 import { useEffect, useRef, useState } from "react";
 import {
   GripVertical,
@@ -12,6 +14,7 @@ import { Media, Modal } from "./components";
 import { useTranslation } from "./i18n";
 import type { Reference } from "./types";
 
+// 界面组件 ReferenceLibrary：参考图库的窗格/列表、点击预览、加号添加、拖动排序和删除。
 export function ReferenceLibrary({
   references,
   category,
@@ -264,7 +267,8 @@ export function ReferenceLibrary({
             aria-label={t("导入公共参考图")}
             onClick={chooseFiles}
           >
-            <ImagePlus size={22} />
+            <ImagePlus size={22} aria-hidden />
+            <span aria-hidden="true">{t("导入公共参考图")}</span>
           </button>
         )}
       </div>

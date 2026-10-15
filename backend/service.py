@@ -9,14 +9,17 @@ from .assets import Assets
 from .cloud import Cloud, GoogleCloud, TERMINAL
 from .config import Settings
 from .files import BusyError, beneath, read_json, sha256_file, write_json
-from .jsonl import prepare, split_gcs
+from .jsonl import prepare, split_gcs, upgrade_prepared_image_count
 from .models import TaskInput
+from .model_catalog import ModelCatalogue, restore_selection
+from .model_parameters import restricted_manifest_parameters
 from .repository import Repository, now
 from .results import extract
 
 
 class Studio:
-    def __init__(self, settings: Settings, cloud: Cloud | None = None):
+    def __init__(self, settings: Settings, cloud: Cloud | None = None, catalog_source=None):
+        settings = restore_selection(settings)
         self.settings = settings
         self.repo = Repository(settings)
         self.assets = Assets(self.repo)
@@ -27,6 +30,7 @@ class Studio:
         self._executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="vbs")
         self._inflight = set()
         self._inflight_lock = threading.Lock()
+        self.model_catalog = ModelCatalogue(settings, catalog_source)
 
     @property
     def cloud(self) -> Cloud:
@@ -40,13 +44,18 @@ class Studio:
         with path.open("a", encoding="utf-8") as f:
             f.write(json.dumps({"time": now(), "event": event, **details}, ensure_ascii=False) + "\n")
 
+    def model_capabilities(self) -> dict | None:
+        return next((m for m in self.model_catalog.snapshot()["models"]
+                     if m["id"] == self.settings.model), None)
+
     def prepare(self, batch_id: str) -> dict:
+        self.model_catalog.validate(self.settings.model)
         with self.repo.lock(batch_id):
-            manifest = prepare(self.repo, batch_id)
+            manifest = prepare(self.repo, batch_id, self.model_capabilities())
             manifest["tasks_sha256"] = sha256_file(self.repo.directory(batch_id) / "inputs/tasks.json")
             manifest["jsonl_sha256"] = sha256_file(self.repo.directory(batch_id) / "inputs/prompts.jsonl")
             write_json(self.repo.directory(batch_id) / "inputs/manifest.json", manifest)
-            self.log(batch_id, "prepared", tasks=len(manifest["requests"]))
+            self.log(batch_id, "prepared", tasks=len(self.repo.tasks(batch_id)), requests=len(manifest["requests"]))
             return manifest
 
     def manifest(self, batch_id: str) -> dict:
@@ -65,8 +74,20 @@ class Studio:
         if batch["phase"] == "cancelled":
             raise ValueError("该批次已取消；重新生成请创建新批次")
         self.settings.require_cloud()
+        if batch["phase"] == "draft":
+            self.model_catalog.validate(self.settings.model)
+        elif batch["phase"] not in {"submitting", "submission_unknown"}:
+            self.validate_manifest_parameters(self.manifest(batch_id))
         if not self.repo.tasks(batch_id):
             raise ValueError("批次至少需要一条任务")
+
+    def validate_manifest_parameters(self, manifest: dict) -> None:
+        capabilities = next((m for m in self.model_catalog.snapshot()["models"]
+                             if m["id"] == manifest["model"]), None)
+        restricted = restricted_manifest_parameters(manifest, capabilities)
+        if restricted:
+            raise ValueError("该批次快照包含当前模型不支持的参数（" + ", ".join(sorted(restricted)) +
+                             "）；请重新准备批次，输入已冻结时请建立新批次")
 
     def update_task(self, batch_id: str, task_id: str, value: TaskInput) -> dict:
         with self.repo.lock(batch_id), self.repo.reference_lock():
@@ -149,7 +170,8 @@ class Studio:
             if batch["phase"] == "cancelled":
                 return batch
             if batch["phase"] == "draft":
-                manifest = prepare(self.repo, batch_id)
+                self.model_catalog.validate(self.settings.model)
+                manifest = prepare(self.repo, batch_id, self.model_capabilities())
                 manifest["tasks_sha256"] = sha256_file(self.repo.directory(batch_id) / "inputs/tasks.json")
                 manifest["jsonl_sha256"] = sha256_file(self.repo.directory(batch_id) / "inputs/prompts.jsonl")
                 write_json(self.repo.directory(batch_id) / "inputs/manifest.json", manifest)
@@ -166,6 +188,8 @@ class Studio:
                               ("inputs/prompts.jsonl", "jsonl_sha256")):
                 if sha256_file(directory / file) != manifest[key]:
                     raise ValueError("准备后的输入文件被修改，请重新准备；已开始提交时请建立新批次")
+            manifest = upgrade_prepared_image_count(self.repo, batch, manifest)
+            self.validate_manifest_parameters(manifest)
             # Initialization failures cannot create a job. Resolve credentials before marking submitting.
             batch.update(phase="uploading", last_error=None)
             self.repo.save(batch)
@@ -417,6 +441,7 @@ class Studio:
     def start(self) -> None:
         if self._worker:
             return
+        self.model_catalog.refresh()
         def monitor():
             while not self._stop.is_set():
                 for batch in self.repo.list():
@@ -431,6 +456,7 @@ class Studio:
         self._worker.start()
 
     def close(self) -> None:
+        self.model_catalog.close()
         self._stop.set()
         if self._worker:
             self._worker.join(timeout=5)

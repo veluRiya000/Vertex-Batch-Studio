@@ -1,60 +1,143 @@
-.project-context-menu { position: fixed; z-index: 120; width: 190px; padding: 6px; border-radius: 14px; background: #fff; box-shadow: 0 8px 32px #24476426; border: 1px solid #dceaf4; animation: reveal .12s ease-out; }
-.project-context-menu button { width: 100%; justify-content: flex-start; padding: 10px 12px; border-radius: 9px; }
-.project-context-menu button:hover:not(:disabled) { background: var(--selected); }
+/* STYLE-00050 用途：项目右键菜单：重命名、归档。关联：ProjectMenu.tsx。 */
+.project-context-menu { position: fixed; z-index: 120; width: 194px; padding: 6px; border-radius: 13px; background: #ffffff; box-shadow: 0 12px 36px rgba(15, 23, 42, 0.14), 0 2px 6px rgba(15, 23, 42, 0.04); border: 1px solid #dce5f0; animation: reveal .12s ease-out; }
+/* STYLE-00051 用途：项目右键菜单：重命名、归档。关联：ProjectMenu.tsx。 */
+.project-context-menu button { width: 100%; justify-content: flex-start; padding: 9px 12px; border-radius: 8px; font-size: 12.5px; font-weight: 500; color: #2c3c4f; }
+/* STYLE-00052 用途：项目右键菜单：重命名、归档（鼠标悬停、禁用状态）。关联：ProjectMenu.tsx。 */
+.project-context-menu button:hover:not(:disabled) { background: var(--selected); color: var(--accent); }
+/* STYLE-00053 用途：设置中的归档页面。关联：ArchivePanel.tsx。 */
 .archive-panel { min-width: 0; }
+/* STYLE-00054 用途：已归档项目列表。关联：ArchivePanel.tsx。 */
 .archived-projects { display: flex; flex-direction: column; gap: 10px; max-height: 340px; overflow-y: auto; }
-.archived-project { display: flex; align-items: center; gap: 12px; padding: 13px; background: #f3f8fc; border-radius: 14px; }
+/* STYLE-00055 用途：已归档项目卡片。关联：ArchivePanel.tsx。 */
+.archived-project { display: flex; align-items: center; gap: 12px; padding: 13px 15px; background: #f8fafc; border: 1px solid var(--line); border-radius: 13px; }
+/* STYLE-00056 用途：已归档项目卡片。关联：ArchivePanel.tsx。 */
 .archived-project > div { flex: 1; min-width: 0; }
-.archived-project strong { display: block; overflow-wrap: anywhere; font-weight: 500; }
-.archived-project small { display: block; margin-top: 5px; color: var(--muted); }
-.archive-empty { padding: 48px 10px; color: var(--muted); text-align: center; }
-.archive-confirm { background: #f3f8fc; padding: 18px; border-radius: 16px; }
+/* STYLE-00057 用途：已归档项目卡片。关联：ArchivePanel.tsx。 */
+.archived-project strong { display: block; overflow-wrap: anywhere; font-weight: 550; font-size: 13px; }
+/* STYLE-00058 用途：已归档项目卡片。关联：ArchivePanel.tsx。 */
+.archived-project small { display: block; margin-top: 4px; color: var(--muted); }
+/* STYLE-00059 用途：归档列表的空状态。关联：ArchivePanel.tsx。 */
+.archive-empty { padding: 48px 10px; color: var(--muted); text-align: center; font-size: 13px; }
+/* STYLE-00060 用途：归档项永久删除确认区。关联：ArchivePanel.tsx。 */
+.archive-confirm { background: #f8fafc; border: 1px solid var(--line); padding: 18px; border-radius: 15px; }
+/* STYLE-00061 用途：归档项永久删除确认区。关联：ArchivePanel.tsx。 */
 .archive-confirm strong { display: block; overflow-wrap: anywhere; font-size: 14px; }
-.archive-confirm p { margin: 12px 0; color: var(--muted); line-height: 1.8; }
+/* STYLE-00062 用途：归档项永久删除确认区。关联：ArchivePanel.tsx。 */
+.archive-confirm p { margin: 12px 0; color: var(--muted); line-height: 1.8; font-size: 13px; }
+/* STYLE-00063 用途：永久删除归档项的确认 / 取消操作栏。关联：ArchivePanel.tsx。 */
 .archive-confirm-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
-.primary-button.destructive { background: #c74b60; color: white; }
-.primary-button.destructive:hover:not(:disabled) { background: #b54054; }
-.reference-delete { position: absolute; left: 4px; top: 4px; width: 23px; height: 23px; padding: 0; border-radius: 7px; background: #ffffffed; color: #a65865; border: 1px solid #eadbe0; }
-.reference-delete:hover:not(:disabled) { background: #fff0f3; color: #bd3f56; }
+/* STYLE-00064 用途：主要操作按钮；destructive 表示破坏性操作。关联：App.tsx、SettingsPanel.tsx、ArchivePanel.tsx。 */
+.primary-button.destructive { background: #d63b52; color: white; box-shadow: 0 2px 8px rgba(214, 59, 82, 0.22); }
+/* STYLE-00065 用途：主要操作按钮；destructive 表示破坏性操作（鼠标悬停、禁用状态）。关联：App.tsx、SettingsPanel.tsx、ArchivePanel.tsx。 */
+.primary-button.destructive:hover:not(:disabled) { background: #be2e43; }
+/* STYLE-00066 用途：参考图删除按钮。关联：ReferenceLibrary.tsx。 */
+.reference-delete { position: absolute; left: 4px; top: 4px; width: 23px; height: 23px; padding: 0; border-radius: 7px; background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(4px); color: #b84255; border: 1px solid rgba(214, 69, 91, 0.22); }
+/* STYLE-00067 用途：参考图删除按钮（鼠标悬停、禁用状态）。关联：ReferenceLibrary.tsx。 */
+.reference-delete:hover:not(:disabled) { background: #fff0f3; color: #c82840; border-color: #f0adc0; }
+/* STYLE-00068 用途：参考图库列表模式的行排版；点击预览参考图的缩略图区域。关联：ReferenceLibrary.tsx。 */
 .list-mode .reference-preview { padding-right: 62px; }
+/* STYLE-00069 用途：参考图库列表模式的行排版；参考图删除按钮。关联：ReferenceLibrary.tsx。 */
 .list-mode .reference-delete { left: auto; right: 33px; top: 50%; transform: translateY(-50%); }
+/* STYLE-00070 用途：参考图库列表模式的行排版；参考图删除按钮（按下反馈）。关联：ReferenceLibrary.tsx。 */
 .list-mode .reference-delete:active { transform: translateY(-50%); }
-.reference-delete-message { line-height: 1.8; overflow-wrap: anywhere; }
-[data-theme="dark"] .project-context-menu { background: #22384b; border-color: var(--line); }
-[data-theme="dark"] :is(.archived-project, .archive-confirm) { background: #22384b; }
-[data-theme="dark"] .reference-delete { background: #302c3b; color: #f5b7c2; border-color: #6b485b; }
-[data-theme="dark"] .reference-delete:hover:not(:disabled) { background: #483043; }
+/* STYLE-00071 用途：删除参考图后的提示信息。关联：ReferenceLibrary.tsx。 */
+.reference-delete-message { line-height: 1.8; overflow-wrap: anywhere; font-size: 13.5px; }
+/* STYLE-00072 用途：项目右键菜单：重命名、归档（深色模式）。关联：ProjectMenu.tsx。 */
+[data-theme="dark"] .project-context-menu { background: #1a2430; border-color: var(--line); }
+[data-theme="dark"] .project-context-menu button { color: #dde7f2; }
+/* STYLE-00073 用途：已归档项目卡片；归档项永久删除确认区（深色模式）。关联：ArchivePanel.tsx。 */
+[data-theme="dark"] :is(.archived-project, .archive-confirm) { background: #1a2430; border-color: var(--line); }
+/* STYLE-00074 用途：参考图删除按钮（深色模式）。关联：ReferenceLibrary.tsx。 */
+[data-theme="dark"] .reference-delete { background: rgba(28, 36, 48, 0.9); color: #fca5b2; border-color: #5c3744; }
+/* STYLE-00075 用途：参考图删除按钮（深色模式、鼠标悬停、禁用状态）。关联：ReferenceLibrary.tsx。 */
+[data-theme="dark"] .reference-delete:hover:not(:disabled) { background: #482835; }
+
+/* STYLE-00076 用途：用户提交的提示词气泡；长提示词默认折叠的行数和裁剪。关联：App.tsx、CollapsiblePrompt.tsx。 */
 
 .request-bubble .prompt-collapsed { max-height: 9.25em; overflow: hidden; }
-.request-bubble .prompt-toggle { margin-top: 6px; font-size: 11px; }
+/* STYLE-00077 用途：用户提交的提示词气泡；长提示词的展开 / 收起按钮。关联：App.tsx、CollapsiblePrompt.tsx。 */
+.request-bubble .prompt-toggle { margin-top: 6px; font-size: 12px; }
 
 /* The library has its own scroll area; the project list always keeps usable space. */
+/* STYLE-00078 用途：参考图库可调高度的外层容器。关联：LibraryPane.tsx。 */
 .reference-pane { flex: none; min-height: 0; min-width: 220px; overflow: hidden; }
+/* STYLE-00079 用途：参考图库可调高度的外层容器；参考图库整个分区。关联：LibraryPane.tsx、ReferenceLibrary.tsx。 */
 .reference-pane .reference-library { height: 100%; display: flex; flex-direction: column; padding-bottom: 0; }
+/* STYLE-00080 用途：参考图库可调高度的外层容器；图库、项目与队列的分区标题；风格、人设、场景分类按钮。关联：LibraryPane.tsx、App.tsx、ReferenceLibrary.tsx。 */
 .reference-pane :is(.section-heading, .category-tabs) { flex-shrink: 0; }
+/* STYLE-00081 用途：参考图库可调高度的外层容器；参考图网格、滚动范围和空状态。关联：LibraryPane.tsx、ReferenceLibrary.tsx。 */
 .reference-pane .reference-grid { flex: 1; min-height: 0; max-height: none; }
+/* STYLE-00082 用途：参考图库可调高度的外层容器；图库尚无参考图时的导入区域。关联：LibraryPane.tsx、ReferenceLibrary.tsx。 */
 .reference-pane .library-empty { min-height: 60px; height: 100%; }
+/* STYLE-00083 用途：参考图库与项目栏之间的高度拖动手柄。关联：LibraryPane.tsx。 */
 .library-height-handle { height: 14px; flex: none; cursor: ns-resize; touch-action: none; user-select: none; display: grid; place-items: center; outline: none; }
-.library-height-handle::after { content: ''; width: 32px; height: 3px; border-radius: 8px; background: #bad2e2; opacity: .65; transition: background .15s, opacity .15s; }
-.library-height-handle:is(:hover, :focus-visible, .dragging)::after { background: var(--accent); opacity: 1; }
+/* STYLE-00084 用途：参考图库与项目栏之间的高度拖动手柄。关联：LibraryPane.tsx。 */
+.library-height-handle::after { content: ''; width: 32px; height: 3px; border-radius: 8px; background: #cbd5e1; opacity: .75; transition: background .15s, opacity .15s, width .15s; }
+/* STYLE-00085 用途：参考图库与项目栏之间的高度拖动手柄（鼠标悬停、键盘或输入焦点）。关联：LibraryPane.tsx。 */
+.library-height-handle:is(:hover, :focus-visible, .dragging)::after { background: var(--accent); opacity: 1; width: 42px; }
+/* STYLE-00086 用途：参考图库及项目列表的内容容器；项目列表分区及可用高度。关联：App.tsx。 */
 .sidebar-content .project-library { padding-top: 4px; }
-.queue-list { display: flex; flex-direction: column; gap: 6px; }
-.queue-item { flex: none; padding: 8px 10px; gap: 8px; border: 1px solid #e0edf6; border-radius: 13px; background: #fff; }
-.queue-item:hover { background: #f2f9ff; border-color: #bedcf0; }
+/* STYLE-00087 用途：生成队列独立滚动列表。关联：App.tsx。 */
+.queue-list { display: flex; flex-direction: column; gap: 7px; }
+/* STYLE-00088 用途：生成队列紧凑圆角任务卡片。关联：App.tsx。 */
+.queue-item { flex: none; padding: 9px 11px; gap: 9px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02); }
+/* STYLE-00089 用途：生成队列紧凑圆角任务卡片（鼠标悬停）。关联：App.tsx。 */
+.queue-item:hover { background: #f8fbff; border-color: #93b8e0; }
+/* STYLE-00090 用途：生成队列单个任务的文字内容。关联：App.tsx。 */
 .queue-item-body { gap: 4px; }
-.queue-item strong { display: block; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; line-height: 17px; }
-.queue-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 14px; }
+/* STYLE-00091 用途：生成队列紧凑圆角任务卡片。关联：App.tsx。 */
+.queue-item strong { display: block; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; line-height: 18px; }
+/* STYLE-00092 用途：生成队列中时间与状态的同一行。关联：App.tsx。 */
+.queue-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 15px; }
+/* STYLE-00093 用途：生成队列中时间与状态的同一行。关联：App.tsx。 */
 .queue-meta small { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+/* STYLE-00094 用途：生成队列中时间与状态的同一行；生成队列状态文字和指示灯。关联：App.tsx、domain.ts。 */
 .queue-meta .queue-state { margin-top: 0; flex: none; white-space: nowrap; gap: 4px; }
+/* STYLE-00095 用途：模型温度参数下拉按钮；通用下拉按钮、展开箭头与展开状态。关联：App.tsx、components.tsx。 */
 .temperature-picker .picker-trigger > .picker-caption { display: inline; }
-[data-theme="dark"] .queue-item { background: #22384b; border-color: var(--line); }
-[data-theme="dark"] .queue-item:hover { background: var(--selected); }
+/* STYLE-00096 用途：生成队列紧凑圆角任务卡片（深色模式）。关联：App.tsx。 */
+[data-theme="dark"] .queue-item { background: #16202b; border-color: var(--line); }
+/* STYLE-00097 用途：生成队列紧凑圆角任务卡片（深色模式、鼠标悬停）。关联：App.tsx。 */
+[data-theme="dark"] .queue-item:hover { background: var(--selected); border-color: #365270; }
 
 /* Uploading uses blue-violet; generation retains its distinct warm yellow. */
-.status-tag.uploading { color: #5143a7; background: #eeebff; }
-.status-tag.uploading i, .status-dot.uploading, .queue-state.uploading i { background: #8070e8; box-shadow: 0 0 0 3px #8070e817; animation: pulse 2s infinite; }
-.queue-state.uploading { color: #6b59c4; }
-.waiting-output.uploading { color: #6553ba; border-color: #cec5f8; background: #f7f5ff; }
-[data-theme="dark"] .status-tag.uploading { color: #d2c6ff; background: #39315a; }
-[data-theme="dark"] .queue-state.uploading { color: #c0acff; }
-[data-theme="dark"] .waiting-output.uploading { color: #c0acff; border-color: #62518e; background: #2a2641; }
+/* STYLE-00098 用途：任务状态标签和颜色。关联：App.tsx、domain.ts。 */
+.status-tag.uploading { color: #4f46e5; background: #eef2ff; }
+/* STYLE-00099 用途：任务状态标签和颜色；项目任务的小状态圆点；生成队列状态文字和指示灯。关联：App.tsx、domain.ts。 */
+.status-tag.uploading i, .status-dot.uploading, .queue-state.uploading i { background: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.16); animation: pulse 2s infinite; }
+/* STYLE-00100 用途：生成队列状态文字和指示灯。关联：App.tsx、domain.ts。 */
+.queue-state.uploading { color: #4f46e5; }
+/* STYLE-00101 用途：等待、上传、生成、失败时的结果占位框。关联：App.tsx。 */
+.waiting-output.uploading { color: #4f46e5; border-color: #c7d2fe; background: #f5f7ff; }
+/* STYLE-00102 用途：任务状态标签和颜色（深色模式）。关联：App.tsx、domain.ts。 */
+[data-theme="dark"] .status-tag.uploading { color: #c7d2fe; background: #29274c; }
+/* STYLE-00103 用途：生成队列状态文字和指示灯（深色模式）。关联：App.tsx、domain.ts。 */
+[data-theme="dark"] .queue-state.uploading { color: #a5b4fc; }
+/* STYLE-00104 用途：等待、上传、生成、失败时的结果占位框（深色模式）。关联：App.tsx。 */
+[data-theme="dark"] .waiting-output.uploading { color: #a5b4fc; border-color: #4c4682; background: #211f38; }
+
+/* STYLE-00105 用途：Cloud 字段名与跳转图标的同一行。关联：SettingsPanel.tsx。 */
+
+.cloud-field-label {display:inline-flex;align-items:center;gap:5px;min-height:22px;}
+/* STYLE-00106 用途：打开 Google Cloud 对应页面的小箭头。关联：CloudConsoleLink.tsx。 */
+.cloud-console-link {display:inline-grid;place-items:center;width:22px;height:22px;flex:none;border-radius:7px;color:var(--muted);text-decoration:none;transition:color .15s,background .15s;}
+/* STYLE-00107 用途：打开 Google Cloud 对应页面的小箭头（鼠标悬停）。关联：CloudConsoleLink.tsx。 */
+.cloud-console-link:hover {color:var(--accent);background:var(--accent-soft);}
+/* STYLE-00108 用途：打开 Google Cloud 对应页面的小箭头（键盘或输入焦点）。关联：CloudConsoleLink.tsx。 */
+.cloud-console-link:focus-visible {outline:2px solid var(--accent);outline-offset:2px;}
+
+/* Completion reminder controls: share the active Studio palette, including Harness amber. */
+.notification-settings { min-width: 0; }
+.notification-options { transition: opacity 180ms ease; }
+.notification-options-muted { opacity: .58; }
+.notification-label { margin: 22px 0 10px; font-size: 13px; color: var(--muted); }
+.notification-mode { display: flex; gap: 10px; }
+.notification-mode > button { display:flex; align-items:center; justify-content:space-between; gap:12px; flex:1; padding:14px 16px; border-radius:15px; border:1px solid var(--line); background:transparent; color:inherit; cursor:pointer; }
+.notification-mode > button.selected { background:var(--selected); border-color:var(--accent); color:var(--accent); }
+.notification-mode > button:disabled { cursor:default; }
+.notification-note { color:var(--muted); font-size:12px; line-height:1.75; margin:12px 0; }
+.notification-sound-row { display:flex; align-items:center; flex-wrap:wrap; gap:10px; padding:10px 0; }
+.notification-sound-row > svg { color:var(--muted); }
+.notification-file { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; color:var(--muted); margin:4px 0; }
+.notification-test-row { margin-top:24px; }
+@media (prefers-reduced-motion: reduce) { .notification-options { transition:none; } }

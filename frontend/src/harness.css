@@ -1,0 +1,116 @@
+/* STYLE-00001 用途：整个窗口的三栏布局和模式状态；切换 Harness 后的暖白琥珀色外壳（Harness 模式）。关联：App.tsx、HarnessPane.tsx。 */
+.studio-shell.harness-mode { background:#f7f3ed; }
+/* STYLE-00002 用途：切换 Harness 后的暖白琥珀色外壳；顶栏及窗口拖动区域（Harness 模式）。关联：App.tsx、HarnessPane.tsx。 */
+.harness-mode .titlebar { background:#f7f3ed; color:#2b221a; }
+/* STYLE-00003 用途：生图 / Harness 模式切换按钮。关联：App.tsx。 */
+.studio-mode-switch { display:flex; gap:3px; padding:3px; margin-left:18px; background:#e4eaf1; border-radius:11px; -webkit-app-region:no-drag; }
+/* STYLE-00004 用途：生图 / Harness 模式切换按钮。关联：App.tsx。 */
+.studio-mode-switch button { padding:6px 12px; border-radius:8px; font-size:12px; font-weight:550; color:#526375; gap:6px; }
+/* STYLE-00005 用途：生图 / Harness 模式切换按钮（选中状态）。关联：App.tsx。 */
+.studio-mode-switch button[aria-pressed="true"] { background:#ffffff; color:#182230; box-shadow:0 1px 3px rgba(15, 23, 42, 0.08); }
+/* STYLE-00006 用途：切换 Harness 后的暖白琥珀色外壳；生图 / Harness 模式切换按钮（Harness 模式）。关联：App.tsx、HarnessPane.tsx。 */
+.harness-mode .studio-mode-switch { background:#ebe1d3; }
+/* STYLE-00007 用途：切换 Harness 后的暖白琥珀色外壳；生图 / Harness 模式切换按钮（Harness 模式、选中状态）。关联：App.tsx、HarnessPane.tsx。 */
+.harness-mode .studio-mode-switch button[aria-pressed="true"] { background:#df7b12; color:#ffffff; }
+/* STYLE-00008 用途：切换 Harness 后的暖白琥珀色外壳；左侧参考图库和项目栏；生图模式的圆角主面板（Harness 模式）。关联：App.tsx、HarnessPane.tsx。 */
+.harness-mode > :is(.sidebar,.workspace,.queue,.sidebar-scrim) { display:none; }
+/* STYLE-00009 用途：Harness 原生子视图所在容器（Harness 模式）。关联：HarnessPane.tsx。 */
+.harness-pane { grid-row:2; grid-column:1/-1; z-index:1; min-height:0; display:grid; place-items:center; margin:2px 12px 12px; background:#fdfbf7; border:1px solid #e6dbc9; box-shadow:0 2px 6px rgba(43, 34, 26, 0.025), 0 12px 32px rgba(43, 34, 26, 0.04); border-radius:20px; color:#2b221a; }
+/* STYLE-00010 用途：Harness 未启动时的入口界面（Harness 模式）。关联：HarnessPane.tsx。 */
+.harness-entry { max-width:660px; padding:36px; text-align:center; animation:reveal .2s cubic-bezier(0.22, 1, 0.36, 1); }
+/* STYLE-00011 用途：Harness 入口的小终端图标（Harness 模式）。关联：HarnessPane.tsx。 */
+.harness-mark { width:64px; height:64px; margin:0 auto 22px; display:grid; place-items:center; border-radius:18px; color:#b85d0b; background:linear-gradient(145deg, #fff5e5, #fce8c8); border:1px solid #f2d4a7; box-shadow:0 6px 18px rgba(184, 93, 11, 0.08); }
+/* STYLE-00012 用途：Harness 入口的功能说明小字（Harness 模式）。关联：HarnessPane.tsx。 */
+.harness-eyebrow { font-size:10.5px; font-weight:650; letter-spacing:2.2px; color:#a36529; }
+/* STYLE-00013 用途：Harness 未启动时的入口界面（Harness 模式）。关联：HarnessPane.tsx。 */
+.harness-entry h1 { font-size:38px; font-weight:650; letter-spacing:-1px; margin:10px 0 12px; }
+/* STYLE-00014 用途：Harness 未启动时的入口界面（Harness 模式）。关联：HarnessPane.tsx。 */
+.harness-entry p { color:#6e5a48; font-size:14.5px; line-height:1.8; }
+/* STYLE-00015 用途：Harness 模型、预算和沙盒说明标签（Harness 模式）。关联：HarnessPane.tsx。 */
+.harness-specs { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:22px 0 28px; }
+/* STYLE-00016 用途：Harness 模型、预算和沙盒说明标签（Harness 模式）。关联：HarnessPane.tsx。 */
+.harness-specs span { padding:6px 12px; background:#f7efe4; border:1px solid #eadbc7; border-radius:999px; color:#6b5643; font-size:12px; font-weight:500; }
+/* STYLE-00017 用途：该选择器覆盖的通用布局或状态规则（Harness 模式）。关联：main.tsx / App.tsx / components.tsx。 */
+.harness-entry-actions { display:flex; align-items:center; justify-content:center; gap:10px; }
+/* STYLE-00018 用途：启动 Harness 主按钮；离线验收 / 停止等次级按钮（Harness 模式）。关联：HarnessPane.tsx。 */
+.harness-primary,.harness-secondary { padding:10px 18px; border-radius:11px; font-size:13px; font-weight:550; }
+/* STYLE-00019 用途：启动 Harness 主按钮（Harness 模式）。关联：HarnessPane.tsx。 */
+.harness-primary { background:#df7b12; color:#ffffff; box-shadow:0 3px 10px rgba(223, 123, 18, 0.24); }
+/* STYLE-00020 用途：启动 Harness 主按钮（Harness 模式、鼠标悬停、禁用状态）。关联：HarnessPane.tsx。 */
+.harness-primary:hover:not(:disabled) { background:#c96c0b; box-shadow:0 5px 14px rgba(223, 123, 18, 0.32); }
+/* STYLE-00021 用途：离线验收 / 停止等次级按钮（Harness 模式）。关联：HarnessPane.tsx。 */
+.harness-secondary { background:#f7efe4; color:#7c4a15; border:1px solid #e6d4bc; }
+.harness-secondary:hover:not(:disabled) { background:#f0e3d0; }
+/* STYLE-00022 用途：Harness 组件缺失或能力说明（Harness 模式）。关联：HarnessPane.tsx。 */
+.harness-notice { margin-top:18px; font-size:12px; color:#7e6953; line-height:1.7; }
+/* STYLE-00023 用途：浏览器中打开 Harness 的入口（Harness 模式）。关联：HarnessPane.tsx。 */
+.harness-browser-link { display:inline-flex; align-items:center; gap:6px; color:#b85d0b; font-weight:500; margin-top:18px; text-decoration:none; }
+/* STYLE-00024 用途：Harness 未启动时的入口界面；Harness 启动或连接失败提示（Harness 模式）。关联：HarnessPane.tsx。 */
+.harness-entry .harness-error { color:#b83246; margin-top:16px; font-size:12.5px; }
+/* STYLE-00025 用途：生图 / Harness 模式切换按钮（深色模式）。关联：App.tsx。 */
+[data-theme="dark"] .studio-mode-switch { background:#182330; }
+[data-theme="dark"] .studio-mode-switch button { color:#93a4b8; }
+/* STYLE-00026 用途：生图 / Harness 模式切换按钮（深色模式、选中状态）。关联：App.tsx。 */
+[data-theme="dark"] .studio-mode-switch button[aria-pressed="true"] { background:#25384d; color:#e6edf5; }
+/* STYLE-00027 用途：切换 Harness 后的暖白琥珀色外壳；顶栏及窗口拖动区域（深色模式、Harness 模式）。关联：App.tsx、HarnessPane.tsx。 */
+[data-theme="dark"] .harness-mode, [data-theme="dark"] .harness-mode .titlebar { background:#14110f; color:#f5eadc; }
+/* STYLE-00028 用途：Harness 原生子视图所在容器（深色模式、Harness 模式）。关联：HarnessPane.tsx。 */
+[data-theme="dark"] .harness-pane { background:#1c1815; border-color:#332a22; color:#f5eadc; }
+/* STYLE-00029 用途：Harness 模型、预算和沙盒说明标签；Harness 入口的小终端图标；离线验收 / 停止等次级按钮（深色模式、Harness 模式）。关联：HarnessPane.tsx。 */
+[data-theme="dark"] :is(.harness-specs span,.harness-mark,.harness-secondary) { background:#2a221b; border-color:#403326; color:#f3b86b; }
+/* 用途：响应式或减少动画条件：(prefers-reduced-motion:reduce)。 */
+@media(prefers-reduced-motion:reduce) { /* STYLE-00030 用途：Harness 未启动时的入口界面（Harness 模式）。关联：HarnessPane.tsx。 */ .harness-entry { animation:none; } }
+
+
+/* The mode travels with portals too; image mode retains its original palette. */
+/* STYLE-00031 用途：全局字体、基础配色与主题变量（Harness 模式）。关联：main.tsx / App.tsx / components.tsx。 */
+:root[data-studio-mode="harness"] {
+  --accent:#b85d0b; --muted:#75604d; --line:#e6d8c5; --selected:#f7ebda; --accent-soft:#f7ebda;
+  --harness-surface:#fdfbf7; --harness-input:#f9f5ee; --harness-text:#2b221a;
+  --harness-primary:#df7b12; --harness-primary-hover:#c96c0b; --harness-primary-text:#ffffff;
+  --harness-focus:rgba(223, 123, 18, 0.16); --harness-scrim:rgba(43, 34, 26, 0.24);
+  color:var(--harness-text);background:#f7f3ed;
+}
+/* STYLE-00032 用途：全局字体、基础配色与主题变量（深色模式、Harness 模式）。关联：main.tsx / App.tsx / components.tsx。 */
+:root[data-studio-mode="harness"][data-theme="dark"] {
+  --accent:#f29d38; --muted:#bfa890; --line:#3a2f25; --selected:#2e241b; --accent-soft:#2e241b;
+  --harness-surface:#1f1a16; --harness-input:#26201b; --harness-text:#f7ede0;
+  --harness-primary:#f29d38; --harness-primary-hover:#f7b15c; --harness-primary-text:#1f1812; --harness-scrim:rgba(12, 10, 8, 0.65);
+}
+/* STYLE-00033 用途：通用圆角弹窗外壳；通用圆角下拉菜单与选中项（Harness 模式）。关联：components.tsx。 */
+[data-studio-mode="harness"] :is(.modal,.picker-menu) {background:var(--harness-surface);color:var(--harness-text);border-color:var(--line);box-shadow:0 18px 60px rgba(43, 34, 26, 0.16);}
+/* STYLE-00034 用途：弹窗背景遮罩；仍需允许点击关闭（Harness 模式）。关联：components.tsx。 */
+[data-studio-mode="harness"] .modal-scrim {background:var(--harness-scrim);}
+/* STYLE-00035 用途：弹窗标题及关闭按钮栏；设置页小分区标题；左上角品牌名称和标志（Harness 模式）。关联：components.tsx、SettingsPanel.tsx、App.tsx。 */
+[data-studio-mode="harness"] :is(.modal-heading h2,.settings-subheading,.brand,.brand strong) {color:var(--harness-text);}
+/* STYLE-00036 用途：新建、重命名或配置输入框标签；左上角品牌名称和标志；顶栏新建项目、视图、设置或关于入口（Harness 模式）。关联：App.tsx、SettingsPanel.tsx、components.tsx。 */
+[data-studio-mode="harness"] :is(.form-label,.config-details dd,.brand strong span,.top-actions button,.text-button:not(.danger),.icon-button,.settings-navigation button,.picker-trigger,.picker-trigger>svg) {color:var(--muted);}
+/* STYLE-00037 用途：新建、重命名或配置输入框标签（Harness 模式）。关联：App.tsx、SettingsPanel.tsx。 */
+[data-studio-mode="harness"] .form-label input,
+[data-studio-mode="harness"] .credential-row {background:var(--harness-input);color:var(--harness-text);border-color:var(--line);}
+/* STYLE-00038 用途：新建、重命名或配置输入框标签（Harness 模式、键盘或输入焦点）。关联：App.tsx、SettingsPanel.tsx。 */
+[data-studio-mode="harness"] .form-label input:focus {border-color:var(--harness-primary);box-shadow:0 0 0 3px var(--harness-focus);}
+/* STYLE-00039 用途：次级操作按钮（Harness 模式）。关联：App.tsx、SettingsPanel.tsx。 */
+[data-studio-mode="harness"] .secondary-button {background:var(--harness-surface);color:var(--accent);border-color:var(--line);}
+/* STYLE-00040 用途：次级操作按钮；设置弹窗左侧分类导航（Harness 模式、鼠标悬停、禁用状态、选中状态）。关联：App.tsx、SettingsPanel.tsx、components.tsx。 */
+[data-studio-mode="harness"] :is(.secondary-button:hover:not(:disabled),.settings-navigation button.selected,.settings-navigation button:hover,.top-actions button:hover,.window-buttons button:hover,.icon-button:hover,.picker-trigger:hover,.picker-trigger[aria-expanded="true"],.picker-menu button:hover,.picker-menu button[aria-selected="true"]) {background:var(--selected);color:var(--accent);}
+/* STYLE-00041 用途：主要操作按钮；destructive 表示破坏性操作（Harness 模式）。关联：App.tsx、SettingsPanel.tsx、ArchivePanel.tsx。 */
+[data-studio-mode="harness"] .primary-button:not(.destructive) {background:var(--harness-primary);color:var(--harness-primary-text);box-shadow:0 2px 8px rgba(223, 123, 18, 0.22);}
+/* STYLE-00042 用途：主要操作按钮；destructive 表示破坏性操作（Harness 模式、鼠标悬停、禁用状态）。关联：App.tsx、SettingsPanel.tsx、ArchivePanel.tsx。 */
+[data-studio-mode="harness"] .primary-button:not(.destructive):hover:not(:disabled) {background:var(--harness-primary-hover);}
+/* STYLE-00043 用途：通用控件、图像或文字的基础显示规则（Harness 模式、键盘或输入焦点）。关联：main.tsx / App.tsx / components.tsx。 */
+[data-studio-mode="harness"] button:focus-visible {outline-color:var(--harness-primary);}
+/* STYLE-00044 用途：设置中的开关、选中状态及滑块（Harness 模式）。关联：SettingsPanel.tsx。 */
+[data-studio-mode="harness"] .setting-switch:not(.checked) {background:var(--line);}
+/* STYLE-00045 用途：已归档项目卡片；归档项永久删除确认区（Harness 模式）。关联：ArchivePanel.tsx。 */
+[data-studio-mode="harness"] :is(.archived-project,.archive-confirm) {background:var(--harness-input);border-color:var(--line);}
+/* STYLE-00046 用途：生图 / Harness 模式切换按钮（Harness 模式）。关联：App.tsx。 */
+[data-studio-mode="harness"] .studio-mode-switch {background:var(--selected);}
+/* STYLE-00047 用途：生图 / Harness 模式切换按钮（Harness 模式、选中状态）。关联：App.tsx。 */
+[data-studio-mode="harness"] .studio-mode-switch button[aria-pressed="true"] {background:var(--harness-primary);color:var(--harness-primary-text);}
+
+/* STYLE-00048 用途：切回 Harness 已加载子视图时的恢复占位（Harness 模式）。关联：HarnessPane.tsx。 */
+
+.harness-restoring {display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13.5px;}
+/* STYLE-00049 用途：Harness 视图恢复失败提示（Harness 模式）。关联：HarnessPane.tsx。 */
+.harness-resume-error {display:flex;align-items:center;gap:16px;max-width:650px;color:#b83246;font-size:13.5px;}

@@ -1,0 +1,44 @@
+/* 外观专用增强层：协调生图与 Harness 双模式的视觉质感、微交互与表面细节。
+   保留所有审批可见性、状态区分、焦点保护与滚动边界。 */
+
+.studio-shell {
+  transition: background-color 0.22s ease;
+}
+
+.workspace,
+.harness-pane {
+  transition:
+    background-color 0.22s ease,
+    border-color 0.22s ease,
+    box-shadow 0.22s ease;
+}
+
+.reference-card img,
+.request-ref img,
+.composer-ref img,
+.output-thumbnails button img {
+  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reference-card:hover .reference-preview > img,
+.request-ref:hover img,
+.output-thumbnails button:hover img {
+  transform: scale(1.035);
+}
+
+.queue-item {
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    transform 0.16s ease;
+}
+
+[data-studio-mode="harness"] .connection {
+  background: rgba(253, 251, 247, 0.72);
+  border-color: var(--line);
+}
+
+[data-studio-mode="harness"][data-theme="dark"] .connection {
+  background: #1f1a16;
+  border-color: var(--line);
+}

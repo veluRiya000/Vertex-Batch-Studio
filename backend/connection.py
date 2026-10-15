@@ -66,4 +66,8 @@ def configure_cloud(studio, value: CloudConfiguration):
                     pass  # A stale client's shutdown must not undo the saved configuration.
             studio._cloud = None
             studio.settings = studio.repo.settings = new_settings
+        from .model_catalog import ModelCatalogue
+        source = studio.model_catalog.source
+        studio.model_catalog.close()
+        studio.model_catalog = ModelCatalogue(new_settings, source)
         return new_settings

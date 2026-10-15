@@ -46,6 +46,10 @@ beforeEach(() => {
   };
   vi.mocked(api).mockReset();
   vi.mocked(api).mockImplementation(async (path, method = "GET", body) => {
+    if (path === "/models/refresh") return {
+      project: "demo", bucket: "bucket", data_dir: "D:/data",
+      model: "gemini-3.1-flash-image", credentials_configured: false,
+    } as never;
     if (path === "/config")
       return {
         project: "demo",
@@ -73,6 +77,94 @@ beforeEach(() => {
   });
 });
 afterEach(cleanup);
+it("2.1 禁用温度，新任务不保存温度，切回原模型恢复温度选择", async () => {
+  const base = vi.mocked(api).getMockImplementation()!;
+  const normal = "gemini-3.1-flash-image", nano = "gemini-nano-banana-2.1";
+  let chosen = normal;
+  vi.mocked(api).mockImplementation(async (path, method, body) => {
+    if (path === "/models/selection") chosen = (body as { model: string }).model;
+    if (["/config", "/models/refresh", "/models/selection"].includes(path)) return {
+      project: "demo", bucket: "bucket", data_dir: "D:/data", model: chosen,
+      unsupported_generation_parameters: chosen === nano ? ["temperature", "topP", "topK", "seed", "logprobs"] : [],
+      model_catalog: { models: [
+        { id: normal, label: "Nano Banana 2" }, { id: nano, label: "Nano Banana 2.1" },
+      ], source: "official", refreshing: false, fetched_at: null, message: null },
+    } as never;
+    return base(path, method, body);
+  });
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByText("测试项目", { selector: ".project-title span" });
+  await user.click(screen.getByRole("button", { name: "温度：默认" }));
+  await user.click(screen.getByRole("option", { name: "1.5" }));
+  await user.click(screen.getByRole("button", { name: "模型：Nano Banana 2" }));
+  await user.click(screen.getByRole("option", { name: "Nano Banana 2.1" }));
+  const temperature = await screen.findByRole("button", { name: "温度：不支持" });
+  expect((temperature as HTMLButtonElement).disabled).toBe(true);
+  expect(temperature.title).toContain("提交时不会发送");
+  await user.click(temperature);
+  expect(screen.queryByRole("listbox", { name: "温度选项" })).toBeNull();
+  await user.type(screen.getByRole("textbox", { name: "提示词" }), "2.1 test");
+  await user.click(screen.getByRole("button", { name: "加入任务" }));
+  await waitFor(() => expect(tasks).toHaveLength(1));
+  expect(tasks[0].temperature).toBeNull();
+  await user.click(screen.getByRole("button", { name: "模型：Nano Banana 2.1" }));
+  await user.click(screen.getByRole("option", { name: "Nano Banana 2" }));
+  const restored = await screen.findByRole("button", { name: "温度：1.5" });
+  expect((restored as HTMLButtonElement).disabled).toBe(false);
+  expect(tasks[0].temperature).toBeNull();
+});
+it("2.1 的断网回退仍然禁用温度，不依赖新版本目录缓存", async () => {
+  const base = vi.mocked(api).getMockImplementation()!;
+  vi.mocked(api).mockImplementation(async (path, method, body) => {
+    if (["/config", "/models/refresh"].includes(path)) return {
+      model: "gemini-nano-banana-2.1", unsupported_generation_parameters: ["temperature"],
+      model_catalog: { models: [], source: "unavailable", refreshing: false, fetched_at: null, message: "offline" },
+    } as never;
+    return base(path, method, body);
+  });
+  render(<App />);
+  const button = await screen.findByRole("button", { name: "温度：不支持" });
+  expect((button as HTMLButtonElement).disabled).toBe(true);
+});
+it("官方动态模型可以切换，移除后的当前模型不会重新混入选项", async () => {
+  const base = vi.mocked(api).getMockImplementation()!;
+  const model = (id: string, label: string) => ({ id, label, regions: ["global"], source_url: "https://docs.cloud.google.com/example?hl=en", supports_image_size: true, aspect_ratios: ["16:9"], max_references: 14, batch_image_sizes: ["1K"] });
+  let selected = "gemini-retired-image";
+  vi.mocked(api).mockImplementation(async (path, method, body) => {
+    if (path === "/models/selection") selected = (body as { model: string }).model;
+    if (["/config", "/models/refresh", "/models/selection"].includes(path)) return {
+      project: "demo", bucket: "bucket", data_dir: "D:/data", model: selected,
+      model_catalog: { models: [model("gemini-future-image", "未来生图模型")], source: "official", refreshing: false, fetched_at: null, message: null },
+    } as never;
+    return base(path, method, body);
+  });
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByText("请选择可用模型");
+  await user.click(screen.getByRole("button", { name: /^模型：/ }));
+  expect(screen.queryByRole("option", { name: "gemini-retired-image" })).toBeNull();
+  await user.click(screen.getByRole("option", { name: "未来生图模型" }));
+  await waitFor(() => expect(vi.mocked(api)).toHaveBeenCalledWith("/models/selection", "POST", { model: "gemini-future-image" }));
+  await waitFor(() => expect(screen.queryByText("请选择可用模型")).toBeNull());
+});
+it("断网缓存状态可见，切换失败保留当前模型", async () => {
+  const base = vi.mocked(api).getMockImplementation()!;
+  vi.mocked(api).mockImplementation(async (path, method, body) => {
+    if (path === "/models/selection") throw new Error("切换失败");
+    if (["/config", "/models/refresh"].includes(path)) return {
+      model: "gemini-old-image", model_catalog: { models: [{ id: "gemini-new-image", label: "新增模型" }], source: "cache", refreshing: false, fetched_at: null, message: "断网，使用缓存" },
+    } as never;
+    return base(path, method, body);
+  });
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByText("模型缓存");
+  await user.click(screen.getByRole("button", { name: /^模型：/ }));
+  await user.click(screen.getByRole("option", { name: "新增模型" }));
+  await screen.findByText("切换失败");
+  expect(screen.getByRole("button", { name: /^模型：/ }).textContent).toContain("gemini-old-image");
+});
 it("右键归档隐藏项目，设置归档中确认后才删除", async () => {
   const user = userEvent.setup(), base = vi.mocked(api).getMockImplementation()!;
   let deleted = false;
@@ -289,7 +381,7 @@ it("三张图片仍只发一个原文任务，切换数量不会修改旧任务"
   expect(tasks[0].prompt).toBe("原始提示词");
   expect(tasks[0].image_count).toBe(3);
   expect(
-    vi.mocked(api).mock.calls.filter(([, method]) => method === "POST"),
+    vi.mocked(api).mock.calls.filter(([path, method]) => method === "POST" && path.endsWith("/tasks")),
   ).toHaveLength(1);
   await user.click(screen.getByRole("button", { name: "图片数量：3" }));
   await user.click(screen.getByRole("option", { name: "4" }));
@@ -380,4 +472,95 @@ it("窄窗口打开队列后可从队列内部关闭", async () => {
   expect(screen.getByRole("button", { name: "收起生成队列" }).closest(".queue")).toBeTruthy();
   await user.click(screen.getByRole("button", { name: "收起生成队列" }));
   expect(screen.getByRole("button", { name: "展开生成队列" })).toBeTruthy();
+});
+
+
+it('Harness Cloud entry and shell palette follow mode, closing returns to the same mode',async()=>{
+  const user=userEvent.setup();
+  render(<App/>);
+  await screen.findByRole('button',{name:'测试项目'});
+  expect(document.documentElement.dataset.studioMode).toBe('images');
+  await user.click(screen.getByRole('button',{name:'Harness'}));
+  expect(document.documentElement.dataset.studioMode).toBe('harness');
+  fireEvent(window,new Event('vbs:open-cloud-settings'));
+  await screen.findByRole('textbox',{name:'项目 ID'});
+  expect(screen.queryByRole('switch',{name:'深色主题'})).toBeNull();
+  await user.click(screen.getByRole('button',{name:'关闭弹窗'}));
+  expect(document.documentElement.dataset.studioMode).toBe('harness');
+  await user.click(document.querySelector('.top-actions button') as HTMLButtonElement);
+  expect(screen.getByRole('switch',{name:'深色主题'})).toBeTruthy();
+  await user.click(screen.getByRole('button',{name:'关闭弹窗'}));
+  await user.click(screen.getByRole('button',{name:'生图'}));
+  expect(document.documentElement.dataset.studioMode).toBe('images');
+  expect(screen.getByRole('textbox',{name:'提示词'})).toBeTruthy();
+});
+
+it("未建项目时输入的提示词与参考图在创建项目后保留，只有点击加入任务才保存", async () => {
+  const base = vi.mocked(api).getMockImplementation()!;
+  let created = false;
+  const reference = {path:"references/styles/character.png",mime_type:"image/png",dimensions:[800,600],size:100,sha256:"0".repeat(64)};
+  vi.mocked(api).mockImplementation(async (path, method, body) => {
+    if(path === "/batches") {
+      if(method === "POST") {created=true;return {...batch} as never;}
+      return (created ? [{...batch}] : []) as never;
+    }
+    if(path === "/references") return [reference] as never;
+    return base(path,method,body);
+  });
+  const user=userEvent.setup();render(<App />);
+  await screen.findByRole("button",{name:"加入参考图 character.png"});
+  const prompt="  先写好的画面描述\n第二行也需要保留。  ";
+  fireEvent.change(screen.getByRole("textbox",{name:"提示词"}),{target:{value:prompt}});
+  await user.click(screen.getByRole("button",{name:"加入参考图 character.png"}));
+  expect((screen.getByRole("button",{name:"加入任务"}) as HTMLButtonElement).disabled).toBe(true);
+  await user.click(screen.getAllByRole("button",{name:"新建项目"})[0]);
+  fireEvent.change(screen.getByRole("textbox",{name:"项目名称"}),{target:{value:"测试项目"}});
+  await user.click(screen.getByRole("button",{name:"创建项目"}));
+  await waitFor(()=>expect(screen.queryByRole("dialog",{name:"新建项目"})).toBeNull());
+  expect((screen.getByRole("textbox",{name:"提示词"}) as HTMLTextAreaElement).value).toBe(prompt);
+  expect(tasks).toHaveLength(0);
+  expect(vi.mocked(api).mock.calls.some(([path])=>path.endsWith("/submit"))).toBe(false);
+  await user.click(screen.getByRole("button",{name:"加入任务"}));
+  await waitFor(()=>expect(tasks).toHaveLength(1));
+  expect(tasks[0].prompt).toBe(prompt);
+  expect(tasks[0].refs).toEqual([reference.path]);
+  expect((screen.getByRole("textbox",{name:"提示词"}) as HTMLTextAreaElement).value).toBe("");
+});
+
+it("已有项目的新建操作仍然清空原项目的未发送提示词", async () => {
+  const base=vi.mocked(api).getMockImplementation()!;
+  const next={...batch,id:"c".repeat(32),workspace_id:"c".repeat(32),project_name:"第二个项目"};
+  let created=false;
+  vi.mocked(api).mockImplementation(async(path,method,body)=>{
+    if(path==="/batches"){
+      if(method==="POST"){created=true;return {...next} as never;}
+      return (created?[{...batch},{...next}]:[{...batch}]) as never;
+    }
+    return base(path,method,body);
+  });
+  const user=userEvent.setup();render(<App />);
+  await screen.findByText("测试项目",{selector:".project-title span"});
+  fireEvent.change(screen.getByRole("textbox",{name:"提示词"}),{target:{value:"只属于原项目的草稿"}});
+  await user.click(screen.getAllByRole("button",{name:"新建项目"})[0]);
+  fireEvent.change(screen.getByRole("textbox",{name:"项目名称"}),{target:{value:next.project_name}});
+  await user.click(screen.getByRole("button",{name:"创建项目"}));
+  await waitFor(()=>expect(screen.queryByRole("dialog",{name:"新建项目"})).toBeNull());
+  expect((screen.getByRole("textbox",{name:"提示词"}) as HTMLTextAreaElement).value).toBe("");
+});
+
+it("四次生图结果仍显示一条对话，支持切换第四张缩略图", async () => {
+  batch.phase="completed";
+  tasks=[{id:"b".repeat(32),name:"四张图",prompt:"same",refs:[],temperature:null,aspect_ratio:"16:9",image_size:"1K",image_count:4,generation_config:{}}];
+  const base=vi.mocked(api).getMockImplementation()!;
+  vi.mocked(api).mockImplementation(async(path,method,body)=>{
+    if(path.endsWith("/results"))return {tasks:[{task_id:tasks[0].id,name:tasks[0].name,state:"succeeded",total_requests:4,completed_requests:4,succeeded_requests:4,error:null,
+      images:Array.from({length:4},(_,i)=>({path:`D:/output/result-${i}.png`,mime_type:"image/png",sha256:String(i).repeat(64),size:100}))}],counts:{succeeded:1,images:4},final:true,row_errors:[]} as never;
+    return base(path,method,body);
+  });
+  const user=userEvent.setup();render(<App />);
+  await screen.findByRole("button",{name:"查看第 4 张"});
+  expect(document.querySelectorAll(".task-card")).toHaveLength(1);
+  expect(screen.getByLabelText("生成请求进度").textContent).toBe("4/4");
+  await user.click(screen.getByRole("button",{name:"查看第 4 张"}));
+  await waitFor(()=>expect(screen.getByRole("img",{name:"四张图 第 4 张"}).getAttribute("src")).toContain(`/images/${tasks[0].id}/3`));
 });

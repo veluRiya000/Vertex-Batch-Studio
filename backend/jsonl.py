@@ -8,6 +8,7 @@ from pathlib import Path
 from .assets import Assets
 from .files import atomic_bytes, write_json
 from .models import TaskInput
+from .model_parameters import filter_generation_parameters
 from .repository import Repository
 
 ALIASES = {
@@ -57,7 +58,46 @@ def split_gcs(uri: str) -> tuple[str, str]:
     return match.group(1), match.group(2)
 
 
-def prepare(repo: Repository, batch_id: str) -> dict:
+def image_requests(task, request):
+    """Reuse the exact prompt, parameters and GCS URIs, with local occurrence IDs."""
+    group = fingerprint(request)
+    return [{"task_id": task.id, "request_id": task.id if task.image_count == 1 else f"{task.id}_r{index:02d}",
+             "image_index": index, "name": task.name, "request": request, "fingerprint": group}
+            for index in range(1, task.image_count + 1)]
+
+
+def upgrade_prepared_image_count(repo, batch, manifest):
+    """Upgrade only an untouched, never-submitted legacy preparation.
+
+    Keep its frozen model/config/GCS references. Existing accepted or uncertain
+    jobs must always retain the original JSONL and one-request interpretation.
+    """
+    if manifest.get("schema_version", 1) != 1 or batch["phase"] != "prepared" or batch.get("job_name") or batch.get("submission_started_at"):
+        return manifest
+    tasks = {task.id: task for task in repo.tasks(batch["id"])}
+    if not any(task.image_count > 1 for task in tasks.values()):
+        return manifest
+    directory = repo.directory(batch["id"])
+    from .files import sha256_file
+    for file, key in (("inputs/tasks.json", "tasks_sha256"), ("inputs/prompts.jsonl", "jsonl_sha256")):
+        if sha256_file(directory / file) != manifest[key]:
+            raise ValueError("准备后的输入文件被修改，请重新准备批次")
+    expanded = []
+    for item in manifest["requests"]:
+        task = tasks[item["task_id"]]
+        request = copy.deepcopy(item["request"])
+        request["contents"][0]["parts"][0]["text"] = task.prompt
+        expanded.extend(image_requests(task, request))
+    value = {**manifest, "schema_version": 2, "requests": expanded}
+    encoded = "".join(json.dumps({"request": item["request"]}, ensure_ascii=False, allow_nan=False,
+                                 separators=(",", ":")) + "\n" for item in expanded)
+    atomic_bytes(directory / "inputs/prompts.jsonl", encoded.encode("utf-8"))
+    value["jsonl_sha256"] = sha256_file(directory / "inputs/prompts.jsonl")
+    write_json(directory / "inputs/manifest.json", value)
+    return value
+
+
+def prepare(repo: Repository, batch_id: str, model_capabilities: dict | None = None) -> dict:
     batch = repo.editable(batch_id)
     repo.settings.require_cloud(check_credentials=False)
     tasks = repo.tasks(batch_id)
@@ -69,11 +109,8 @@ def prepare(repo: Repository, batch_id: str) -> dict:
     remote_refs: dict[str, dict] = {}
     requests = []
     for task in tasks:
-        # 从原始提示词生成提交文本，不改写 tasks.json，也不累积追加。
-        prompt = task.prompt
-        if task.image_count > 1:
-            prompt += f"\n\n请生成{task.image_count}张独立图片，每张单独输出，不要将多张图片拼成一张。"
-        parts = [{"text": prompt}]
+        # A count of N is N identical cloud requests, one logical GUI task.
+        parts = [{"text": task.prompt}]
         for ref in task.refs:
             if ref.startswith("gs://"):
                 bucket, name = split_gcs(ref)
@@ -96,17 +133,29 @@ def prepare(repo: Repository, batch_id: str) -> dict:
         config = copy.deepcopy(canonical(task.generation_config))
         if task.temperature is not None:
             config["temperature"] = task.temperature
+        config = filter_generation_parameters(repo.settings.model, config, model_capabilities)
         config["responseModalities"] = ["TEXT", "IMAGE"]
         if not isinstance(config.get("imageConfig", {}), dict):
             raise ValueError("generation_config.imageConfig 必须是对象")
-        config.setdefault("imageConfig", {}).update(
-            aspectRatio=task.aspect_ratio, imageSize=task.image_size)
+        if model_capabilities:
+            if task.image_size not in model_capabilities["batch_image_sizes"]:
+                raise ValueError("Google 官方批量生图目前仅支持 1K；请修改任务分辨率后再提交")
+            ratios = model_capabilities.get("aspect_ratios", [])
+            if ratios and task.aspect_ratio not in ratios:
+                raise ValueError("当前模型不支持任务的宽高比，请修改任务或选择其他模型")
+            maximum = model_capabilities.get("max_references")
+            if maximum is not None and len(task.refs) > maximum:
+                raise ValueError(f"当前模型每个任务最多支持 {maximum} 张参考图")
+        config.setdefault("imageConfig", {}).update(aspectRatio=task.aspect_ratio)
+        if model_capabilities and not model_capabilities["supports_image_size"]:
+            config["imageConfig"].pop("imageSize", None)
+        else:
+            config["imageConfig"]["imageSize"] = task.image_size
         request = {"contents": [{"role": "user", "parts": parts}], "generationConfig": config}
-        requests.append({"task_id": task.id, "name": task.name,
-                         "request": request, "fingerprint": fingerprint(request)})
+        requests.extend(image_requests(task, request))
     prefix = "batches/" + batch["folder"]
     manifest = {
-        "schema_version": 1, "project": repo.settings.project, "bucket": repo.settings.bucket,
+        "schema_version": 2, "project": repo.settings.project, "bucket": repo.settings.bucket,
         "model": repo.settings.model, "location": repo.settings.location,
         "assets": list(snapshots.values()), "remote_refs": list(remote_refs.values()),
         "requests": requests, "input_uri": f"gs://{repo.settings.bucket}/{prefix}/inputs/prompts.jsonl",

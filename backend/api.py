@@ -18,10 +18,16 @@ from .models import (BatchCreate, ReferenceImport, TasksReplace, TaskInput,
 from .service import Studio
 from .preferences import Preferences, load_preferences, save_preferences
 from .connection import CloudConfiguration, configure_cloud
+from .model_catalog import select_model
+from .model_parameters import unsupported_generation_parameters
 
 
 class AttachJob(InputModel):
     job_name: str
+
+
+class ModelSelection(InputModel):
+    model: str
 
 
 class ReferenceOrder(InputModel):
@@ -34,13 +40,27 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
     if not token:
         raise ValueError("本地 API 必须设置访问令牌")
 
+    from .harness_batch import HarnessBatch
+    from .harness_runtime import HarnessRuntime
+    from .harness_api import mount_harness
+    harness = HarnessBatch(studio)
+    harness_runtime = HarnessRuntime(studio.settings)
+    harness_token = secrets.token_urlsafe(32)
+    from .notifications import NotificationCenter
+    notifications = NotificationCenter(studio, harness)
+
     @asynccontextmanager
     async def lifespan(app):
         if background:
+            notifications.start()
             studio.start()
+            harness.start()
         try:
             yield
         finally:
+            await asyncio.to_thread(notifications.close)
+            await asyncio.to_thread(harness_runtime.close)
+            await asyncio.to_thread(harness.close)
             await asyncio.to_thread(studio.close)
 
     app = FastAPI(title="VertexBatchStudio", version="0.2.5", lifespan=lifespan)
@@ -50,7 +70,12 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
         if request.client and request.client.host not in {"127.0.0.1", "::1", "testclient"}:
             return JSONResponse({"detail": "只接受本机连接"}, status_code=403)
         given = request.headers.get("X-VBS-Token", "")
-        if not secrets.compare_digest(given, token):
+        import re
+        scoped = request.headers.get("X-VBS-Harness-Token", "")
+        provider_route = re.fullmatch(r"/harness/(?:requests(?:/[a-f0-9]{64}(?:/(?:cancel|resume|events))?)?|runs(?:/[a-f0-9]{64}/(?:pause|resume|finish))?)", request.url.path)
+        ui_route = request.method == "POST" and request.url.path in {"/harness/ui/cloud-settings", "/harness/ui/notification-settings"}
+        scoped_valid = bool(provider_route or ui_route) and secrets.compare_digest(scoped, harness_token)
+        if not secrets.compare_digest(given, token) and not scoped_valid:
             return JSONResponse({"detail": "本地访问令牌无效"}, status_code=401)
         response = await call_next(request)
         response.headers["Cache-Control"] = "no-store"
@@ -94,7 +119,19 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
                 "root": str(settings.root), "poll_seconds": settings.poll_seconds,
                 "credentials_configured": bool(settings.credentials_file),
                 "authentication_mode": "service_account" if settings.credentials_file else "adc",
-                "credential_name": settings.credentials_file.name if settings.credentials_file else None}
+                "credential_name": settings.credentials_file.name if settings.credentials_file else None,
+                "model_catalog": studio.model_catalog.snapshot(),
+                "unsupported_generation_parameters": sorted(unsupported_generation_parameters(settings.model, studio.model_capabilities()))}
+
+    @app.post("/models/refresh")
+    def refresh_models():
+        studio.model_catalog.refresh()
+        return public_config()
+
+    @app.post("/models/selection")
+    def update_model(value: ModelSelection):
+        select_model(studio, value.model)
+        return public_config()
 
     @app.get("/preferences")
     def preferences():
@@ -104,8 +141,40 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
     def update_preferences(value: Preferences):
         return save_preferences(studio.settings.root, value)
 
+    @app.get("/notifications/status")
+    def notification_status():
+        return notifications.status()
+
+    class SoundImport(InputModel):
+        name: str
+        content_base64: str
+
+    class ReminderTest(InputModel):
+        sound_only: bool = False
+
+    @app.post("/notifications/sound")
+    async def import_notification_sound(request: Request):
+        payload = bytearray()
+        async for chunk in request.stream():
+            payload.extend(chunk)
+            if len(payload) > 7 * 1024 * 1024:
+                raise HTTPException(413, "音频文件过大")
+        try:
+            value = SoundImport.model_validate(json.loads(payload))
+        except Exception:
+            raise ValueError("音频导入参数无效") from None
+        return await asyncio.to_thread(notifications.sounds.import_sound, value.name, value.content_base64)
+
+    @app.post("/notifications/test")
+    async def test_notification(value: ReminderTest):
+        prefs = load_preferences(studio.settings.root).notifications
+        return await asyncio.to_thread(notifications.send, "Vertex Studio · 测试提醒",
+                                       "批次完成时，会在这里提醒你。", prefs, sound_only=value.sound_only)
+
     @app.put("/cloud/configuration")
     async def cloud_configuration(request: Request):
+        if any(row["phase"] not in {"completed", "cancelled", "failed", "budget_paused"} for row in harness.list()):
+            raise ValueError("Harness 云端请求仍在进行，请完成或确认取消后再修改云端配置")
         payload = bytearray()
         async for chunk in request.stream():
             payload.extend(chunk)
@@ -117,6 +186,8 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
             # Don't return Pydantic's input field: it could contain a private key.
             raise ValueError("连接参数有误，请检查项目 ID、桶名和 JSON 文件") from None
         await asyncio.to_thread(configure_cloud, studio, value)
+        if background:
+            studio.model_catalog.refresh()
         return public_config()
 
     @app.post("/cloud/check")
@@ -300,4 +371,5 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
             on_shutdown()
         return {"status": "stopping"}
 
+    mount_harness(app, harness, harness_runtime, harness_token)
     return app

@@ -61,6 +61,8 @@ export function reportRendererFailure(error: unknown): void {
 // Keep the existing renderer contract. The backend token never enters JavaScript.
 if (isTauri()) {
   window.studio = {
+    openCloudPage: (page, project) => invoke("open_cloud_page", { page, project }),
+    harnessView: (visible, offline, restoreOnly = false) => invoke("harness_view", { visible, offline, restoreOnly }),
     api: (method, path, body) => invoke('studio_api', { method, path, body: body ?? null }),
     image: path => invoke<string>('studio_image', { path }),
     upload: (name, bytes, options) => invoke<Reference>('studio_upload', {

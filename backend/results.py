@@ -1,5 +1,4 @@
-"""Streaming extraction across all shards, with durable request-to-task assignments."""
-
+"""Extract cloud rows into stable request slots, then group them into GUI tasks."""
 from collections import defaultdict
 from io import BytesIO
 from pathlib import Path
@@ -8,7 +7,7 @@ import hashlib
 import json
 from PIL import Image
 from .assets import MIME, EXT
-from .files import atomic_bytes, beneath, filename, write_json
+from .files import atomic_bytes, beneath, filename, write_json, sha256_file
 from .jsonl import canonical, echoed_matches, fingerprint
 from .repository import Repository, now
 
@@ -38,19 +37,23 @@ def extract(repo: Repository, batch: dict, manifest: dict, final: bool = False) 
     output = Path(batch["image_output_dir"]) if batch["image_output_dir"] else directory / "outputs/images"
     output.mkdir(parents=True, exist_ok=True)
     objects = batch["downloaded_objects"]
-    groups = defaultdict(list)
-    by_contents = defaultdict(set)
-    request_by_group = {}
+    groups, by_contents = defaultdict(list), defaultdict(set)
+    request_by_group, slots, task_slots = {}, {}, defaultdict(list)
     for item in manifest["requests"]:
+        # Legacy manifests have a single row per task and retain their old IDs.
+        ident = item.get("request_id", item["task_id"])
+        if ident in slots:
+            raise ValueError("提交清单中存在重复的请求编号")
         group = item["fingerprint"]
-        groups[group].append(item["task_id"])
+        slots[ident] = {**item, "request_id": ident}
+        task_slots[item["task_id"]].append(ident)
+        groups[group].append(ident)
         request_by_group[group] = item["request"]
         by_contents[fingerprint({"contents": item["request"]["contents"]})].add(group)
-    for task_ids in groups.values():
-        task_ids.sort()
+    for identities in groups.values():
+        identities.sort()
 
-    descriptors = []
-    row_errors = []
+    descriptors, row_errors = [], []
     for key, name, number, row, error in rows(directory, objects):
         if error:
             row_errors.append({"object": name, "line": number, "error": error})
@@ -62,39 +65,39 @@ def extract(repo: Repository, batch: dict, manifest: dict, final: bool = False) 
         candidates = by_contents.get(fingerprint({"contents": returned.get("contents")}), set())
         matches = [g for g in candidates if echoed_matches(request_by_group[g], returned)]
         if not matches:
-            row_errors.append({"object": name, "line": number,
-                               "error": "无法对应提交请求；原始数据已保留"})
+            row_errors.append({"object": name, "line": number, "error": "无法对应提交请求；原始数据已保留"})
             continue
-        # Exact echoes take priority. If the provider adds default fields, prefer
-        # the most constrained matching request; equivalent variants can use the
-        # remaining matching group. Never match a conflicting explicit setting.
         matches.sort(key=lambda group: (
             canonical(request_by_group[group]) == returned,
             len(json.dumps(request_by_group[group]["generationConfig"], sort_keys=True))), reverse=True)
         descriptors.append((key, matches, name, number))
 
-    current = {key for key, _, _, _ in descriptors}
-    assignments = {key: value for key, value in batch.get("row_assignments", {}).items() if key in current}
-    used = set(assignments.values())
-    for key, matching_groups, name, number in descriptors:
+    # Identical requests have interchangeable outputs. Persist a one-to-one
+    # occurrence assignment rather than using row order or deduplicating echoes.
+    old_assignments = batch.get("row_assignments", {})
+    assignments, used = {}, set()
+    for key, matches, _, _ in descriptors:
+        ident = old_assignments.get(key)
+        if ident in slots and ident not in used and slots[ident]["fingerprint"] in matches:
+            assignments[key] = ident
+            used.add(ident)
+    for key, matches, name, number in descriptors:
         if key not in assignments:
-            available = [tid for group in matching_groups for tid in groups[group] if tid not in used]
+            available = [ident for group in matches for ident in groups[group] if ident not in used]
             if not available:
-                row_errors.append({"object": name, "line": number,
-                                   "error": "结果数量超过相同请求的任务数量"})
+                row_errors.append({"object": name, "line": number, "error": "结果数量超过提交的请求数量"})
                 continue
             assignments[key] = available[0]
             used.add(available[0])
     batch["row_assignments"] = assignments
-    results = {item["task_id"]: {
-        "task_id": item["task_id"], "name": item["name"], "state": "pending",
-        "images": [], "error": None,
-    } for item in manifest["requests"]}
+    requests = {ident: {"request_id": ident, "task_id": item["task_id"], "name": item["name"],
+                        "state": "pending", "images": [], "error": None}
+                for ident, item in slots.items()}
 
     for key, name, number, row, read_error in rows(directory, objects):
         if read_error or key not in assignments:
             continue
-        result = results[assignments[key]]
+        result = requests[assignments[key]]
         result.update(source_object=name, source_line=number)
         status = row.get("status")
         if status or row.get("error"):
@@ -132,15 +135,13 @@ def extract(repo: Repository, batch: dict, manifest: dict, final: bool = False) 
                         if MIME.get(image.format) != mime:
                             raise ValueError("图片内容与 MIME 类型不符")
                         image.verify()
+                    # Slot identity keeps four candidate-1/part-1 outputs distinct,
+                    # even if every generation returns the very same image bytes.
                     name_part = filename(result["name"], limit=30)
-                    image_name = f"{name_part}_{result['task_id']}_c{candidate_index:02d}_i{part_index:02d}{EXT[mime]}"
+                    image_name = f"{name_part}_{result['request_id']}_c{candidate_index:02d}_i{part_index:02d}{EXT[mime]}"
                     target = output / image_name
                     digest = hashlib.sha256(data).hexdigest()
-                    if target.exists():
-                        from .files import sha256_file
-                        unchanged = sha256_file(target) == digest
-                    else:
-                        unchanged = False
+                    unchanged = target.exists() and sha256_file(target) == digest
                     if not unchanged:
                         atomic_bytes(target, data)
                     result["images"].append({"path": str(target.resolve()), "mime_type": mime,
@@ -153,18 +154,36 @@ def extract(repo: Repository, batch: dict, manifest: dict, final: bool = False) 
             result["state"] = "succeeded"
         else:
             reasons = [c.get("finishReason") for c in candidates if isinstance(c, dict)]
-            result.update(state="error", error="未返回图片：" + str(
-                response.get("promptFeedback") or reasons))
+            result.update(state="error", error="未返回图片：" + str(response.get("promptFeedback") or reasons))
     if final:
-        for result in results.values():
+        for result in requests.values():
             if result["state"] == "pending":
-                result.update(state="missing", error="云端任务已结束，但未找到该任务结果")
-    values = list(results.values())
+                result.update(state="missing", error="云端任务已结束，但未找到该请求结果")
+
+    values = []
+    for task_id, identities in task_slots.items():
+        generations = [requests[ident] for ident in identities]
+        if len(generations) == 1:
+            # Preserve historical report fields and filenames for existing jobs.
+            grouped = dict(generations[0])
+        else:
+            states = [value["state"] for value in generations]
+            state = ("pending" if "pending" in states else "succeeded" if all(s == "succeeded" for s in states)
+                     else "missing" if all(s == "missing" for s in states) else "error")
+            errors = [f"第 {i} 次生成：{value['error']}" for i, value in enumerate(generations, 1) if value["error"]]
+            grouped = {"task_id": task_id, "name": generations[0]["name"], "state": state,
+                       "images": [image for value in generations for image in value["images"]],
+                       "error": "；".join(errors) or None}
+        grouped.update(total_requests=len(generations),
+                       completed_requests=sum(value["state"] != "pending" for value in generations),
+                       succeeded_requests=sum(value["state"] == "succeeded" for value in generations),
+                       generations=[{k: v for k, v in value.items() if k not in {"images", "task_id", "name"}}
+                                    for value in generations])
+        values.append(grouped)
     counts = {state: sum(r["state"] == state for r in values)
               for state in ("succeeded", "error", "missing", "pending")}
     counts["images"] = sum(len(r["images"]) for r in values)
-    report = {"updated_at": now(), "final": final, "counts": counts,
-              "tasks": values, "row_errors": row_errors}
+    report = {"updated_at": now(), "final": final, "counts": counts, "tasks": values, "row_errors": row_errors}
     write_json(directory / "outputs/results.json", report)
     batch["counts"] = counts
     return report

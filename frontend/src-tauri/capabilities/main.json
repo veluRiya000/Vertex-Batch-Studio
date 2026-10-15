@@ -1,7 +1,26 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main-window",
-  "description": "Only the bundled studio window can call native commands.",
-  "windows": ["main"],
-  "permissions": ["core:default", "core:window:allow-start-dragging"]
+  "description": "Only the bundled main studio webview has native permissions; Harness has none.",
+  "webviews": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "allow-studio-api",
+    "allow-studio-image",
+    "allow-studio-upload",
+    "allow-choose-directory",
+    "allow-open-output",
+    "allow-set-preferences",
+    "allow-window-action",
+    "allow-watch-batch",
+    "allow-unwatch-batch",
+    "allow-renderer-ready",
+    "allow-smoke-mode",
+    "allow-renderer-failed",
+    "allow-harness-view",
+    "allow-open-cloud-page"
+  ]
 }

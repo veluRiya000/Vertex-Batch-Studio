@@ -1,20 +1,29 @@
-import { useRef, useState } from "react";
+/* 界面摘录说明：设置弹窗：常规选项、Google Cloud 配置与归档入口。可改表单布局和文案；保留字段名、校验、保存回调与连接检查。
+ * 仅此副本新增说明；原工程未改动。 */
+import { useEffect, useRef, useState } from "react";
 import {
+  Archive,
+  Bell,
   Check,
+  Cloud,
   FileKey,
   LoaderCircle,
   LogOut,
   Moon,
   RefreshCw,
+  SlidersHorizontal,
   Upload,
 } from "lucide-react";
 import { api } from "./api";
 import { Modal, Picker } from "./components";
+import { NotificationSettings } from "./NotificationSettings";
 import { ArchivePanel } from "./ArchivePanel";
+import { CloudConsoleLink } from "./CloudConsoleLink";
 import { usePreferences } from "./preferences";
 import { useTranslation } from "./i18n";
 import type { PublicConfig, Workspace } from "./types";
 
+// 界面组件 SettingsPanel：设置弹窗：常规选项、Google Cloud 配置与归档入口。
 export function SettingsPanel({
   config,
   close,
@@ -22,6 +31,8 @@ export function SettingsPanel({
   archivedProjects = [],
   deleteArchived,
   checkConnection,
+  stopHarness,
+  initialTab = "general",
 }: {
   config?: PublicConfig;
   close: () => void;
@@ -29,10 +40,12 @@ export function SettingsPanel({
   archivedProjects?: Workspace[];
   deleteArchived?: (id: string) => Promise<void>;
   checkConnection?: () => Promise<void>;
+  stopHarness?: () => Promise<void>;
+  initialTab?: "general" | "cloud" | "notifications";
 }) {
   const t = useTranslation(),
     { preferences, update } = usePreferences();
-  const [tab, setTab] = useState("general"),
+  const [tab, setTab] = useState<string>(initialTab),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const [project, setProject] = useState(config?.project || ""),
@@ -40,6 +53,7 @@ export function SettingsPanel({
   const [key, setKey] = useState<File>(),
     [message, setMessage] = useState("");
   const input = useRef<HTMLInputElement>(null);
+  useEffect(() => setTab(initialTab), [initialTab]);
   async function run(operation: () => Promise<void>) {
     if (busy) return;
     setBusy(true);
@@ -108,15 +122,22 @@ export function SettingsPanel({
             className={tab === "general" ? "selected" : ""}
             onClick={() => setTab("general")}
           >
+            <SlidersHorizontal size={15} aria-hidden />
             {t("常规")}
           </button>
           <button
             className={tab === "cloud" ? "selected" : ""}
             onClick={() => setTab("cloud")}
           >
+            <Cloud size={15} aria-hidden />
             {t("Google Cloud 登录")}
           </button>
+          <button className={tab === "notifications" ? "selected" : ""} onClick={() => setTab("notifications")}>
+            <Bell size={15} aria-hidden />
+            {preferences.language === "en" ? "Completion reminders" : "完成提醒"}
+          </button>
           <button className={tab === "archive" ? "selected" : ""} onClick={() => setTab("archive")}>
+            <Archive size={15} aria-hidden />
             {t("归档")}
           </button>
         </nav>
@@ -170,6 +191,7 @@ export function SettingsPanel({
               )}
               <div className="settings-divider" />
               <div className="settings-management">
+                {stopHarness && <button className="text-button" disabled={busy} onClick={() => void run(stopHarness)}>{t("关闭 Harness 后台")}</button>}
                 {window.studio && (
                   <button
                     className="text-button danger"
@@ -181,6 +203,8 @@ export function SettingsPanel({
                 )}
               </div>
             </>
+          ) : tab === "notifications" ? (
+            <NotificationSettings />
           ) : tab === "archive" ? (
             <ArchivePanel projects={archivedProjects} remove={deleteArchived || (async () => {})} />
           ) : (
@@ -196,8 +220,8 @@ export function SettingsPanel({
                 {t("服务账号")}
               </div>
               <label className="form-label">
-                {t("项目 ID")}
-                <input
+                <span className="cloud-field-label">{t("项目 ID")}<CloudConsoleLink page="project" project={project} label={t("打开 Google Cloud 项目页面")} onError={setError}/></span>
+                <input aria-label={t("项目 ID")}
                   value={project}
                   onChange={(event) => setProject(event.target.value)}
                   autoComplete="off"
@@ -205,8 +229,8 @@ export function SettingsPanel({
                 />
               </label>
               <label className="form-label">
-                {t("存储桶")}
-                <input
+                <span className="cloud-field-label">{t("存储桶")}<CloudConsoleLink page="storage" project={project} label={t("打开 Google Cloud 存储桶页面")} onError={setError}/></span>
+                <input aria-label={t("存储桶")}
                   value={bucket}
                   onChange={(event) => setBucket(event.target.value)}
                   autoComplete="off"
@@ -215,7 +239,7 @@ export function SettingsPanel({
               </label>
               <div className="credential-row">
                 <div>
-                  <small>{t("凭证")}</small>
+                  <small className="cloud-field-label">{t("凭证")}<CloudConsoleLink page="credentials" project={project} label={t("打开 Google Cloud 服务账号页面")} onError={setError}/></small>
                   <span>
                     {key?.name ||
                       config?.credential_name ||

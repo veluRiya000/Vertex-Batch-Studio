@@ -1,31 +1,46 @@
 @charset "UTF-8";
+/* STYLE-00109 用途：全局字体、基础配色与主题变量。关联：main.tsx / App.tsx / components.tsx。 */
 :root {
   font-family:
-    "Segoe UI Variable Text", "Microsoft YaHei UI", "Microsoft YaHei",
-    sans-serif;
-  color: #253a50;
-  background: #fbfcfe;
+    "Plus Jakarta Sans", "Inter", "Segoe UI Variable Display",
+    "Segoe UI Variable Text", "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+  color: #182230;
+  background: #f3f5f8;
   font-synthesis: none;
-  font-size: 13px;
-  --accent: #237cab;
-  --muted: #5c7082;
-  --line: #d9e7f0;
-  --selected: #e1f2ff;
-  --yellow: #f0b429;
-  --green: #22a75d;
-  --pink: #da6a72;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  --accent: #1d63b8;
+  --accent-hover: #15509a;
+  --accent-soft: #eaf2ff;
+  --muted: #5e6e80;
+  --subtle: #8292a4;
+  --line: #e2e8f0;
+  --line-strong: #cbd5e1;
+  --surface: #ffffff;
+  --surface-subtle: #f8fafc;
+  --selected: #e6f0fd;
+  --yellow: #d99016;
+  --green: #169459;
+  --pink: #d6455b;
 }
+/* STYLE-00110 用途：全局盒模型或无障碍动画覆盖。关联：main.tsx / App.tsx / components.tsx。 */
 * {
   box-sizing: border-box;
 }
+/* STYLE-00111 用途：该选择器覆盖的通用布局或状态规则。关联：main.tsx / App.tsx / components.tsx。 */
 body {
   margin: 0;
 }
+/* STYLE-00112 用途：通用控件、图像或文字的基础显示规则。关联：main.tsx / App.tsx / components.tsx。 */
 button,
 input,
 textarea {
   font: inherit;
 }
+/* STYLE-00113 用途：通用控件、图像或文字的基础显示规则。关联：main.tsx / App.tsx / components.tsx。 */
 button {
   color: inherit;
   cursor: pointer;
@@ -36,65 +51,85 @@ button {
   justify-content: center;
   gap: 7px;
 }
+/* STYLE-00114 用途：通用控件、图像或文字的基础显示规则（禁用状态）。关联：main.tsx / App.tsx / components.tsx。 */
 button:disabled {
-  opacity: 0.45;
+  opacity: 0.44;
   cursor: default;
 }
+/* STYLE-00115 用途：通用控件、图像或文字的基础显示规则。关联：main.tsx / App.tsx / components.tsx。 */
 button,
 input,
 textarea {
   -webkit-tap-highlight-color: transparent;
 }
+/* STYLE-00116 用途：通用控件、图像或文字的基础显示规则（键盘或输入焦点）。关联：main.tsx / App.tsx / components.tsx。 */
 button:focus-visible {
-  outline: 2px solid #5fa9d4;
-  outline-offset: 3px;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
+/* STYLE-00117 用途：通用控件、图像或文字的基础显示规则。关联：main.tsx / App.tsx / components.tsx。 */
 button,
 svg {
   flex-shrink: 0;
 }
+/* STYLE-00118 用途：通用控件、图像或文字的基础显示规则。关联：main.tsx / App.tsx / components.tsx。 */
 button {
   transition:
-    background 0.16s,
-    color 0.16s,
-    box-shadow 0.16s,
-    transform 0.16s;
+    background 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.12s cubic-bezier(0.22, 1, 0.36, 1);
 }
+/* STYLE-00119 用途：通用控件、图像或文字的基础显示规则（按下反馈、禁用状态）。关联：main.tsx / App.tsx / components.tsx。 */
 button:not(:disabled):active {
-  transform: translateY(1px);
+  transform: translateY(0.5px) scale(0.99);
 }
+/* STYLE-00120 用途：通用控件、图像或文字的基础显示规则。关联：main.tsx / App.tsx / components.tsx。 */
 input {
   min-width: 0;
 }
+/* STYLE-00121 用途：通用控件、图像或文字的基础显示规则。关联：main.tsx / App.tsx / components.tsx。 */
 button svg {
-  stroke-width: 1.65;
+  stroke-width: 1.75;
 }
+/* STYLE-00122 用途：通用控件、图像或文字的基础显示规则。关联：main.tsx / App.tsx / components.tsx。 */
 p {
   margin: 0;
 }
+/* STYLE-00123 用途：通用控件、图像或文字的基础显示规则。关联：main.tsx / App.tsx / components.tsx。 */
 img {
   display: block;
 }
+/* STYLE-00124 用途：通用控件、图像或文字的基础显示规则。关联：main.tsx / App.tsx / components.tsx。 */
 h1,
 h2 {
   margin: 0;
 }
+/* STYLE-00125 用途：通用控件、图像或文字的基础显示规则。关联：main.tsx / App.tsx / components.tsx。 */
 small {
-  font-size: 11px;
+  font-size: 11.5px;
 }
+/* STYLE-00126 用途：滚动条宽度、轨道和滑块外观。关联：main.tsx / App.tsx / components.tsx。 */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
+/* STYLE-00127 用途：滚动条宽度、轨道和滑块外观。关联：main.tsx / App.tsx / components.tsx。 */
 ::-webkit-scrollbar-thumb {
-  background: #cddee9;
+  background: #cbd5e1;
   border-radius: 20px;
 }
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+/* STYLE-00128 用途：滚动条宽度、轨道和滑块外观。关联：main.tsx / App.tsx / components.tsx。 */
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+/* STYLE-00129 用途：整个窗口的三栏布局和模式状态。关联：App.tsx。 */
 .studio-shell {
-  background: #eff6fc;
+  background: #f3f5f8;
   height: 100dvh;
   display: grid;
   grid-template-columns: 258px minmax(420px, 1fr) 218px;
@@ -102,219 +137,297 @@ small {
   overflow: hidden;
   --sidebar-width: 258px;
 }
+/* STYLE-00130 用途：整个窗口的三栏布局和模式状态。关联：App.tsx。 */
 .studio-shell.sidebar-hidden {
   grid-template-columns: minmax(420px, 1fr) 218px;
 }
+/* STYLE-00131 用途：整个窗口的三栏布局和模式状态。关联：App.tsx。 */
 .studio-shell.queue-hidden {
   grid-template-columns: 258px minmax(420px, 1fr);
 }
+/* STYLE-00132 用途：整个窗口的三栏布局和模式状态。关联：App.tsx。 */
 .studio-shell.sidebar-hidden.queue-hidden {
   grid-template-columns: 1fr;
 }
+/* STYLE-00133 用途：顶栏及窗口拖动区域。关联：App.tsx。 */
 .titlebar {
   grid-column: 1/-1;
   display: flex;
   align-items: center;
-  padding: 0 18px 0 17px;
+  padding: 0 18px 0 16px;
   background: transparent;
   -webkit-app-region: drag;
   user-select: none;
 }
+/* STYLE-00134 用途：顶栏及窗口拖动区域；右上角真实连接状态文字和指示点。关联：App.tsx、cloud-connection.ts。 */
 .titlebar button,
 .titlebar .connection {
   -webkit-app-region: no-drag;
 }
+/* STYLE-00135 用途：左上角品牌名称和标志。关联：App.tsx。 */
 .brand {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
 }
+/* STYLE-00136 用途：应用 Logo 的显示大小。关联：App.tsx。 */
 .studio-logo {
-  width: 29px;
-  height: 29px;
+  width: 28px;
+  height: 28px;
 }
+/* STYLE-00137 用途：应用 Logo 的显示大小。关联：App.tsx。 */
 .studio-logo.large {
-  width: 70px;
-  height: 70px;
+  width: 66px;
+  height: 66px;
 }
+/* STYLE-00138 用途：左上角品牌名称和标志。关联：App.tsx。 */
 .brand strong {
-  font-size: 16px;
-  letter-spacing: -0.4px;
+  font-size: 15.5px;
+  letter-spacing: -0.35px;
   font-weight: 650;
+  color: #15202e;
 }
+/* STYLE-00139 用途：左上角品牌名称和标志。关联：App.tsx。 */
 .brand strong span {
-  font-weight: 400;
-  color: #547084;
-  margin-left: 4px;
+  font-weight: 450;
+  color: #5e7186;
+  margin-left: 3px;
 }
+/* STYLE-00140 用途：Logo 与顶栏操作之间的分隔装饰。关联：App.tsx。 */
 .brand-divider {
   width: 1px;
-  height: 17px;
+  height: 16px;
   background: var(--line);
-  margin: 0 15px;
+  margin: 0 14px;
 }
+/* STYLE-00141 用途：顶栏新建项目、视图、设置或关于入口。关联：App.tsx。 */
 .top-actions {
   display: flex;
-  gap: 6px;
+  align-items: center;
+  gap: 4px;
+  margin-left: 10px;
 }
+/* STYLE-00142 用途：顶栏新建项目、视图、设置或关于入口。关联：App.tsx。 */
 .top-actions button {
   padding: 6px 11px;
-  border-radius: 8px;
-  font-size: 12px;
+  border-radius: 9px;
+  font-size: 12.5px;
+  font-weight: 500;
   color: var(--muted);
+  gap: 6px;
 }
+/* STYLE-00143 用途：顶栏新建项目、视图、设置或关于入口（鼠标悬停）。关联：App.tsx。 */
 .top-actions button:hover {
-  background: #eff6fc;
+  background: rgba(29, 99, 184, 0.08);
   color: var(--accent);
 }
+/* STYLE-00144 用途：顶栏左右内容之间的弹性留白。关联：App.tsx。 */
 .titlebar-space {
   flex: 1;
 }
+/* STYLE-00145 用途：右上角真实连接状态文字和指示点。关联：App.tsx、cloud-connection.ts。 */
 .connection {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11px;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--muted);
-  padding-right: 10px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(226, 232, 240, 0.9);
 }
+.connection:hover:not(:disabled) {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+/* STYLE-00146 用途：右上角真实连接状态文字和指示点。关联：App.tsx、cloud-connection.ts。 */
 .connection i {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--yellow);
+  box-shadow: 0 0 0 3px rgba(217, 144, 22, 0.16);
 }
+/* STYLE-00147 用途：右上角真实连接状态文字和指示点。关联：App.tsx、cloud-connection.ts。 */
 .connection.online i {
   background: var(--green);
+  box-shadow: 0 0 0 3px rgba(22, 148, 89, 0.16);
 }
+/* STYLE-00148 用途：右上角真实连接状态文字和指示点。关联：App.tsx、cloud-connection.ts。 */
 .connection.offline {
-  color: #ad8031;
+  color: #9a6812;
 }
+/* STYLE-00149 用途：最小化、最大化和关闭窗口按钮。关联：App.tsx。 */
 .window-buttons {
   display: flex;
   margin-right: -18px;
-  margin-left: 14px;
+  margin-left: 12px;
   height: 54px;
 }
+/* STYLE-00150 用途：最小化、最大化和关闭窗口按钮。关联：App.tsx。 */
 .window-buttons button {
-  width: 42px;
+  width: 44px;
+  border-radius: 0;
+  color: #526375;
 }
+/* STYLE-00151 用途：最小化、最大化和关闭窗口按钮（鼠标悬停）。关联：App.tsx。 */
 .window-buttons button:hover {
-  background: #f0f7fc;
+  background: rgba(15, 23, 42, 0.06);
+  color: #182230;
 }
+/* STYLE-00152 用途：最小化、最大化和关闭窗口按钮（鼠标悬停）。关联：App.tsx。 */
 .window-buttons button:last-child:hover {
-  background: #fff0f2;
-  color: #af404a;
+  background: #e11d48;
+  color: #ffffff;
 }
+/* STYLE-00153 用途：左侧参考图库和项目栏。关联：App.tsx。 */
 .sidebar {
-  background: #eff6fc;
+  background: #f3f5f8;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: 16px 14px 11px;
+  padding: 12px 12px 10px 14px;
 }
+/* STYLE-00154 用途：图库、项目与队列的分区标题。关联：App.tsx、ReferenceLibrary.tsx。 */
 .section-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 28px;
+  min-height: 30px;
   font-weight: 600;
   font-size: 13px;
-  letter-spacing: 0.2px;
+  color: #263547;
+  letter-spacing: 0.1px;
 }
+/* STYLE-00155 用途：图库、项目与队列的分区标题。关联：App.tsx、ReferenceLibrary.tsx。 */
 .section-heading > span {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.section-heading small {
-  color: #7890a3;
-  font-weight: 400;
-  font-size: 11px;
+.section-heading > span > svg {
+  color: var(--accent);
 }
+/* STYLE-00156 用途：图库、项目与队列的分区标题。关联：App.tsx、ReferenceLibrary.tsx。 */
+.section-heading small {
+  color: #6c7f93;
+  font-weight: 500;
+  font-size: 11px;
+  background: rgba(15, 23, 42, 0.05);
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+/* STYLE-00157 用途：图库、项目与队列的分区标题。关联：App.tsx、ReferenceLibrary.tsx。 */
 .section-heading > div {
   display: flex;
-  gap: 2px;
+  align-items: center;
+  gap: 3px;
 }
+/* STYLE-00158 用途：通用小图标按钮。关联：components.tsx、App.tsx。 */
 .icon-button {
   width: 28px;
   height: 28px;
   padding: 0;
   border-radius: 8px;
-  color: #658297;
+  color: #5e7083;
 }
+/* STYLE-00159 用途：通用小图标按钮（鼠标悬停）。关联：components.tsx、App.tsx。 */
 .icon-button:hover,
 .icon-button.active {
-  background: #e1eef8;
+  background: rgba(29, 99, 184, 0.1);
   color: var(--accent);
 }
+/* STYLE-00160 用途：参考图库整个分区。关联：ReferenceLibrary.tsx。 */
 .reference-library {
-  padding: 0 4px 15px;
+  padding: 0 2px 12px;
 }
+/* STYLE-00161 用途：风格、人设、场景分类按钮。关联：ReferenceLibrary.tsx。 */
 .category-tabs {
-  display: flex;
-  gap: 6px;
-  margin: 12px 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+  margin: 10px 0;
+  padding: 3px;
+  background: #e6ebf1;
+  border-radius: 10px;
 }
+/* STYLE-00162 用途：风格、人设、场景分类按钮。关联：ReferenceLibrary.tsx。 */
 .category-tabs button {
-  padding: 5px 14px;
-  border-radius: 8px;
-  color: #6b8397;
-  font-size: 11px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  color: #5c6e82;
+  font-size: 12px;
+  font-weight: 500;
 }
+/* STYLE-00163 用途：风格、人设、场景分类按钮。关联：ReferenceLibrary.tsx。 */
 .category-tabs button.active {
-  background: #fff;
-  color: var(--accent);
-  box-shadow: 0 2px 8px #34749c0a;
+  background: #ffffff;
+  color: #182230;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
 }
-.category-tabs button:hover {
-  color: var(--accent);
+/* STYLE-00164 用途：风格、人设、场景分类按钮（鼠标悬停）。关联：ReferenceLibrary.tsx。 */
+.category-tabs button:hover:not(.active) {
+  color: #182230;
 }
+/* STYLE-00165 用途：参考图网格、滚动范围和空状态。关联：ReferenceLibrary.tsx。 */
 .reference-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
+  gap: 7px;
   max-height: 204px;
   overflow-y: auto;
   min-height: 130px;
   align-content: start;
   padding-right: 2px;
 }
+/* STYLE-00166 用途：图库列表 / 窗格切换及导入按钮。关联：ReferenceLibrary.tsx。 */
 .reference-controls {
   display: flex;
-  gap: 1px;
+  gap: 2px;
   align-items: center;
 }
+/* STYLE-00167 用途：图库列表 / 窗格切换及导入按钮；通用小图标按钮。关联：ReferenceLibrary.tsx、components.tsx、App.tsx。 */
 .reference-controls .icon-button {
-  width: 25px;
-  height: 25px;
+  width: 26px;
+  height: 26px;
   padding: 4px;
 }
+/* STYLE-00168 用途：图库列表 / 窗格切换及导入按钮；通用小图标按钮。关联：ReferenceLibrary.tsx、components.tsx、App.tsx。 */
 .reference-controls .icon-button.active {
   background: var(--selected);
   color: var(--accent);
   border-radius: 7px;
 }
+/* STYLE-00169 用途：参考图库列表或网格排版。关联：ReferenceLibrary.tsx。 */
 .reference-browser {
   max-height: 280px;
   gap: 7px;
   padding: 2px;
 }
+/* STYLE-00170 用途：参考图卡片、拖动源与放置目标状态。关联：ReferenceLibrary.tsx。 */
 .reference-card {
   position: relative;
   min-width: 0;
-  border: 1px solid #d5e5f0;
-  border-radius: 10px;
-  background: #fff;
+  border: 1px solid #dde4ee;
+  border-radius: 11px;
+  background: #ffffff;
   overflow: hidden;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
   transition:
     border-color 0.16s,
     box-shadow 0.16s,
+    transform 0.16s,
     opacity 0.16s;
 }
+/* STYLE-00171 用途：参考图卡片、拖动源与放置目标状态（鼠标悬停）。关联：ReferenceLibrary.tsx。 */
 .reference-card:hover {
-  border-color: #8ebfdc;
+  border-color: #93b8e0;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
 }
+/* STYLE-00172 用途：点击预览参考图的缩略图区域。关联：ReferenceLibrary.tsx。 */
 .reference-preview {
   display: flex;
   flex-direction: column;
@@ -325,6 +438,7 @@ small {
   text-align: left;
   min-width: 0;
 }
+/* STYLE-00173 用途：点击预览参考图的缩略图区域；缩略图或输出图片加载占位。关联：ReferenceLibrary.tsx、components.tsx。 */
 .reference-preview > img,
 .reference-preview > .media-loading {
   width: 100%;
@@ -332,15 +446,18 @@ small {
   object-fit: cover;
   height: auto;
 }
+/* STYLE-00174 用途：参考图文件名及省略显示。关联：ReferenceLibrary.tsx。 */
 .reference-name {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  padding: 6px;
-  font-size: 10px;
+  padding: 6px 7px;
+  font-size: 11px;
+  color: #3a4b5e;
   line-height: 1.3;
 }
+/* STYLE-00175 用途：仅将参考图加入输入框的加号按钮。关联：ReferenceLibrary.tsx。 */
 .reference-add {
   position: absolute;
   right: 4px;
@@ -348,122 +465,147 @@ small {
   width: 23px;
   height: 23px;
   padding: 0;
-  background: #ffffffed;
-  color: #237cab;
-  border: 1px solid #d2e6f2;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(4px);
+  color: var(--accent);
+  border: 1px solid rgba(29, 99, 184, 0.2);
   border-radius: 7px;
-  box-shadow: 0 2px 6px #254c6414;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
 }
+/* STYLE-00176 用途：仅将参考图加入输入框的加号按钮（鼠标悬停）。关联：ReferenceLibrary.tsx。 */
 .reference-add:hover {
-  background: #e1f2ff;
-  border-color: #78b7da;
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
 }
+/* STYLE-00177 用途：参考图卡片、拖动源与放置目标状态。关联：ReferenceLibrary.tsx。 */
 .reference-card.drag-source {
   opacity: 0.45;
 }
+/* STYLE-00178 用途：参考图卡片、拖动源与放置目标状态。关联：ReferenceLibrary.tsx。 */
 .reference-card.drop-target {
-  border-color: #237cab;
-  box-shadow: 0 0 0 2px #62b0df55;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(29, 99, 184, 0.28);
 }
+/* STYLE-00179 用途：参考图库列表或网格排版；参考图库列表模式的行排版。关联：ReferenceLibrary.tsx。 */
 .reference-browser.list-mode {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
+/* STYLE-00180 用途：参考图库列表模式的行排版；参考图卡片、拖动源与放置目标状态。关联：ReferenceLibrary.tsx。 */
 .list-mode .reference-card {
   min-height: 48px;
   flex-shrink: 0;
 }
+/* STYLE-00181 用途：参考图库列表模式的行排版；点击预览参考图的缩略图区域。关联：ReferenceLibrary.tsx。 */
 .list-mode .reference-preview {
   flex-direction: row;
   align-items: center;
-  gap: 7px;
-  padding: 5px 33px 5px 6px;
+  gap: 8px;
+  padding: 5px 33px 5px 7px;
   min-height: 48px;
 }
+/* STYLE-00182 用途：参考图库列表模式的行排版；点击预览参考图的缩略图区域。关联：ReferenceLibrary.tsx、components.tsx。 */
 .list-mode .reference-preview > img,
 .list-mode .reference-preview > .media-loading {
   width: 36px;
   height: 36px;
   aspect-ratio: 1;
   flex-shrink: 0;
-  border-radius: 6px;
+  border-radius: 7px;
 }
+/* STYLE-00183 用途：参考图库列表模式的行排版；参考图文件名及省略显示。关联：ReferenceLibrary.tsx。 */
 .list-mode .reference-name {
   padding: 0;
   flex: 1;
   min-width: 0;
-  font-size: 11px;
+  font-size: 12px;
 }
+/* STYLE-00184 用途：参考图列表中的拖动提示柄。关联：ReferenceLibrary.tsx。 */
 .reference-grip {
-  color: #91acbf;
+  color: #94a3b8;
   flex-shrink: 0;
 }
+/* STYLE-00185 用途：参考图库列表模式的行排版；仅将参考图加入输入框的加号按钮。关联：ReferenceLibrary.tsx。 */
 .list-mode .reference-add {
   top: 50%;
   transform: translateY(-50%);
   right: 6px;
 }
+/* STYLE-00186 用途：参考图库列表模式的行排版；仅将参考图加入输入框的加号按钮（按下反馈）。关联：ReferenceLibrary.tsx。 */
 .list-mode .reference-add:active {
   transform: translateY(-50%);
 }
+/* STYLE-00187 用途：参考图库列表模式的行排版；图库尚无参考图时的导入区域。关联：ReferenceLibrary.tsx。 */
 .list-mode .library-empty {
   width: 100%;
 }
+/* STYLE-00188 用途：参考图卡片、拖动源与放置目标状态（深色模式）。关联：ReferenceLibrary.tsx。 */
 [data-theme="dark"] .reference-card {
-  background: #22384b;
-  color: #deebf5;
+  background: #1c2632;
+  color: #e2e8f0;
   border-color: var(--line);
 }
+/* STYLE-00189 用途：仅将参考图加入输入框的加号按钮（深色模式）。关联：ReferenceLibrary.tsx。 */
 [data-theme="dark"] .reference-add {
-  background: #1c3449;
-  color: #bde0f5;
-  border-color: #456981;
+  background: rgba(22, 31, 42, 0.9);
+  color: #7cc0ff;
+  border-color: #33485e;
 }
+/* STYLE-00190 用途：仅将参考图加入输入框的加号按钮（深色模式、鼠标悬停）。关联：ReferenceLibrary.tsx。 */
 [data-theme="dark"] .reference-add:hover {
-  background: var(--selected);
+  background: var(--accent);
+  color: #0d131a;
 }
+/* STYLE-00191 用途：参考图卡片、拖动源与放置目标状态（深色模式）。关联：ReferenceLibrary.tsx。 */
 [data-theme="dark"] .reference-card.drop-target {
-  border-color: #72c6f1;
-  box-shadow: 0 0 0 2px #72c6f14a;
+  border-color: #58a6ff;
+  box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.3);
 }
+/* STYLE-00192 用途：参考图库旧版缩略图显示规则。关联：ReferenceLibrary.tsx。 */
 .library-image {
   position: relative;
   padding: 0;
   overflow: hidden;
   aspect-ratio: 1;
   border-radius: 10px;
-  border: 1px solid #d5e5f0;
+  border: 1px solid var(--line);
   background: #fff;
 }
+/* STYLE-00193 用途：参考图库旧版缩略图显示规则。关联：ReferenceLibrary.tsx。 */
 .library-image > img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   transition: transform 0.25s;
 }
+/* STYLE-00194 用途：参考图库旧版缩略图显示规则（鼠标悬停）。关联：ReferenceLibrary.tsx。 */
 .library-image:hover > img {
   transform: scale(1.055);
 }
+/* STYLE-00195 用途：参考图库旧版缩略图显示规则；参考图旧版悬浮添加按钮；缩略图或输出图片加载占位。关联：ReferenceLibrary.tsx、components.tsx。 */
 .library-image > span:not(.library-add):not(.media-loading):not(.media-error) {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
   padding: 13px 5px 4px;
-  font-size: 9px;
+  font-size: 10px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  background: linear-gradient(transparent, #15304895);
+  background: linear-gradient(transparent, rgba(15, 23, 42, 0.65));
   color: white;
   text-align: left;
   opacity: 0;
   transition: opacity 0.2s;
 }
+/* STYLE-00196 用途：参考图库旧版缩略图显示规则（鼠标悬停）。关联：ReferenceLibrary.tsx。 */
 .library-image:hover > span {
   opacity: 1 !important;
 }
+/* STYLE-00197 用途：参考图旧版悬浮添加按钮。关联：ReferenceLibrary.tsx。 */
 .library-add {
   position: absolute;
   right: 4px;
@@ -477,61 +619,77 @@ small {
   color: var(--accent);
   opacity: 0;
 }
+/* STYLE-00198 用途：图库尚无参考图时的导入区域。关联：ReferenceLibrary.tsx。 */
 .library-empty {
   grid-column: 1/-1;
   flex-direction: column;
   min-height: 130px;
-  border: 1px dashed #bfd9ea;
+  border: 1.5px dashed #cbd5e1;
   border-radius: 12px;
-  color: #7a9ab0;
-  gap: 10px;
-  background: #f6fafe;
+  color: #64748b;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.55);
 }
+/* STYLE-00199 用途：图库尚无参考图时的导入区域（鼠标悬停）。关联：ReferenceLibrary.tsx。 */
 .library-empty:hover {
-  border-color: #62a5cc;
-  background: #fff;
+  border-color: var(--accent);
+  color: var(--accent);
+  background: #ffffff;
 }
+/* STYLE-00200 用途：图库尚无参考图时的导入区域。关联：ReferenceLibrary.tsx。 */
 .library-empty span {
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 500;
 }
+/* STYLE-00201 用途：图库尚无参考图时的导入区域。关联：ReferenceLibrary.tsx。 */
 .library-empty small {
-  font-size: 10px;
-  color: #92a8b8;
+  font-size: 11px;
+  color: #94a3b8;
 }
+/* STYLE-00202 用途：图库操作提示文字。关联：ReferenceLibrary.tsx。 */
 .library-hint {
-  font-size: 10px;
-  color: #7d96a9;
+  font-size: 11px;
+  color: #64748b;
   text-align: center;
   margin-top: 10px;
 }
+/* STYLE-00203 用途：项目列表分区及可用高度。关联：App.tsx。 */
 .project-library {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding-top: 14px;
+  padding-top: 12px;
 }
+/* STYLE-00204 用途：项目列表分区及可用高度；图库、项目与队列的分区标题。关联：App.tsx、ReferenceLibrary.tsx。 */
 .project-library > .section-heading {
-  padding: 0 4px 9px;
+  padding: 0 2px 8px;
 }
+/* STYLE-00205 用途：项目列表的滚动容器。关联：App.tsx。 */
 .project-list {
   overflow: auto;
   flex: 1;
   margin: 0 -3px;
   padding: 0 3px;
 }
+/* STYLE-00206 用途：项目列表中的单个项目。关联：App.tsx。 */
 .project {
-  margin-bottom: 5px;
+  margin-bottom: 4px;
   border-radius: 10px;
   overflow: hidden;
 }
+/* STYLE-00207 用途：项目标题、选中状态和展开箭头。关联：App.tsx。 */
 .project-title {
   width: 100%;
   justify-content: flex-start;
   gap: 9px;
-  padding: 10px 9px;
-  font-size: 12px;
+  padding: 9px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 10px;
+  color: #2c3c4f;
 }
+/* STYLE-00208 用途：项目标题、选中状态和展开箭头。关联：App.tsx。 */
 .project-title span {
   flex: 1;
   text-align: left;
@@ -539,183 +697,246 @@ small {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* STYLE-00209 用途：项目标题、选中状态和展开箭头。关联：App.tsx。 */
 .project-title > svg:first-child {
-  color: #6a94ae;
+  color: #64788d;
 }
+/* STYLE-00210 用途：项目标题、选中状态和展开箭头。关联：App.tsx。 */
 .project-title > svg:last-child {
-  color: #92a5b6;
+  color: #8c9eb1;
 }
+/* STYLE-00211 用途：项目列表中的单个项目；项目标题、选中状态和展开箭头。关联：App.tsx。 */
 .project.selected > .project-title {
-  background: #deefff;
-  color: #226b98;
+  background: #ffffff;
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.05);
 }
+.project.selected > .project-title > svg:first-child {
+  color: var(--accent);
+}
+/* STYLE-00212 用途：项目标题、选中状态和展开箭头（鼠标悬停）。关联：App.tsx。 */
 .project-title:hover {
-  background: #e5f0f9;
+  background: rgba(255, 255, 255, 0.7);
 }
+/* STYLE-00213 用途：项目展开后的任务列表。关联：App.tsx。 */
 .project-tasks {
-  padding: 6px 0 7px 19px;
+  padding: 5px 0 6px 20px;
   position: relative;
 }
+/* STYLE-00214 用途：项目展开后的任务列表。关联：App.tsx。 */
 .project-tasks:before {
   content: "";
   position: absolute;
-  left: 16px;
-  top: 12px;
-  bottom: 14px;
-  width: 1px;
-  background: #d5e4ef;
+  left: 17px;
+  top: 10px;
+  bottom: 12px;
+  width: 1.5px;
+  border-radius: 2px;
+  background: #d8e2ec;
 }
+/* STYLE-00215 用途：项目展开后的任务列表。关联：App.tsx。 */
 .project-tasks button {
   width: 100%;
   justify-content: flex-start;
   text-align: left;
-  font-size: 11px;
-  padding: 8px 12px;
+  font-size: 12px;
+  padding: 7px 11px;
   border-radius: 8px;
-  color: #6a8193;
+  color: #56687a;
   gap: 8px;
 }
+/* STYLE-00216 用途：项目展开后的任务列表（鼠标悬停）。关联：App.tsx。 */
 .project-tasks button:hover {
-  background: #e2eef7;
-  color: #237cab;
+  background: rgba(29, 99, 184, 0.08);
+  color: var(--accent);
 }
+/* STYLE-00217 用途：项目展开后的任务列表。关联：App.tsx。 */
 .project-tasks button span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* STYLE-00218 用途：项目内尚无任务的提示。关联：App.tsx。 */
 .project-no-tasks {
   display: block;
-  font-size: 11px;
-  color: #8ea4b5;
-  padding: 10px 14px;
+  font-size: 12px;
+  color: #8295a7;
+  padding: 8px 12px;
 }
+/* STYLE-00219 用途：导航列表空状态提示。关联：App.tsx。 */
 .nav-empty {
-  font-size: 11px;
-  color: #8ba1b3;
+  font-size: 12px;
+  color: #8295a7;
   padding: 20px 10px;
 }
+/* STYLE-00220 用途：左下角设置和侧栏收起按钮。关联：App.tsx。 */
 .sidebar-bottom {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 10px 4px 0;
+  border-top: 1px solid rgba(226, 232, 240, 0.8);
 }
+/* STYLE-00221 用途：通用文字操作按钮，danger 为危险操作提示。关联：App.tsx。 */
 .text-button {
-  padding: 5px 3px;
-  font-size: 11px;
-  color: #67879e;
-  border-radius: 6px;
+  padding: 5px 7px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #566a7f;
+  border-radius: 7px;
 }
+/* STYLE-00222 用途：通用文字操作按钮，danger 为危险操作提示（鼠标悬停）。关联：App.tsx。 */
 .text-button:hover {
   color: var(--accent);
+  background: rgba(29, 99, 184, 0.07);
 }
+/* STYLE-00223 用途：通用文字操作按钮，danger 为危险操作提示。关联：App.tsx。 */
 .text-button.danger {
-  color: #ad5260;
+  color: #c83e52;
 }
+.text-button.danger:hover {
+  background: rgba(200, 62, 82, 0.08);
+  color: #b42e42;
+}
+/* STYLE-00224 用途：生图模式的圆角主面板。关联：App.tsx。 */
 .workspace {
   margin: 2px 8px 12px 6px;
-  border-radius: 24px;
+  border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 3px 18px #28465b06;
+  border: 1px solid #e2e8f0;
+  box-shadow:
+    0 2px 6px rgba(15, 23, 42, 0.02),
+    0 12px 32px rgba(15, 23, 42, 0.04);
   position: relative;
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  background: #fbfcfe;
+  background: #ffffff;
 }
+/* STYLE-00225 用途：中间工作区的项目标题和队列开关。关联：App.tsx。 */
 .workspace-heading {
-  height: 48px;
-  min-height: 48px;
+  height: 50px;
+  min-height: 50px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 30px;
+  padding: 0 28px;
+  border-bottom: 1px solid #f1f5f9;
 }
+/* STYLE-00226 用途：中间工作区的项目标题和队列开关。关联：App.tsx。 */
 .workspace-heading > div {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
+/* STYLE-00227 用途：中间工作区的项目标题和队列开关。关联：App.tsx。 */
 .workspace-heading span {
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #182230;
 }
+/* STYLE-00228 用途：中间工作区的项目标题和队列开关。关联：App.tsx。 */
 .workspace-heading small {
-  font-size: 10px;
-  color: #8aa0b2;
+  font-size: 11px;
+  color: #7b8ea3;
+  background: #f1f5f9;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
 }
+/* STYLE-00229 用途：中间工作区的项目标题和队列开关；通用小图标按钮。关联：App.tsx、components.tsx。 */
 .workspace-heading > .icon-button {
-  color: #7597ae;
+  color: #5e7287;
 }
+/* STYLE-00230 用途：生图对话的独立滚动区域。关联：App.tsx。 */
 .conversation {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 24px 38px 10px;
+  padding: 26px 36px 14px;
   scroll-behavior: smooth;
 }
+/* STYLE-00231 用途：一次提示词与参考图对应的任务展示。关联：App.tsx。 */
 .task-card {
-  margin-bottom: 38px;
-  animation: reveal 0.25s ease-out;
+  margin-bottom: 36px;
+  animation: reveal 0.24s cubic-bezier(0.22, 1, 0.36, 1);
   scroll-margin: 28px;
 }
+/* STYLE-00232 用途：任务之间的时间和任务名标记。关联：App.tsx。 */
 .task-divider {
   display: flex;
   justify-content: center;
-  gap: 9px;
-  color: #92a6b6;
-  font-size: 10px;
-  margin-bottom: 20px;
+  align-items: center;
+  gap: 8px;
+  color: #7e90a4;
+  font-size: 11.5px;
+  margin-bottom: 18px;
 }
+/* STYLE-00233 用途：任务之间的时间和任务名标记。关联：App.tsx。 */
 .task-divider span + span {
-  max-width: 180px;
+  max-width: 220px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 500;
+  color: #5a6c80;
 }
+/* STYLE-00234 用途：任务之间的时间和任务名标记。关联：App.tsx。 */
 .task-divider span + span:before {
   content: "·";
-  margin-right: 9px;
+  margin-right: 8px;
+  color: #94a3b8;
 }
+/* STYLE-00235 用途：用户提交的提示词气泡。关联：App.tsx、CollapsiblePrompt.tsx。 */
 .request-bubble {
   margin-left: auto;
-  max-width: 85%;
+  max-width: 84%;
   width: fit-content;
-  background: #eaf4fd;
-  border: 1px solid #dfedf8;
-  border-radius: 17px 17px 5px 17px;
+  background: #f4f8fd;
+  border: 1px solid #dce8f6;
+  border-radius: 18px 18px 4px 18px;
   padding: 15px 18px;
-  color: #344f66;
+  color: #1e2e40;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.025);
 }
+/* STYLE-00236 用途：用户提交的提示词气泡。关联：App.tsx、CollapsiblePrompt.tsx。 */
 .request-bubble p {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.85;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+/* STYLE-00237 用途：提示词下方参数与再次使用按钮。关联：App.tsx。 */
 .request-footer {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 10px;
-  color: #7a95ab;
-  font-size: 10px;
+  margin-top: 11px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(203, 219, 238, 0.55);
+  color: #62778d;
+  font-size: 11.5px;
 }
+/* STYLE-00238 用途：提示词下方参数与再次使用按钮。关联：App.tsx。 */
 .request-footer > span {
   flex: 1;
+  font-variant-numeric: tabular-nums;
 }
+/* STYLE-00239 用途：提示词下方参数与再次使用按钮；通用文字操作按钮，danger 为危险操作提示。关联：App.tsx。 */
 .request-footer .text-button {
-  font-size: 10px;
+  font-size: 11.5px;
   white-space: nowrap;
 }
+/* STYLE-00240 用途：已发送任务的参考图排列。关联：App.tsx。 */
 .request-refs {
   display: flex;
-  gap: 7px;
+  gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 10px;
+  margin-bottom: 11px;
 }
+/* STYLE-00241 用途：已发送任务的单张参考图及序号。关联：App.tsx。 */
 .request-ref {
   width: 64px;
   height: 64px;
@@ -723,201 +944,238 @@ small {
   padding: 0;
   overflow: hidden;
   border-radius: 10px;
-  background: #fff;
+  border: 1px solid #d5e2f0;
+  background: #ffffff;
 }
+/* STYLE-00242 用途：已发送任务的单张参考图及序号。关联：App.tsx。 */
 .request-ref img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
+/* STYLE-00243 用途：已发送任务的单张参考图及序号。关联：App.tsx。 */
 .request-ref > span:last-child {
   position: absolute;
   bottom: 3px;
   left: 3px;
   padding: 1px 5px;
-  font-size: 9px;
-  background: #ffffffdb;
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.9);
   border-radius: 5px;
 }
+/* STYLE-00244 用途：模型结果的整个展示区。关联：App.tsx。 */
 .response-area {
-  margin-top: 21px;
+  margin-top: 20px;
 }
+/* STYLE-00245 用途：模型结果的名称、状态及图片总数。关联：App.tsx。 */
 .response-heading {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 12px;
-  font-size: 11px;
-  color: #5a788e;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #46596e;
 }
+/* STYLE-00246 用途：模型结果的名称、状态及图片总数；应用 Logo 的显示大小。关联：App.tsx。 */
 .response-heading .studio-logo {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
 }
+/* STYLE-00247 用途：任务状态标签和颜色。关联：App.tsx、domain.ts。 */
 .status-tag {
   display: inline-flex;
-  gap: 5px;
+  gap: 6px;
   align-items: center;
-  border-radius: 6px;
-  padding: 3px 7px;
-  font-size: 10px;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 500;
   margin-left: 2px;
 }
+/* STYLE-00248 用途：任务状态标签和颜色；生成队列状态文字和指示灯；项目任务的小状态圆点。关联：App.tsx、domain.ts。 */
 .status-tag i,
 .queue-state i,
 .status-dot {
   display: block;
   flex-shrink: 0;
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: #98afbf;
+  background: #94a3b8;
 }
+/* STYLE-00249 用途：任务状态标签和颜色。关联：App.tsx、domain.ts。 */
 .status-tag.completed {
-  color: #176440;
-  background: #e6f8ed;
+  color: #11693f;
+  background: #e6f7ee;
 }
+/* STYLE-00250 用途：任务状态标签和颜色；项目任务的小状态圆点；生成队列状态文字和指示灯。关联：App.tsx、domain.ts。 */
 .status-tag.completed i,
 .status-dot.completed,
 .queue-state.completed i {
   background: var(--green);
 }
+/* STYLE-00251 用途：任务状态标签和颜色。关联：App.tsx、domain.ts。 */
 .status-tag.generating {
-  color: #765411;
-  background: #fff4cc;
+  color: #855209;
+  background: #fef3c7;
 }
+/* STYLE-00252 用途：任务状态标签和颜色；项目任务的小状态圆点；生成队列状态文字和指示灯。关联：App.tsx、domain.ts。 */
 .status-tag.generating i,
 .status-dot.generating,
 .queue-state.generating i {
   background: var(--yellow);
-  box-shadow: 0 0 0 3px #f0b42915;
+  box-shadow: 0 0 0 3px rgba(217, 144, 22, 0.16);
   animation: pulse 2s infinite;
 }
+/* STYLE-00253 用途：任务状态标签和颜色。关联：App.tsx、domain.ts。 */
 .status-tag.failed {
-  color: #9d3449;
-  background: #fff0f2;
+  color: #a62639;
+  background: #ffeef1;
 }
+/* STYLE-00254 用途：任务状态标签和颜色；项目任务的小状态圆点；生成队列状态文字和指示灯。关联：App.tsx、domain.ts。 */
 .status-tag.failed i,
 .status-dot.failed,
 .queue-state.failed i {
   background: var(--pink);
 }
+/* STYLE-00255 用途：任务状态标签和颜色。关联：App.tsx、domain.ts。 */
 .status-tag.pending {
-  color: #75899b;
-  background: #eff4f8;
+  color: #5c7085;
+  background: #edf2f7;
 }
+/* STYLE-00256 用途：返回图片数量文字。关联：App.tsx。 */
 .image-total {
-  font-size: 10px;
-  color: #8ca1b2;
+  font-size: 11.5px;
+  color: #7c8ea2;
 }
+/* STYLE-00257 用途：输出图片的大图与右侧缩略图布局。关联：App.tsx。 */
 .output-gallery {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 65px;
+  grid-template-columns: minmax(0, 1fr) 66px;
   gap: 10px;
   max-width: 760px;
 }
+/* STYLE-00258 用途：输出图片的大图与右侧缩略图布局。关联：App.tsx。 */
 .output-gallery.single {
   grid-template-columns: minmax(0, 1fr);
   max-width: 680px;
 }
+/* STYLE-00259 用途：当前选中输出图片的大图。关联：App.tsx。 */
 .main-output {
   padding: 0;
   position: relative;
   overflow: hidden;
-  border-radius: 15px;
-  border: 1px solid #dee8f0;
-  background: #f0f5f9;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background: #f4f7fa;
   min-height: 160px;
-  max-height: 400px;
+  max-height: 410px;
   width: 100%;
   align-self: start;
 }
+/* STYLE-00260 用途：当前选中输出图片的大图。关联：App.tsx。 */
 .main-output > img {
   width: 100%;
-  max-height: 398px;
+  max-height: 408px;
   object-fit: contain;
 }
+/* STYLE-00261 用途：输出大图上的放大预览提示。关联：App.tsx。 */
 .expand-hint {
   position: absolute;
   bottom: 10px;
   right: 10px;
-  width: 29px;
-  height: 29px;
+  width: 30px;
+  height: 30px;
   border-radius: 9px;
-  background: #ffffffd9;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(4px);
   display: grid;
   place-items: center;
   opacity: 0;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
   transition: opacity 0.2s;
 }
+/* STYLE-00262 用途：当前选中输出图片的大图；输出大图上的放大预览提示（鼠标悬停）。关联：App.tsx。 */
 .main-output:hover .expand-hint {
   opacity: 1;
 }
+/* STYLE-00263 用途：同一任务多张图片的缩略图切换。关联：App.tsx。 */
 .output-thumbnails {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 400px;
+  max-height: 410px;
   overflow-y: auto;
   padding: 2px;
 }
+/* STYLE-00264 用途：同一任务多张图片的缩略图切换。关联：App.tsx。 */
 .output-thumbnails button {
-  width: 59px;
-  height: 59px;
-  min-height: 59px;
+  width: 60px;
+  height: 60px;
+  min-height: 60px;
   border: 2px solid transparent;
   border-radius: 12px;
   padding: 2px;
   background: #fff;
   overflow: hidden;
 }
+/* STYLE-00265 用途：同一任务多张图片的缩略图切换。关联：App.tsx。 */
 .output-thumbnails button img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   border-radius: 8px;
 }
+/* STYLE-00266 用途：同一任务多张图片的缩略图切换。关联：App.tsx。 */
 .output-thumbnails button.selected {
-  border-color: #58a9d5;
-  box-shadow: 0 0 0 2px #e4f3fc;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(29, 99, 184, 0.16);
 }
+/* STYLE-00267 用途：输出文件夹、再次使用、刷新和解码按钮。关联：App.tsx。 */
 .result-actions {
   display: flex;
-  gap: 17px;
-  margin-top: 8px;
+  gap: 14px;
+  margin-top: 9px;
   flex-wrap: wrap;
 }
+/* STYLE-00268 用途：等待、上传、生成、失败时的结果占位框。关联：App.tsx。 */
 .waiting-output {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 16px 18px;
-  max-width: 520px;
-  border: 1px dashed #d9e7f0;
-  border-radius: 12px;
-  font-size: 12px;
-  color: #8aa1b2;
-  background: #f6f9fc;
+  gap: 11px;
+  padding: 15px 18px;
+  max-width: 540px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 13px;
+  font-size: 13px;
+  color: #64748b;
+  background: #f8fafc;
   line-height: 1.7;
   overflow-wrap: anywhere;
 }
+/* STYLE-00269 用途：等待、上传、生成、失败时的结果占位框。关联：App.tsx。 */
 .waiting-output.generating {
-  color: #a68022;
-  border-color: #f2de9d;
-  background: #fffcf1;
+  color: #925b09;
+  border-color: #f3d078;
+  background: #fffbeb;
 }
+/* STYLE-00270 用途：等待、上传、生成、失败时的结果占位框。关联：App.tsx。 */
 .waiting-output.failed {
-  color: #a8525c;
-  border-color: #edcbd1;
-  background: #fff8f9;
+  color: #a82e40;
+  border-color: #f3c2cb;
+  background: #fff5f7;
 }
+/* STYLE-00271 用途：任务错误说明文字。关联：App.tsx。 */
 .task-error {
   margin-top: 10px;
-  font-size: 11px;
-  color: #ab5765;
+  font-size: 12px;
+  color: #b83246;
   line-height: 1.7;
   overflow-wrap: anywhere;
 }
+/* STYLE-00272 用途：没有任务时的工作区布局和输入框位置；生图对话的独立滚动区域。关联：App.tsx。 */
 .empty-workspace .conversation {
   display: flex;
   justify-content: center;
@@ -925,274 +1183,349 @@ small {
   padding-bottom: 0;
   flex: 1.1;
 }
+/* STYLE-00273 用途：空工作区的欢迎区。关联：App.tsx。 */
 .empty-welcome {
   text-align: center;
   margin-top: -6px;
-  max-width: 380px;
+  max-width: 420px;
+  padding: 16px;
 }
+/* STYLE-00274 用途：该选择器覆盖的通用布局或状态规则。关联：main.tsx / App.tsx / components.tsx。 */
 .welcome-art {
   position: relative;
   width: 116px;
   height: 100px;
-  margin: 0 auto 17px;
+  margin: 0 auto 18px;
 }
+/* STYLE-00275 用途：该选择器覆盖的通用布局或状态规则。关联：main.tsx / App.tsx / components.tsx。 */
 .welcome-card {
   position: absolute;
   width: 76px;
-  height: 87px;
-  border-radius: 17px;
-  border: 1px solid #d6e6f2;
-  box-shadow: 0 10px 25px #5783a70c;
+  height: 86px;
+  border-radius: 18px;
+  border: 1px solid #dbe6f2;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
 }
+/* STYLE-00276 用途：该选择器覆盖的通用布局或状态规则。关联：main.tsx / App.tsx / components.tsx。 */
 .welcome-card.back {
-  left: 9px;
-  top: 2px;
-  background: #e4f2fd;
-  transform: rotate(-13deg);
+  left: 10px;
+  top: 3px;
+  background: linear-gradient(145deg, #e8f1fc, #dbeafe);
+  transform: rotate(-12deg);
 }
+/* STYLE-00277 用途：该选择器覆盖的通用布局或状态规则。关联：main.tsx / App.tsx / components.tsx。 */
 .welcome-card.front {
   left: 31px;
-  top: 12px;
-  background: #fff;
-  transform: rotate(8deg);
+  top: 11px;
+  background: #ffffff;
+  transform: rotate(7deg);
   display: grid;
   place-items: center;
 }
+/* STYLE-00278 用途：应用 Logo 的显示大小。关联：App.tsx。 */
 .welcome-card.front .studio-logo {
-  width: 52px;
-  height: 52px;
-  transform: rotate(-8deg);
+  width: 50px;
+  height: 50px;
+  transform: rotate(-7deg);
 }
+/* STYLE-00279 用途：该选择器覆盖的通用布局或状态规则。关联：main.tsx / App.tsx / components.tsx。 */
 .welcome-spark {
   position: absolute;
-  right: -3px;
+  right: 0;
   top: 0;
-  color: #ecc365;
+  color: #e59a1a;
   transform: rotate(10deg);
 }
+/* STYLE-00280 用途：标题上方的小字装饰。关联：App.tsx。 */
 .eyebrow {
-  font-size: 8px;
-  letter-spacing: 2.3px;
-  color: #7aa3be;
-  font-weight: 600;
-  margin-bottom: 13px;
+  font-size: 10px;
+  letter-spacing: 2.4px;
+  color: var(--accent);
+  font-weight: 650;
+  margin-bottom: 10px;
+  opacity: 0.85;
 }
+/* STYLE-00281 用途：空工作区的欢迎区。关联：App.tsx。 */
 .empty-welcome h1 {
-  font-family: "Microsoft YaHei UI", sans-serif;
-  font-size: 25px;
-  font-weight: 500;
-  letter-spacing: 1.7px;
-  margin-bottom: 15px;
-  color: #35556f;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  margin-bottom: 12px;
+  color: #182230;
 }
+/* STYLE-00282 用途：空工作区的欢迎区。关联：App.tsx。 */
 .empty-welcome > p:last-of-type {
-  font-size: 12px;
-  line-height: 2;
-  color: #8ba0b2;
-  letter-spacing: 0.15px;
+  font-size: 13px;
+  line-height: 1.85;
+  color: #64748b;
 }
+/* STYLE-00283 用途：该选择器覆盖的通用布局或状态规则。关联：main.tsx / App.tsx / components.tsx。 */
 .welcome-new {
-  margin-top: 19px;
-  font-size: 12px;
-  color: #478ab4;
+  margin-top: 18px;
+  font-size: 12.5px;
+  color: var(--accent);
 }
+/* STYLE-00284 用途：输入框、批次上下文与提交栏的整体区域。关联：App.tsx。 */
 .composer-zone {
-  padding: 0 30px 16px;
+  padding: 4px 30px 16px;
   max-height: 65%;
   flex-shrink: 0;
   overflow: auto;
 }
+/* STYLE-00285 用途：没有任务时的工作区布局和输入框位置；输入框、批次上下文与提交栏的整体区域。关联：App.tsx。 */
 .empty-workspace .composer-zone {
-  padding-bottom: 9vh;
+  padding-bottom: 7vh;
 }
+/* STYLE-00286 用途：当前批次切换及输出目录按钮栏。关联：App.tsx。 */
 .composer-context {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 10px;
-  color: #6e8fa6;
-  min-height: 29px;
+  margin-bottom: 9px;
+  color: #5c7085;
+  min-height: 30px;
 }
+/* STYLE-00287 用途：当前批次切换及输出目录按钮栏；通用下拉按钮、展开箭头与展开状态。关联：App.tsx、components.tsx。 */
 .composer-context .picker-trigger {
-  font-size: 12px;
-  color: #57788f;
-  padding: 4px 5px;
-  max-width: 270px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #36495d;
+  padding: 4px 7px;
+  max-width: 280px;
 }
+/* STYLE-00288 用途：当前批次切换及输出目录按钮栏；通用下拉按钮、展开箭头与展开状态。关联：App.tsx、components.tsx。 */
 .composer-context .picker-trigger span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* STYLE-00289 用途：批次上下文左右操作间的弹性留白。关联：App.tsx。 */
 .context-space {
   flex: 1;
 }
+/* STYLE-00290 用途：设置 / 打开图片输出目录的按钮。关联：App.tsx。 */
 .output-setting {
-  font-size: 10px;
+  font-size: 11.5px;
 }
+/* STYLE-00291 用途：提示词输入框外壳及自动增高文字区域。关联：App.tsx。 */
 .composer {
   position: relative;
-  border: 1px solid #d0e3f0;
-  background: #fff;
-  border-radius: 28px;
-  padding: 16px 15px 12px;
-  box-shadow: 0 4px 25px #396e9408;
+  border: 1px solid #d4dfec;
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 15px 16px 12px;
+  box-shadow:
+    0 2px 6px rgba(15, 23, 42, 0.025),
+    0 10px 28px rgba(15, 23, 42, 0.04);
   transition:
-    border-color 0.2s,
-    box-shadow 0.2s;
+    border-color 0.18s,
+    box-shadow 0.18s;
 }
+/* STYLE-00292 用途：提示词输入框外壳及自动增高文字区域（键盘或输入焦点）。关联：App.tsx。 */
 .composer:focus-within {
-  border-color: #459ed4;
-  box-shadow: 0 0 0 3px #e5f2fa;
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 3px rgba(29, 99, 184, 0.13),
+    0 10px 28px rgba(15, 23, 42, 0.05);
 }
+/* STYLE-00293 用途：提示词输入框外壳及自动增高文字区域。关联：App.tsx。 */
 .composer.dragging {
-  border-color: #459ed4;
+  border-color: var(--accent);
 }
+/* STYLE-00294 用途：提示词输入框外壳及自动增高文字区域。关联：App.tsx。 */
 .composer textarea {
   display: block;
   width: 100%;
-  min-height: 54px;
+  min-height: 56px;
   resize: none;
   border: 0;
   outline: none !important;
   background: transparent;
-  color: #344e65;
-  line-height: 1.85;
+  color: #182230;
+  line-height: 1.78;
   padding: 0 2px 10px;
-  font-size: 13px;
+  font-size: 14px;
   overflow: hidden;
   box-shadow: none !important;
 }
+/* STYLE-00295 用途：提示词输入框外壳及自动增高文字区域。关联：App.tsx。 */
 .composer textarea::placeholder {
-  color: #9baab9;
+  color: #8fa0b3;
 }
+/* STYLE-00296 用途：输入框底部的模型、比例、分辨率、张数和温度栏。关联：App.tsx。 */
 .composer-toolbar {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   flex-wrap: wrap;
+  padding-top: 6px;
+  border-top: 1px solid #f1f5f9;
 }
+/* STYLE-00297 用途：输入框参数栏中的弹性留白。关联：App.tsx。 */
 .toolbar-space {
   flex: 1;
   min-width: 5px;
 }
+/* STYLE-00298 用途：输入框添加参考图按钮。关联：App.tsx。 */
 .add-reference {
-  color: #6f93ad;
-  width: 27px;
+  color: #54687d;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: #f4f7fa;
 }
+.add-reference:hover:not(:disabled) {
+  background: var(--selected);
+  color: var(--accent);
+}
+/* STYLE-00299 用途：通用下拉菜单定位容器。关联：components.tsx。 */
 .picker-wrap {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   position: relative;
 }
+/* STYLE-00300 用途：通用下拉按钮、展开箭头与展开状态。关联：components.tsx。 */
 .picker-trigger {
   display: flex;
   gap: 6px;
-  min-height: 31px;
-  padding: 6px 8px;
-  border-radius: 10px;
-  color: #648399;
-  font-size: 11px;
+  min-height: 32px;
+  padding: 5px 9px;
+  border-radius: 9px;
+  color: #4b5e73;
+  font-size: 12px;
+  font-weight: 500;
   white-space: nowrap;
 }
-.picker-trigger:hover,
+/* STYLE-00301 用途：通用下拉按钮、展开箭头与展开状态（鼠标悬停）。关联：components.tsx。 */
+.picker-trigger:hover:not(:disabled),
 .picker-trigger[aria-expanded="true"] {
-  background: #edf6fd;
-  color: #277fab;
+  background: #eef4fb;
+  color: var(--accent);
 }
+/* STYLE-00302 用途：通用下拉按钮、展开箭头与展开状态。关联：components.tsx。 */
 .picker-trigger > svg {
   width: 13px;
 }
+/* STYLE-00303 用途：通用下拉按钮、展开箭头与展开状态。关联：components.tsx。 */
 .picker-trigger > .turned {
   transform: rotate(180deg);
 }
+/* STYLE-00304 用途：数量下拉框外部的“张”单位。关联：components.tsx。 */
 .picker-unit {
-  font-size: 11px;
-  color: #6f92ad;
+  font-size: 12px;
+  color: #64778b;
   margin-right: 4px;
 }
+/* STYLE-00305 用途：图片数量 1–4 的下拉按钮；通用下拉按钮、展开箭头与展开状态。关联：App.tsx、components.tsx。 */
 .count-picker .picker-trigger {
-  background: #e1f2ff;
-  color: #2483ba;
+  background: #eaf2ff;
+  color: var(--accent);
 }
+/* STYLE-00306 用途：模型列表读取状态或提示。关联：App.tsx。 */
+.model-catalog-status {
+  max-width: 96px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+/* STYLE-00307 用途：模型选择菜单触发按钮；通用下拉按钮、展开箭头与展开状态。关联：App.tsx、components.tsx。 */
+
 .model-picker .picker-trigger {
-  padding: 3px 8px 3px 4px;
-  gap: 8px;
-  font-size: 11px;
-  color: #344c67;
+  padding: 4px 10px 4px 6px;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 550;
+  color: #1e2d3d;
   min-height: 33px;
+  background: #f8fafc;
+  border: 1px solid #e5ecf3;
 }
+/* STYLE-00308 用途：模型选择菜单触发按钮；通用下拉按钮、展开箭头与展开状态。关联：App.tsx、components.tsx。 */
 .model-picker .picker-trigger > svg {
-  width: 11px;
-  color: #83a2b7;
+  width: 12px;
+  color: #64788c;
 }
+/* STYLE-00309 用途：将当前提示词和参考图加入一个任务；次级操作按钮。关联：App.tsx、SettingsPanel.tsx。 */
 .add-task,
 .secondary-button {
   min-height: 34px;
-  padding: 7px 12px;
-  border: 1px solid #d3e6f3;
-  background: #fff;
-  border-radius: 11px;
-  font-size: 11px;
-  color: #366b8d;
+  padding: 7px 13px;
+  border: 1px solid #cfdce9;
+  background: #ffffff;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 550;
+  color: #1f4f82;
   white-space: nowrap;
 }
+/* STYLE-00310 用途：将当前提示词和参考图加入一个任务；次级操作按钮（鼠标悬停、禁用状态）。关联：App.tsx、SettingsPanel.tsx。 */
 .add-task:hover:not(:disabled),
 .secondary-button:hover:not(:disabled) {
-  background: #f0f8fe;
-  border-color: #8cc2e3;
+  background: #f0f6fe;
+  border-color: #82b0df;
+  color: var(--accent);
 }
+/* STYLE-00311 用途：将当前提示词和参考图加入一个任务。关联：App.tsx。 */
 .add-task {
   margin-left: 6px;
 }
+/* STYLE-00312 用途：模型温度参数下拉按钮；通用下拉按钮、展开箭头与展开状态。关联：App.tsx、components.tsx。 */
 .temperature-picker .picker-trigger {
-  font-size: 10px;
+  font-size: 11.5px;
   gap: 5px;
 }
+/* STYLE-00313 用途：提交批次按钮及待提交任务数量。关联：App.tsx。 */
 .submit-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 15px;
-  min-height: 43px;
-  padding-top: 9px;
-  font-size: 10px;
-  color: #96aabc;
+  min-height: 44px;
+  padding-top: 10px;
+  font-size: 11.5px;
+  color: #748699;
 }
+/* STYLE-00314 用途：主要操作按钮；destructive 表示破坏性操作。关联：App.tsx、SettingsPanel.tsx、ArchivePanel.tsx。 */
 .primary-button {
-  background: #237cab;
-  color: white;
-  border-radius: 11px;
-  min-height: 35px;
-  padding: 8px 15px;
-  font-size: 12px;
-  box-shadow: 0 3px 10px #237cab12;
+  background: var(--accent);
+  color: #ffffff;
+  border-radius: 10px;
+  min-height: 36px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 550;
+  box-shadow: 0 2px 8px rgba(29, 99, 184, 0.22);
 }
+/* STYLE-00315 用途：主要操作按钮；destructive 表示破坏性操作（鼠标悬停、禁用状态）。关联：App.tsx、SettingsPanel.tsx、ArchivePanel.tsx。 */
 .primary-button:hover:not(:disabled) {
-  background: #1b6b99;
-  box-shadow: 0 3px 12px #237cab24;
+  background: var(--accent-hover);
+  box-shadow: 0 4px 12px rgba(29, 99, 184, 0.3);
 }
+/* STYLE-00316 用途：主要操作按钮；destructive 表示破坏性操作（禁用状态）。关联：App.tsx、SettingsPanel.tsx、ArchivePanel.tsx。 */
 .primary-button:disabled {
-  opacity: 0.38;
+  opacity: 0.4;
 }
+/* STYLE-00317 用途：输入框已添加参考图的排列。关联：App.tsx。 */
 .composer-refs {
   display: flex;
   gap: 9px;
-  margin-bottom: 15px;
+  margin-bottom: 13px;
   overflow-x: auto;
   padding: 3px;
 }
+/* STYLE-00318 用途：输入框单张参考图卡片。关联：App.tsx。 */
 .composer-ref {
   position: relative;
   flex-shrink: 0;
-  width: 65px;
-  height: 65px;
-  border: 1px solid #d9e7f0;
+  width: 64px;
+  height: 64px;
+  border: 1px solid #d5e1ee;
   border-radius: 11px;
-  background: #f1f7fb;
+  background: #f8fafc;
   cursor: grab;
 }
+/* STYLE-00319 用途：输入框参考图的预览按钮。关联：App.tsx。 */
 .ref-preview {
   width: 100%;
   height: 100%;
@@ -1200,278 +1533,336 @@ small {
   border-radius: 10px;
   overflow: hidden;
 }
+/* STYLE-00320 用途：输入框参考图的预览按钮。关联：App.tsx。 */
 .ref-preview > img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
+/* STYLE-00321 用途：输入框参考图的顺序编号。关联：App.tsx。 */
 .ref-number {
   position: absolute;
   left: 3px;
   bottom: 3px;
-  font-size: 9px;
-  background: #ffffffe5;
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.9);
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: 5px;
   pointer-events: none;
 }
+/* STYLE-00322 用途：从当前任务移除参考图的按钮。关联：App.tsx。 */
 .ref-remove {
   position: absolute;
-  top: -3px;
-  right: -3px;
-  width: 17px;
-  height: 17px;
-  box-shadow: 0 1px 5px #45617c25;
-  border: 1px solid #d2e4f1;
-  background: #fff;
+  top: -4px;
+  right: -4px;
+  width: 18px;
+  height: 18px;
+  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.14);
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
   border-radius: 50%;
   padding: 0;
-  color: #7894a8;
+  color: #64748b;
 }
+/* STYLE-00323 用途：从当前任务移除参考图的按钮（鼠标悬停）。关联：App.tsx。 */
 .ref-remove:hover {
-  color: #da6a72;
+  color: var(--pink);
+  border-color: #f3b8c2;
 }
+/* STYLE-00324 用途：拖入参考图时显示的落点遮罩。关联：App.tsx。 */
 .drop-overlay {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  color: #2e86b6;
-  background: #f0f9ffe8;
+  gap: 10px;
+  color: var(--accent);
+  font-weight: 550;
+  background: rgba(238, 245, 255, 0.92);
   pointer-events: none;
-  border-radius: 20px;
-  backdrop-filter: blur(2px);
+  border-radius: 19px;
+  backdrop-filter: blur(3px);
 }
+/* STYLE-00325 用途：正在编辑已有任务时的提示条。关联：App.tsx。 */
 .editing-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-radius: 10px;
-  background: #ebf5fe;
-  padding: 4px 10px;
+  background: #eaf2ff;
+  border: 1px solid #cfe1fb;
+  padding: 5px 11px;
   margin-bottom: 8px;
-  font-size: 11px;
-  color: #507f9f;
+  font-size: 12px;
+  font-weight: 500;
+  color: #1d5799;
 }
+/* STYLE-00326 用途：模型菜单的小星星、色彩流动和边缘发光。关联：App.tsx、ModelMark。 */
 .model-mark {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
 }
+/* STYLE-00327 用途：模型菜单的小星星、色彩流动和边缘发光。关联：App.tsx、ModelMark。 */
 .model-mark svg {
-  width: 22px !important;
-  height: 22px !important;
+  width: 20px !important;
+  height: 20px !important;
   overflow: visible;
-  filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 2px #ffffffb3);
+  filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 2px rgba(255, 255, 255, 0.7));
 }
+/* STYLE-00328 用途：模型菜单的小星星、色彩流动和边缘发光。关联：App.tsx、ModelMark。 */
 .model-mark path {
   stroke: #fff;
-  stroke-width: 0.65;
+  stroke-width: 0.6;
   paint-order: stroke fill;
   stroke-linejoin: round;
 }
+/* STYLE-00329 用途：通用圆角下拉菜单与选中项。关联：components.tsx。 */
 .picker-menu {
   position: fixed;
   z-index: 110;
-  background: #fff;
-  border: 1px solid #d5e7f3;
-  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #dce5f0;
+  border-radius: 13px;
   padding: 6px;
   box-shadow:
-    0 10px 36px #2f5f811a,
-    0 2px 6px #2f5f8108;
-  min-width: 91px;
+    0 12px 36px rgba(15, 23, 42, 0.12),
+    0 2px 6px rgba(15, 23, 42, 0.04);
+  min-width: 96px;
   max-width: 330px;
   max-height: calc(100dvh - 20px);
   overflow: auto;
   animation: popover-in 0.14s ease-out;
 }
+/* STYLE-00330 用途：通用圆角下拉菜单与选中项。关联：components.tsx。 */
 .picker-menu button {
   width: 100%;
   justify-content: space-between;
   text-align: left;
-  border-radius: 9px;
-  padding: 9px 11px;
+  border-radius: 8px;
+  padding: 8px 11px;
   gap: 16px;
-  font-size: 12px;
-  color: #44667f;
+  font-size: 12.5px;
+  color: #334155;
   min-height: 34px;
 }
+/* STYLE-00331 用途：通用圆角下拉菜单与选中项（鼠标悬停、键盘或输入焦点）。关联：components.tsx。 */
 .picker-menu button:hover,
 .picker-menu button:focus-visible {
-  background: #eff7fe;
+  background: #f1f6fc;
   outline: 0;
 }
+/* STYLE-00332 用途：通用圆角下拉菜单与选中项（选中状态）。关联：components.tsx。 */
 .picker-menu button[aria-selected="true"] {
-  background: #e4f3fe;
-  color: #207aad;
+  background: #e6f0fd;
+  color: var(--accent);
+  font-weight: 550;
 }
+/* STYLE-00333 用途：宽高比下拉面板。关联：App.tsx、components.tsx。 */
 .ratio-menu {
-  width: 240px;
+  width: 244px;
   padding: 8px;
 }
+/* STYLE-00334 用途：宽高比横屏 / 竖屏两列布局。关联：App.tsx。 */
 .ratio-columns {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 9px;
+  gap: 8px;
 }
+/* STYLE-00335 用途：宽高比横屏 / 竖屏两列布局。关联：App.tsx。 */
 .ratio-columns > div + div {
-  border-left: 1px solid #e4eef5;
+  border-left: 1px solid #e8eef5;
   padding-left: 8px;
 }
+/* STYLE-00336 用途：横屏 / 竖屏列标题。关联：App.tsx。 */
 .ratio-heading {
-  padding: 7px 12px;
-  font-size: 10px;
-  letter-spacing: 1px;
-  color: #8b9faf;
-}
-.ratio-columns button {
-  font-size: 13px;
-  font-weight: 500;
-}
-.ratio-footer {
-  border-top: 1px solid #e4eef5;
-  padding-top: 6px;
-  margin-top: 7px;
-}
-.ratio-footer button:last-child {
-  border-top: 1px solid #eaf1f7;
-  margin-top: 4px;
+  padding: 6px 11px;
   font-size: 11px;
-  padding-top: 11px;
-  color: #237cab;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: #7c8ea2;
 }
+/* STYLE-00337 用途：宽高比横屏 / 竖屏两列布局。关联：App.tsx。 */
+.ratio-columns button {
+  font-size: 12.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+/* STYLE-00338 用途：匹配参考图比例的菜单选项区。关联：App.tsx。 */
+.ratio-footer {
+  border-top: 1px solid #e8eef5;
+  padding-top: 6px;
+  margin-top: 6px;
+}
+/* STYLE-00339 用途：匹配参考图比例的菜单选项区。关联：App.tsx。 */
+.ratio-footer button:last-child {
+  border-top: 1px solid #f1f5f9;
+  margin-top: 4px;
+  font-size: 12px;
+  padding-top: 10px;
+  color: var(--accent);
+}
+/* STYLE-00340 用途：右侧生成队列面板及收起状态。关联：App.tsx。 */
 .queue {
   background: transparent;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: 19px 16px 13px;
+  padding: 14px 14px 12px 10px;
 }
+/* STYLE-00341 用途：右侧生成队列面板及收起状态；图库、项目与队列的分区标题。关联：App.tsx、ReferenceLibrary.tsx。 */
 .queue .section-heading {
-  margin-bottom: 15px;
+  margin-bottom: 12px;
 }
+/* STYLE-00342 用途：右侧生成队列面板及收起状态；图库、项目与队列的分区标题。关联：App.tsx、ReferenceLibrary.tsx。 */
 .queue .section-heading > span {
-  font-size: 12px;
+  font-size: 13px;
 }
+/* STYLE-00343 用途：生成队列“当前项目 / 全部”切换。关联：App.tsx。 */
 .queue-toggle {
   display: flex;
   gap: 3px;
-  background: #f2f7fb;
-  border-radius: 9px;
+  background: #e6ebf1;
+  border-radius: 10px;
   padding: 3px;
-  margin-bottom: 17px;
+  margin-bottom: 14px;
 }
+/* STYLE-00344 用途：生成队列“当前项目 / 全部”切换。关联：App.tsx。 */
 .queue-toggle button {
   flex: 1;
   padding: 5px 7px;
-  font-size: 10px;
-  color: #8aa1b3;
-  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #5c6e82;
+  border-radius: 7px;
 }
+/* STYLE-00345 用途：生成队列“当前项目 / 全部”切换。关联：App.tsx。 */
 .queue-toggle button.active {
-  background: #fff;
-  box-shadow: 0 1px 5px #26496709;
-  color: #3e7ba3;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  color: #182230;
 }
+/* STYLE-00346 用途：生成队列独立滚动列表。关联：App.tsx。 */
 .queue-list {
   flex: 1;
   overflow: auto;
   padding-right: 2px;
 }
+/* STYLE-00347 用途：生成队列紧凑圆角任务卡片。关联：App.tsx。 */
 .queue-item {
   display: flex;
   align-items: start;
   width: 100%;
-  gap: 10px;
+  gap: 9px;
   justify-content: start;
   text-align: left;
-  padding: 13px 5px;
-  border-radius: 10px;
+  padding: 10px;
+  border-radius: 12px;
 }
+/* STYLE-00348 用途：生成队列紧凑圆角任务卡片（鼠标悬停）。关联：App.tsx。 */
 .queue-item:hover {
-  background: #f5fafe;
+  background: #f8fafc;
 }
+/* STYLE-00349 用途：生成队列任务序号。关联：App.tsx。 */
 .queue-number {
-  color: #a4b8c7;
-  font-size: 10px;
+  color: #8798ab;
+  font-size: 11px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  line-height: 19px;
+  line-height: 18px;
 }
+/* STYLE-00350 用途：生成队列单个任务的文字内容。关联：App.tsx。 */
 .queue-item-body {
   min-width: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
+/* STYLE-00351 用途：生成队列紧凑圆角任务卡片。关联：App.tsx。 */
 .queue-item strong {
-  font-weight: 500;
-  font-size: 11px;
-  line-height: 1.75;
+  font-weight: 550;
+  font-size: 12px;
+  color: #253546;
+  line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+/* STYLE-00352 用途：生成队列紧凑圆角任务卡片。关联：App.tsx。 */
 .queue-item small {
-  font-size: 9px;
-  color: #9daebc;
+  font-size: 10.5px;
+  color: #8294a7;
+  font-variant-numeric: tabular-nums;
 }
+/* STYLE-00353 用途：生成队列状态文字和指示灯。关联：App.tsx、domain.ts。 */
 .queue-state {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 9px;
-  color: #90a3b3;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: #748699;
   margin-top: 2px;
 }
+/* STYLE-00354 用途：生成队列状态文字和指示灯。关联：App.tsx、domain.ts。 */
 .queue-state.completed {
-  color: #27955b;
+  color: #168a52;
 }
+/* STYLE-00355 用途：生成队列状态文字和指示灯。关联：App.tsx、domain.ts。 */
 .queue-state.generating {
-  color: #b08620;
+  color: #a66c0e;
 }
+/* STYLE-00356 用途：生成队列状态文字和指示灯。关联：App.tsx、domain.ts。 */
 .queue-state.failed {
-  color: #bb6170;
+  color: #bf394e;
 }
+/* STYLE-00357 用途：生成队列无任务时的占位。关联：App.tsx。 */
 .queue-empty {
-  padding-top: 40px;
+  padding: 44px 12px;
   text-align: center;
-  color: #c3d4e0;
+  color: #94a3b8;
 }
+/* STYLE-00358 用途：生成队列无任务时的占位。关联：App.tsx。 */
 .queue-empty svg {
   margin: auto;
-  stroke-width: 1.2;
+  stroke-width: 1.4;
+  opacity: 0.65;
 }
+/* STYLE-00359 用途：生成队列无任务时的占位。关联：App.tsx。 */
 .queue-empty p {
-  font-size: 12px;
-  color: #91aabc;
-  margin: 17px 0 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #64748b;
+  margin: 12px 0 6px;
 }
+/* STYLE-00360 用途：生成队列无任务时的占位。关联：App.tsx。 */
 .queue-empty span {
-  font-size: 9px;
-  color: #b0c2d0;
+  font-size: 11px;
+  color: #94a3b8;
 }
+/* STYLE-00361 用途：队列底部自动保存提示。关联：App.tsx。 */
 .queue-footer {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding-top: 13px;
-  font-size: 9px;
-  color: #97acbc;
+  padding-top: 12px;
+  font-size: 11px;
+  color: #7c8ea2;
 }
+/* STYLE-00362 用途：弹窗背景遮罩；仍需允许点击关闭。关联：components.tsx。 */
 .modal-scrim {
   position: fixed;
   inset: 0;
-  background: #213b5429;
-  backdrop-filter: blur(5px);
+  background: rgba(15, 23, 42, 0.28);
+  backdrop-filter: blur(6px);
   z-index: 90;
   display: flex;
   align-items: center;
@@ -1479,447 +1870,576 @@ small {
   padding: 20px;
   animation: scrim-in 0.18s;
 }
+/* STYLE-00363 用途：通用圆角弹窗外壳。关联：components.tsx。 */
 .modal {
-  width: 440px;
+  width: 450px;
   max-width: 100%;
   max-height: 90dvh;
   overflow: auto;
-  border: 1px solid #dbe9f3;
-  border-radius: 21px;
-  background: #fff;
-  padding: 23px;
-  box-shadow: 0 18px 70px #22445d24;
+  border: 1px solid #dce5f0;
+  border-radius: 18px;
+  background: #ffffff;
+  padding: 24px;
+  box-shadow:
+    0 20px 60px rgba(15, 23, 42, 0.16),
+    0 4px 12px rgba(15, 23, 42, 0.05);
   animation: popover-in 0.18s;
 }
+/* STYLE-00364 用途：弹窗标题及关闭按钮栏。关联：components.tsx。 */
 .modal-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 23px;
+  margin-bottom: 22px;
   gap: 15px;
 }
+/* STYLE-00365 用途：弹窗标题及关闭按钮栏。关联：components.tsx。 */
 .modal-heading h2 {
-  font-size: 16px;
-  font-weight: 550;
+  font-size: 16.5px;
+  font-weight: 600;
+  color: #182230;
 }
+/* STYLE-00366 用途：新建、重命名或配置输入框标签。关联：App.tsx、SettingsPanel.tsx。 */
 .form-label {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  font-size: 12px;
-  color: #5f7a90;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #47596d;
 }
+/* STYLE-00367 用途：新建、重命名或配置输入框标签。关联：App.tsx、SettingsPanel.tsx。 */
 .form-label input {
   outline: 0;
-  border: 1px solid #d8e7f1;
-  padding: 11px 12px;
-  border-radius: 11px;
-  background: #fcfdfe;
+  border: 1px solid #cfdbe8;
+  padding: 10px 13px;
+  border-radius: 10px;
+  background: #f8fafc;
   width: 100%;
-  font-size: 13px;
-  color: #3a5d77;
+  font-size: 13.5px;
+  color: #182230;
+  transition:
+    border-color 0.16s,
+    background 0.16s,
+    box-shadow 0.16s;
 }
+/* STYLE-00368 用途：新建、重命名或配置输入框标签（键盘或输入焦点）。关联：App.tsx、SettingsPanel.tsx。 */
 .form-label input:focus {
-  border-color: #5aa5d1;
-  box-shadow: 0 0 0 3px #eef7fd;
+  background: #ffffff;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(29, 99, 184, 0.14);
 }
+/* STYLE-00369 用途：表单辅助说明文字。关联：App.tsx、SettingsPanel.tsx。 */
 .form-hint {
-  font-size: 11px;
-  line-height: 1.8;
-  color: #8ba1b3;
+  font-size: 12px;
+  line-height: 1.75;
+  color: #6c7f93;
   margin: 14px 0 22px;
 }
+/* STYLE-00370 用途：通用圆角弹窗外壳；主要操作按钮；destructive 表示破坏性操作。关联：components.tsx、App.tsx、SettingsPanel.tsx、ArchivePanel.tsx。 */
 .modal form > .primary-button,
 .modal > .primary-button {
   float: right;
 }
+/* STYLE-00371 用途：通用圆角弹窗外壳；新建、重命名或配置输入框标签；主要操作按钮；destructive 表示破坏性操作。关联：components.tsx、App.tsx、SettingsPanel.tsx、ArchivePanel.tsx。 */
 .modal form > .form-label + .primary-button {
   margin-top: 20px;
 }
+/* STYLE-00372 用途：通用圆角弹窗外壳。关联：components.tsx。 */
 .modal:after {
   content: "";
   display: block;
   clear: both;
 }
+/* STYLE-00373 用途：通用圆角弹窗外壳；次级操作按钮。关联：components.tsx、App.tsx、SettingsPanel.tsx。 */
 .modal > .secondary-button {
   margin-top: 10px;
 }
+/* STYLE-00374 用途：较宽图片预览弹窗。关联：components.tsx。 */
 .modal-wide {
   width: 980px;
-  padding: 19px;
+  padding: 20px;
 }
+/* STYLE-00375 用途：较宽图片预览弹窗；弹窗标题及关闭按钮栏。关联：components.tsx。 */
 .modal-wide .modal-heading {
-  margin-bottom: 15px;
+  margin-bottom: 16px;
 }
+/* STYLE-00376 用途：图片预览弹窗的大图。关联：App.tsx。 */
 .preview-image {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f5f8fb;
+  background: #f4f7fa;
+  border: 1px solid #e2e8f0;
   border-radius: 14px;
   min-height: 180px;
   overflow: hidden;
 }
+/* STYLE-00377 用途：图片预览弹窗的大图。关联：App.tsx。 */
 .preview-image img {
   max-width: 100%;
   max-height: 67dvh;
   object-fit: contain;
 }
+/* STYLE-00378 用途：图片预览中显示的原始文件路径。关联：App.tsx。 */
 .preview-path {
-  font-size: 10px;
-  color: #829baf;
+  font-size: 11.5px;
+  color: #6c7f93;
   overflow-wrap: anywhere;
-  padding: 13px 4px 0;
+  padding: 12px 4px 0;
   user-select: text;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
 }
+/* STYLE-00379 用途：图片预览的上一张 / 下一张导航。关联：App.tsx。 */
 .preview-navigation {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 20px;
   margin-top: 16px;
-  font-size: 11px;
-  color: #8ba1b3;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #5e7186;
 }
+/* STYLE-00380 用途：关于页面的品牌信息。关联：App.tsx。 */
 .settings-summary {
   display: flex;
   align-items: center;
   gap: 15px;
-  padding: 8px 0 20px;
+  padding: 6px 0 18px;
+  border-bottom: 1px solid #eef2f6;
 }
+/* STYLE-00381 用途：关于页面的品牌信息；应用 Logo 的显示大小。关联：App.tsx。 */
 .settings-summary .studio-logo {
   width: 46px;
   height: 46px;
 }
+/* STYLE-00382 用途：关于页面的品牌信息。关联：App.tsx。 */
 .settings-summary strong {
-  font-size: 15px;
-  font-weight: 500;
+  font-size: 16px;
+  font-weight: 600;
 }
+/* STYLE-00383 用途：关于页面的品牌信息。关联：App.tsx。 */
 .settings-summary p {
-  margin-top: 7px;
-  font-size: 10px;
-  color: #8fa5b6;
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: #7c8ea2;
 }
+/* STYLE-00384 用途：关于页面的当前配置列表。关联：App.tsx。 */
 .settings-list {
   display: grid;
-  grid-template-columns: 70px minmax(0, 1fr);
-  gap: 13px 12px;
-  margin: 10px 0 25px;
-  font-size: 12px;
+  grid-template-columns: 78px minmax(0, 1fr);
+  gap: 12px 14px;
+  margin: 16px 0 24px;
+  font-size: 13px;
 }
+/* STYLE-00385 用途：关于页面的当前配置列表。关联：App.tsx。 */
 .settings-list dt {
-  color: #8ca1b3;
+  color: #748699;
 }
+/* STYLE-00386 用途：关于页面的当前配置列表。关联：App.tsx。 */
 .settings-list dd {
   margin: 0;
-  color: #486e87;
+  color: #253546;
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
+/* STYLE-00387 用途：关于页或设置页的操作按钮。关联：App.tsx、SettingsPanel.tsx。 */
 .settings-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
+  gap: 12px;
   align-items: center;
 }
+/* STYLE-00388 用途：短时通知及错误通知。关联：App.tsx。 */
 .toast {
   position: fixed;
   left: 50%;
-  bottom: 27px;
+  bottom: 26px;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #fff;
-  border: 1px solid #d3e8f4;
+  background: #ffffff;
+  border: 1px solid #cfe0f2;
   border-radius: 12px;
-  padding: 11px 13px;
-  color: #3f779b;
-  box-shadow: 0 6px 30px #275b7d20;
+  padding: 11px 15px;
+  color: #1f4f82;
+  font-weight: 500;
+  box-shadow:
+    0 10px 32px rgba(15, 23, 42, 0.14),
+    0 2px 6px rgba(15, 23, 42, 0.05);
   z-index: 100;
-  font-size: 12px;
+  font-size: 13px;
   max-width: min(600px, 90vw);
   animation: toast-in 0.2s ease-out;
 }
+/* STYLE-00389 用途：短时通知及错误通知。关联：App.tsx。 */
 .toast.error {
-  color: #af5060;
-  border-color: #f0cdd4;
+  color: #b42e42;
+  border-color: #f3c2cb;
+  background: #fffafb;
 }
+/* STYLE-00390 用途：短时通知及错误通知。关联：App.tsx。 */
 .toast button {
-  padding: 2px;
-  border-radius: 4px;
-  color: #97a8b5;
+  padding: 3px;
+  border-radius: 6px;
+  color: #8294a7;
 }
+/* STYLE-00391 用途：缩略图或输出图片加载占位。关联：components.tsx。 */
 .media-loading {
   display: block;
   width: 100%;
   height: 100%;
   min-height: 30px;
-  background: linear-gradient(90deg, #edf4f9 20%, #f7fafc 50%, #edf4f9 80%);
+  background: linear-gradient(90deg, #edf2f7 20%, #f8fafc 50%, #edf2f7 80%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
+/* STYLE-00392 用途：图片加载失败占位。关联：components.tsx。 */
 .media-error {
-  font-size: 10px;
-  color: #98acbc;
+  font-size: 11px;
+  color: #7c8ea2;
   padding: 10px;
   display: block;
   overflow: hidden;
   line-height: 1.6;
 }
+/* STYLE-00393 用途：加载图标的旋转动画。关联：components.tsx、App.tsx。 */
 .spin {
-  animation: spin 1.3s linear infinite;
+  animation: spin 1.2s linear infinite;
 }
+/* 用途：动画定义：star-flow；由 animation 属性引用。 */
 @keyframes star-flow {
+  /* STYLE-00394 用途：动画 star-flow 在 from 的关键帧；只调整运动效果，不改变任务状态。关联：main.tsx / App.tsx / components.tsx。 */
   from {
     --star-phase: 0deg;
   }
+  /* STYLE-00395 用途：动画 star-flow 在 to 的关键帧；只调整运动效果，不改变任务状态。关联：main.tsx / App.tsx / components.tsx。 */
   to {
     --star-phase: 360deg;
   }
 }
+/* 用途：动画定义：spin；由 animation 属性引用。 */
 @keyframes spin {
+  /* STYLE-00396 用途：动画 spin 在 to 的关键帧；只调整运动效果，不改变任务状态。关联：main.tsx / App.tsx / components.tsx。 */
   to {
     transform: rotate(360deg);
   }
 }
+/* 用途：动画定义：pulse；由 animation 属性引用。 */
 @keyframes pulse {
+  /* STYLE-00397 用途：动画 pulse 在 50% 的关键帧；只调整运动效果，不改变任务状态。关联：main.tsx / App.tsx / components.tsx。 */
   50% {
-    box-shadow: 0 0 0 4px #f0b42920;
+    box-shadow: 0 0 0 4px rgba(217, 144, 22, 0.22);
   }
 }
+/* 用途：动画定义：shimmer；由 animation 属性引用。 */
 @keyframes shimmer {
+  /* STYLE-00398 用途：动画 shimmer 在 to 的关键帧；只调整运动效果，不改变任务状态。关联：main.tsx / App.tsx / components.tsx。 */
   to {
     background-position: -200% 0;
   }
 }
+/* 用途：动画定义：reveal；由 animation 属性引用。 */
 @keyframes reveal {
+  /* STYLE-00399 用途：动画 reveal 在 from 的关键帧；只调整运动效果，不改变任务状态。关联：main.tsx / App.tsx / components.tsx。 */
   from {
     opacity: 0;
-    transform: translateY(7px);
+    transform: translateY(6px);
   }
+  /* STYLE-00400 用途：动画 reveal 在 to 的关键帧；只调整运动效果，不改变任务状态。关联：main.tsx / App.tsx / components.tsx。 */
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
+/* 用途：动画定义：popover-in；由 animation 属性引用。 */
 @keyframes popover-in {
+  /* STYLE-00401 用途：动画 popover-in 在 from 的关键帧；只调整运动效果，不改变任务状态。关联：main.tsx / App.tsx / components.tsx。 */
   from {
     opacity: 0;
     transform: translateY(4px);
   }
+  /* STYLE-00402 用途：动画 popover-in 在 to 的关键帧；只调整运动效果，不改变任务状态。关联：main.tsx / App.tsx / components.tsx。 */
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
+/* 用途：动画定义：scrim-in；由 animation 属性引用。 */
 @keyframes scrim-in {
+  /* STYLE-00403 用途：动画 scrim-in 在 from 的关键帧；只调整运动效果，不改变任务状态。关联：main.tsx / App.tsx / components.tsx。 */
   from {
     opacity: 0;
   }
+  /* STYLE-00404 用途：动画 scrim-in 在 to 的关键帧；只调整运动效果，不改变任务状态。关联：main.tsx / App.tsx / components.tsx。 */
   to {
     opacity: 1;
   }
 }
+/* 用途：动画定义：toast-in；由 animation 属性引用。 */
 @keyframes toast-in {
+  /* STYLE-00405 用途：动画 toast-in 在 from 的关键帧；只调整运动效果，不改变任务状态。关联：main.tsx / App.tsx / components.tsx。 */
   from {
     opacity: 0;
     translate: 0 6px;
   }
+  /* STYLE-00406 用途：动画 toast-in 在 to 的关键帧；只调整运动效果，不改变任务状态。关联：main.tsx / App.tsx / components.tsx。 */
   to {
     opacity: 1;
     translate: 0 0;
   }
 }
+/* 用途：响应式或减少动画条件：(min-width: 1550px)。 */
 @media (min-width: 1550px) {
+  /* STYLE-00407 用途：整个窗口的三栏布局和模式状态。关联：App.tsx。 */
   .studio-shell {
     grid-template-columns: 282px minmax(420px, 1fr) 240px;
   }
+  /* STYLE-00408 用途：整个窗口的三栏布局和模式状态。关联：App.tsx。 */
   .studio-shell.queue-hidden {
     grid-template-columns: 282px minmax(420px, 1fr);
   }
+  /* STYLE-00409 用途：整个窗口的三栏布局和模式状态。关联：App.tsx。 */
   .studio-shell.sidebar-hidden {
     grid-template-columns: minmax(420px, 1fr) 240px;
   }
+  /* STYLE-00410 用途：生图对话的独立滚动区域。关联：App.tsx。 */
   .conversation {
     padding-left: max(50px, calc((100% - 930px) / 2));
     padding-right: max(50px, calc((100% - 930px) / 2));
   }
+  /* STYLE-00411 用途：输入框、批次上下文与提交栏的整体区域。关联：App.tsx。 */
   .composer-zone {
     padding-left: max(35px, calc((100% - 960px) / 2));
     padding-right: max(35px, calc((100% - 960px) / 2));
   }
 }
+/* 用途：响应式或减少动画条件：(max-width: 1190px)。 */
 @media (max-width: 1190px) {
+  /* STYLE-00412 用途：整个窗口的三栏布局和模式状态。关联：App.tsx。 */
   .studio-shell {
     grid-template-columns: 230px minmax(390px, 1fr) 190px;
   }
+  /* STYLE-00413 用途：整个窗口的三栏布局和模式状态。关联：App.tsx。 */
   .studio-shell.sidebar-hidden {
     grid-template-columns: minmax(390px, 1fr) 190px;
   }
+  /* STYLE-00414 用途：整个窗口的三栏布局和模式状态。关联：App.tsx。 */
   .studio-shell.queue-hidden {
     grid-template-columns: 230px minmax(390px, 1fr);
   }
+  /* STYLE-00415 用途：左侧参考图库和项目栏。关联：App.tsx。 */
   .sidebar {
     padding-left: 10px;
     padding-right: 10px;
   }
+  /* STYLE-00416 用途：生图对话的独立滚动区域。关联：App.tsx。 */
   .conversation {
     padding: 22px 24px 10px;
   }
+  /* STYLE-00417 用途：输入框、批次上下文与提交栏的整体区域。关联：App.tsx。 */
   .composer-zone {
     padding-left: 20px;
     padding-right: 20px;
   }
+  /* STYLE-00418 用途：输入框底部的模型、比例、分辨率、张数和温度栏。关联：App.tsx。 */
   .composer-toolbar {
-    gap: 3px;
+    gap: 4px;
   }
+  /* STYLE-00419 用途：模型温度参数下拉按钮；通用下拉按钮、展开箭头与展开状态。关联：App.tsx、components.tsx。 */
   .temperature-picker .picker-trigger > span {
     display: none;
   }
+  /* STYLE-00420 用途：模型温度参数下拉按钮；通用下拉按钮、展开箭头与展开状态。关联：App.tsx、components.tsx。 */
   .temperature-picker .picker-trigger {
     gap: 4px;
     padding: 5px;
   }
+  /* STYLE-00421 用途：右侧生成队列面板及收起状态。关联：App.tsx。 */
   .queue {
-    padding: 19px 11px 13px;
+    padding: 16px 11px 12px;
   }
+  /* STYLE-00422 用途：模型选择菜单触发按钮；通用下拉按钮、展开箭头与展开状态。关联：App.tsx、components.tsx。 */
   .model-picker .picker-trigger {
-    font-size: 10px;
+    font-size: 11.5px;
     gap: 5px;
   }
+  /* STYLE-00423 用途：通用下拉按钮、展开箭头与展开状态。关联：components.tsx。 */
   .picker-trigger {
     padding-left: 6px;
     padding-right: 6px;
   }
+  /* STYLE-00424 用途：中间工作区的项目标题和队列开关。关联：App.tsx。 */
   .workspace-heading {
-    padding: 0 23px;
+    padding: 0 22px;
   }
+  /* STYLE-00425 用途：将当前提示词和参考图加入一个任务。关联：App.tsx。 */
   .add-task {
-    padding-left: 9px;
-    padding-right: 9px;
-    font-size: 10px;
+    padding-left: 10px;
+    padding-right: 10px;
+    font-size: 11.5px;
   }
+  /* STYLE-00426 用途：输入框参数栏中的弹性留白。关联：App.tsx。 */
   .toolbar-space {
     min-width: 0;
   }
+  /* STYLE-00427 用途：提示词输入框外壳及自动增高文字区域。关联：App.tsx。 */
   .composer {
-    padding-left: 12px;
-    padding-right: 12px;
+    padding-left: 13px;
+    padding-right: 13px;
   }
 }
+/* 用途：响应式或减少动画条件：(max-width: 990px)。 */
 @media (max-width: 990px) {
+  /* STYLE-00428 用途：整个窗口的三栏布局和模式状态。关联：App.tsx。 */
   .studio-shell,
   .studio-shell.sidebar-hidden {
     grid-template-columns: 220px minmax(0, 1fr);
   }
+  /* STYLE-00429 用途：整个窗口的三栏布局和模式状态。关联：App.tsx。 */
   .studio-shell.sidebar-hidden {
     grid-template-columns: 1fr;
   }
+  /* STYLE-00430 用途：右侧生成队列面板及收起状态。关联：App.tsx。 */
   .queue {
     display: none;
   }
+  /* STYLE-00431 用途：整个窗口的三栏布局和模式状态。关联：App.tsx。 */
   .studio-shell.queue-hidden {
     grid-template-columns: 220px minmax(0, 1fr);
   }
+  /* STYLE-00432 用途：输入框底部的模型、比例、分辨率、张数和温度栏；输入框参数栏中的弹性留白。关联：App.tsx。 */
   .composer-toolbar .toolbar-space {
     min-width: 4px;
   }
+  /* STYLE-00433 用途：输入框底部的模型、比例、分辨率、张数和温度栏。关联：App.tsx。 */
   .composer-toolbar {
     row-gap: 8px;
   }
+  /* STYLE-00434 用途：输入框、批次上下文与提交栏的整体区域。关联：App.tsx。 */
   .composer-zone {
     padding-left: 20px;
     padding-right: 20px;
   }
+  /* STYLE-00435 用途：顶栏及窗口拖动区域；Logo 与顶栏操作之间的分隔装饰。关联：App.tsx。 */
   .titlebar .brand-divider {
     margin: 0 8px;
   }
+  /* STYLE-00436 用途：顶栏新建项目、视图、设置或关于入口。关联：App.tsx。 */
   .top-actions button {
-    padding: 6px 7px;
+    padding: 6px 8px;
   }
+  /* STYLE-00437 用途：没有任务时的工作区布局和输入框位置；输入框、批次上下文与提交栏的整体区域。关联：App.tsx。 */
   .empty-workspace .composer-zone {
     padding-bottom: 5vh;
   }
 }
+/* 用途：响应式或减少动画条件：(max-width: 690px)。 */
 @media (max-width: 690px) {
+  /* STYLE-00438 用途：整个窗口的三栏布局和模式状态。关联：App.tsx。 */
   .studio-shell,
   .studio-shell.queue-hidden {
     grid-template-columns: minmax(0, 1fr);
   }
+  /* STYLE-00439 用途：左侧参考图库和项目栏。关联：App.tsx。 */
   .sidebar {
     display: none;
   }
+  /* STYLE-00440 用途：生图对话的独立滚动区域。关联：App.tsx。 */
   .conversation {
     padding: 18px 16px 5px;
   }
+  /* STYLE-00441 用途：中间工作区的项目标题和队列开关。关联：App.tsx。 */
   .workspace-heading {
     padding: 0 16px;
   }
+  /* STYLE-00442 用途：输入框、批次上下文与提交栏的整体区域。关联：App.tsx。 */
   .composer-zone {
     padding-left: 12px;
     padding-right: 12px;
     max-height: 72%;
   }
+  /* STYLE-00443 用途：输入框底部的模型、比例、分辨率、张数和温度栏。关联：App.tsx。 */
   .composer-toolbar {
-    row-gap: 9px;
+    row-gap: 8px;
   }
+  /* STYLE-00444 用途：输入框参数栏中的弹性留白。关联：App.tsx。 */
   .toolbar-space {
     display: none;
   }
+  /* STYLE-00445 用途：模型选择菜单触发按钮。关联：App.tsx。 */
   .model-picker {
     margin-right: auto;
   }
+  /* STYLE-00446 用途：模型温度参数下拉按钮。关联：App.tsx。 */
   .temperature-picker {
     display: none;
   }
+  /* STYLE-00447 用途：左上角品牌名称和标志。关联：App.tsx。 */
   .brand strong {
-    font-size: 13px;
+    font-size: 14px;
   }
+  /* STYLE-00448 用途：顶栏及窗口拖动区域。关联：App.tsx。 */
   .titlebar {
     padding-left: 10px;
     padding-right: 10px;
   }
+  /* STYLE-00449 用途：顶栏新建项目、视图、设置或关于入口。关联：App.tsx。 */
   .top-actions button {
-    font-size: 10px;
-    padding: 5px;
+    font-size: 11px;
+    padding: 5px 6px;
   }
+  /* STYLE-00450 用途：Logo 与顶栏操作之间的分隔装饰。关联：App.tsx。 */
   .brand-divider {
     display: none;
   }
+  /* STYLE-00451 用途：右上角真实连接状态文字和指示点。关联：App.tsx、cloud-connection.ts。 */
   .connection {
-    font-size: 9px;
-    padding-right: 0;
+    font-size: 10.5px;
+    padding: 4px 8px;
   }
+  /* STYLE-00452 用途：空工作区的欢迎区。关联：App.tsx。 */
   .empty-welcome h1 {
-    font-size: 22px;
+    font-size: 21px;
   }
+  /* STYLE-00453 用途：空工作区的欢迎区。关联：App.tsx。 */
   .empty-welcome {
     margin-top: 0;
   }
+  /* STYLE-00454 用途：该选择器覆盖的通用布局或状态规则。关联：main.tsx / App.tsx / components.tsx。 */
   .welcome-art {
     scale: 0.85;
     margin-bottom: 0;
   }
+  /* STYLE-00455 用途：没有任务时的工作区布局和输入框位置；输入框、批次上下文与提交栏的整体区域。关联：App.tsx。 */
   .empty-workspace .composer-zone {
     padding-bottom: 15px;
   }
+  /* STYLE-00456 用途：用户提交的提示词气泡。关联：App.tsx、CollapsiblePrompt.tsx。 */
   .request-bubble {
     max-width: 94%;
   }
+  /* STYLE-00457 用途：输出图片的大图与右侧缩略图布局。关联：App.tsx。 */
   .output-gallery {
     grid-template-columns: minmax(0, 1fr) 52px;
     gap: 6px;
   }
+  /* STYLE-00458 用途：同一任务多张图片的缩略图切换。关联：App.tsx。 */
   .output-thumbnails button {
     width: 46px;
     height: 46px;
     min-height: 46px;
   }
+  /* STYLE-00459 用途：设置 / 打开图片输出目录的按钮。关联：App.tsx。 */
   .output-setting {
-    font-size: 9px;
+    font-size: 10.5px;
   }
 }
+/* 用途：响应式或减少动画条件：(prefers-reduced-motion: reduce)。 */
 @media (prefers-reduced-motion: reduce) {
+  /* STYLE-00460 用途：该选择器覆盖的通用布局或状态规则。关联：main.tsx / App.tsx / components.tsx。 */
   *,
   *:before,
   *:after {
@@ -1929,71 +2449,88 @@ small {
   }
 }
 
+/* STYLE-00461 用途：侧边栏展开或收起入口。关联：App.tsx。 */
+
 .sidebar-toggle {
   margin-right: 11px;
-  color: #59829d;
+  color: #54687d;
 }
+/* STYLE-00462 用途：窄窗口侧栏展开时的遮罩。关联：App.tsx。 */
 .sidebar-scrim {
   display: none;
 }
+/* 用途：响应式或减少动画条件：(max-width: 990px)。 */
 @media (max-width: 990px) {
+  /* STYLE-00463 用途：右侧生成队列面板及收起状态。关联：App.tsx。 */
   .queue {
     display: flex;
     position: fixed;
     right: 0;
     top: 54px;
     bottom: 0;
-    width: 218px;
+    width: 224px;
     /* A floating queue must cover the conversation beneath it. */
-    background: #eff6fc;
+    background: #f3f5f8;
+    border-left: 1px solid var(--line);
     z-index: 25;
-    box-shadow: -8px 0 30px #304e7012;
+    box-shadow: -10px 0 32px rgba(15, 23, 42, 0.1);
   }
 }
+/* 用途：响应式或减少动画条件：(max-width: 690px)。 */
 @media (max-width: 690px) {
+  /* STYLE-00464 用途：整个窗口的三栏布局和模式状态。关联：App.tsx。 */
   .studio-shell,
   .studio-shell.queue-hidden,
   .studio-shell.sidebar-hidden,
   .studio-shell.sidebar-hidden.queue-hidden {
     grid-template-columns: minmax(0, 1fr);
   }
+  /* STYLE-00465 用途：左侧参考图库和项目栏。关联：App.tsx。 */
   .sidebar {
     display: flex;
     position: fixed;
     left: 0;
     top: 54px;
     bottom: 0;
-    width: 244px;
+    width: 248px;
     z-index: 35;
-    box-shadow: 8px 0 30px #304e7020;
+    box-shadow: 10px 0 32px rgba(15, 23, 42, 0.14);
     animation: sidebar-in 0.18s ease-out;
   }
+  /* STYLE-00466 用途：窄窗口侧栏展开时的遮罩。关联：App.tsx。 */
   .sidebar-scrim {
     display: block;
     position: fixed;
     inset: 54px 0 0;
     z-index: 30;
-    background: #26456325;
+    background: rgba(15, 23, 42, 0.22);
     backdrop-filter: blur(2px);
   }
+  /* STYLE-00467 用途：侧边栏展开或收起入口。关联：App.tsx。 */
   .sidebar-toggle {
     margin-right: 7px;
   }
+  /* STYLE-00468 用途：左上角品牌名称和标志。关联：App.tsx。 */
   .brand {
-    gap: 5px;
+    gap: 6px;
   }
+  /* STYLE-00469 用途：顶栏新建项目、视图、设置或关于入口。关联：App.tsx。 */
   .top-actions {
-    gap: 0;
+    gap: 2px;
   }
+  /* STYLE-00470 用途：顶栏新建项目、视图、设置或关于入口。关联：App.tsx。 */
   .top-actions button {
     padding: 5px 6px;
   }
 }
+/* 用途：动画定义：sidebar-in；由 animation 属性引用。 */
 @keyframes sidebar-in {
+  /* STYLE-00471 用途：动画 sidebar-in 在 from 的关键帧；只调整运动效果，不改变任务状态。关联：main.tsx / App.tsx / components.tsx。 */
   from {
     transform: translateX(-20px);
     opacity: 0;
   }
+  /* STYLE-00472 用途：动画 sidebar-in 在 to 的关键帧；只调整运动效果，不改变任务状态。关联：main.tsx / App.tsx / components.tsx。 */
   to {
     transform: translateX(0);
     opacity: 1;
@@ -2001,12 +2538,14 @@ small {
 }
 
 /* Dragging changes the actual grid column; the narrow rail keeps its restore action. */
+/* STYLE-00473 用途：左侧栏连续拖动、紧凑和收起布局。关联：App.tsx。 */
 .resizable-sidebar {
   position: relative;
   min-width: 0;
-  padding: 16px 14px 11px;
+  padding: 12px 12px 10px 14px;
   overflow: visible;
 }
+/* STYLE-00474 用途：参考图库及项目列表的内容容器。关联：App.tsx。 */
 .sidebar-content {
   display: flex;
   flex: 1;
@@ -2014,16 +2553,20 @@ small {
   min-height: 0;
   overflow: hidden;
 }
+/* STYLE-00475 用途：参考图库及项目列表的内容容器。关联：App.tsx。 */
 .sidebar-content[hidden] {
   display: none;
 }
+/* STYLE-00476 用途：参考图库及项目列表的内容容器。关联：App.tsx。 */
 .sidebar-content > section {
   min-width: 220px;
 }
+/* STYLE-00477 用途：参考图库及项目列表的内容容器；项目列表分区及可用高度。关联：App.tsx。 */
 .sidebar-content .project-library {
   flex: 1;
   min-height: 0;
 }
+/* STYLE-00478 用途：左侧栏连续拖动、紧凑和收起布局；左下角设置和侧栏收起按钮。关联：App.tsx。 */
 .resizable-sidebar .sidebar-bottom {
   margin-top: auto;
   min-height: 38px;
@@ -2031,26 +2574,33 @@ small {
   gap: 8px;
   justify-content: flex-start;
 }
+/* STYLE-00479 用途：左下角设置和侧栏收起按钮；通用小图标按钮。关联：App.tsx、components.tsx。 */
 .sidebar-bottom > .icon-button {
   order: -1;
 }
+/* STYLE-00480 用途：左侧栏连续拖动、紧凑和收起布局。关联：App.tsx。 */
 .resizable-sidebar.compact {
   padding-left: 6px;
   padding-right: 6px;
 }
+/* STYLE-00481 用途：左侧栏连续拖动、紧凑和收起布局；左下角设置和侧栏收起按钮；通用文字操作按钮，danger 为危险操作提示。关联：App.tsx。 */
 .resizable-sidebar.compact .sidebar-bottom > .text-button {
   display: none;
 }
+/* STYLE-00482 用途：左侧栏连续拖动、紧凑和收起布局。关联：App.tsx。 */
 .resizable-sidebar.collapsed {
-  padding: 0 2px 11px;
+  padding: 0 2px 10px;
 }
+/* STYLE-00483 用途：左侧栏连续拖动、紧凑和收起布局；左下角设置和侧栏收起按钮。关联：App.tsx。 */
 .resizable-sidebar.collapsed .sidebar-bottom {
   padding: 8px 0 0;
   border-top: 0;
 }
+/* STYLE-00484 用途：左侧栏连续拖动、紧凑和收起布局；左下角设置和侧栏收起按钮；通用文字操作按钮，danger 为危险操作提示。关联：App.tsx。 */
 .resizable-sidebar.collapsed .sidebar-bottom > .text-button {
   display: none;
 }
+/* STYLE-00485 用途：左侧栏宽度拖动手柄。关联：App.tsx。 */
 .sidebar-resize {
   position: absolute;
   right: -4px;
@@ -2061,11 +2611,12 @@ small {
   cursor: col-resize;
   touch-action: none;
 }
+/* STYLE-00486 用途：左侧栏宽度拖动手柄。关联：App.tsx。 */
 .sidebar-resize:after {
   content: "";
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: 12px;
+  bottom: 16px;
   left: 3px;
   width: 2px;
   border-radius: 2px;
@@ -2073,91 +2624,114 @@ small {
   opacity: 0;
   transition: opacity 0.15s;
 }
+/* STYLE-00487 用途：左侧栏宽度拖动手柄；整个窗口的三栏布局和模式状态（鼠标悬停、键盘或输入焦点）。关联：App.tsx。 */
 .sidebar-resize:hover:after,
 .sidebar-resize:focus-visible:after,
 .studio-shell.resizing .sidebar-resize:after {
   opacity: 0.65;
 }
+/* STYLE-00488 用途：左侧栏宽度拖动手柄（键盘或输入焦点）。关联：App.tsx。 */
 .sidebar-resize:focus-visible {
   outline: none;
 }
+/* STYLE-00489 用途：设置弹窗整体双栏布局。关联：SettingsPanel.tsx。 */
 .settings-panel {
   display: grid;
-  grid-template-columns: 170px minmax(0, 1fr);
+  grid-template-columns: 184px minmax(0, 1fr);
   gap: 26px;
-  min-height: 340px;
+  min-height: 350px;
 }
+/* STYLE-00490 用途：通用圆角弹窗外壳；设置弹窗整体双栏布局。关联：components.tsx、SettingsPanel.tsx。 */
 .modal:has(.settings-panel) {
-  width: 740px;
+  width: 750px;
   padding: 24px;
 }
+/* STYLE-00491 用途：设置弹窗左侧分类导航。关联：SettingsPanel.tsx。 */
 .settings-navigation {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
   border-right: 1px solid var(--line);
   padding-right: 16px;
 }
+/* STYLE-00492 用途：设置弹窗左侧分类导航。关联：SettingsPanel.tsx。 */
 .settings-navigation button {
   justify-content: flex-start;
-  padding: 11px 13px;
-  border-radius: 11px;
-  font-size: 12px;
+  padding: 10px 13px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
   text-align: left;
+  color: #4b5e73;
+  gap: 9px;
 }
+/* STYLE-00493 用途：设置弹窗左侧分类导航（鼠标悬停）。关联：SettingsPanel.tsx。 */
 .settings-navigation button:hover,
 .settings-navigation button.selected {
   background: var(--selected);
   color: var(--accent);
 }
+/* STYLE-00494 用途：设置分类右侧的内容区。关联：SettingsPanel.tsx。 */
 .settings-content {
   min-width: 0;
 }
+/* STYLE-00495 用途：设置页小分区标题。关联：SettingsPanel.tsx。 */
 .settings-subheading {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
+  color: #182230;
   margin: 4px 0 16px;
 }
+.settings-subheading svg {
+  color: var(--accent);
+}
+/* STYLE-00496 用途：设置中的单行选项布局。关联：SettingsPanel.tsx。 */
 .setting-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
   min-height: 46px;
-  font-size: 12px;
+  font-size: 13px;
 }
+/* STYLE-00497 用途：设置中的开关、选中状态及滑块。关联：SettingsPanel.tsx。 */
 .setting-switch {
   position: relative;
-  width: 38px;
-  height: 22px;
+  width: 40px;
+  height: 23px;
   border-radius: 20px;
-  background: #c7d7e3;
+  background: #cbd5e1;
   padding: 3px;
   justify-content: flex-start;
 }
+/* STYLE-00498 用途：设置中的开关、选中状态及滑块。关联：SettingsPanel.tsx。 */
 .setting-switch > span {
-  width: 16px;
-  height: 16px;
+  width: 17px;
+  height: 17px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 4px #253a5020;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.22);
   transform: translateX(0);
-  transition: transform 0.2s;
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
 }
+/* STYLE-00499 用途：设置中的开关、选中状态及滑块。关联：SettingsPanel.tsx。 */
 .setting-switch.checked {
   background: var(--accent);
 }
+/* STYLE-00500 用途：设置中的开关、选中状态及滑块。关联：SettingsPanel.tsx。 */
 .setting-switch.checked > span {
-  transform: translateX(16px);
+  transform: translateX(17px);
 }
+/* STYLE-00501 用途：设置分组之间的视觉间隔。关联：SettingsPanel.tsx。 */
 .settings-divider {
   height: 1px;
   background: var(--line);
-  margin: 17px 0;
+  margin: 16px 0;
 }
+/* STYLE-00502 用途：归档或退出等管理操作区；保存配置和检查连接操作区。关联：SettingsPanel.tsx。 */
 .settings-management,
 .cloud-actions {
   display: flex;
@@ -2166,89 +2740,139 @@ small {
   justify-content: space-between;
   flex-wrap: wrap;
 }
+/* STYLE-00503 用途：浏览器下提示仅桌面可用的功能。关联：SettingsPanel.tsx。 */
 .desktop-only-note {
-  font-size: 10px;
+  font-size: 11.5px;
   color: var(--muted);
-  margin-top: 9px;
+  margin-top: 8px;
 }
+/* STYLE-00504 用途：Google Cloud 项目、桶名和凭证表单。关联：SettingsPanel.tsx。 */
 .cloud-form {
   display: flex;
   flex-direction: column;
-  gap: 17px;
+  gap: 16px;
 }
+/* STYLE-00505 用途：Google Cloud 项目、桶名和凭证表单；设置页小分区标题。关联：SettingsPanel.tsx。 */
 .cloud-form .settings-subheading {
   margin-bottom: 0;
 }
+/* STYLE-00506 用途：JSON 凭证状态及导入按钮。关联：SettingsPanel.tsx。 */
 .credential-row {
   display: flex;
   gap: 15px;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 12px;
 }
+/* STYLE-00507 用途：JSON 凭证状态及导入按钮。关联：SettingsPanel.tsx。 */
 .credential-row > div {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 5px;
   min-width: 0;
 }
+/* STYLE-00508 用途：JSON 凭证状态及导入按钮。关联：SettingsPanel.tsx。 */
 .credential-row small {
   color: var(--muted);
 }
+/* STYLE-00509 用途：JSON 凭证状态及导入按钮。关联：SettingsPanel.tsx。 */
 .credential-row span {
-  font-size: 11px;
+  font-size: 12.5px;
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
+/* STYLE-00510 用途：JSON 凭证状态及导入按钮；次级操作按钮。关联：SettingsPanel.tsx、App.tsx。 */
 .credential-row .secondary-button {
   flex-shrink: 0;
 }
+/* STYLE-00511 用途：设置保存 / 检查连接失败提示；设置保存 / 检查连接成功提示。关联：SettingsPanel.tsx。 */
 .settings-error,
 .settings-success {
   padding: 12px 0 0;
-  font-size: 12px;
+  font-size: 12.5px;
+  font-weight: 500;
   line-height: 1.7;
   overflow-wrap: anywhere;
 }
+/* STYLE-00512 用途：设置保存 / 检查连接失败提示。关联：SettingsPanel.tsx。 */
 .settings-error {
-  color: #be4654;
+  color: #c83246;
 }
+/* STYLE-00513 用途：设置保存 / 检查连接成功提示。关联：SettingsPanel.tsx。 */
 .settings-success {
-  color: #249357;
+  color: #168a52;
 }
+
+/* STYLE-00514 用途：全局字体、基础配色与主题变量（深色模式）。关联：main.tsx / App.tsx / components.tsx。 */
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  color: #deebf5;
-  background: #111b26;
-  --muted: #9bb0c1;
-  --line: #32495b;
-  --selected: #24465e;
-  --accent: #72c6f1;
+  color: #e6edf5;
+  background: #0d1218;
+  --muted: #93a4b8;
+  --subtle: #6e8196;
+  --line: #24303f;
+  --line-strong: #324256;
+  --surface: #151d26;
+  --surface-subtle: #111820;
+  --selected: #1e2f44;
+  --accent: #58a6ff;
+  --accent-hover: #3b91f5;
+  --accent-soft: #1a2a3e;
 }
+/* STYLE-00515 用途：整个窗口的三栏布局和模式状态（深色模式）。关联：App.tsx。 */
 [data-theme="dark"] .studio-shell {
-  background: #111b26;
+  background: #0d1218;
 }
+/* STYLE-00516 用途：左侧参考图库和项目栏（深色模式）。关联：App.tsx。 */
 [data-theme="dark"] .sidebar {
-  background: #192a3b;
+  background: #0d1218;
 }
-[data-theme="dark"] :is(.titlebar, .queue, .composer, .modal, .picker-menu) {
-  background: #1c2d3d;
-  color: #deebf5;
+/* STYLE-00517 用途：顶栏及窗口拖动区域；右侧生成队列面板及收起状态；提示词输入框外壳及自动增高文字区域（深色模式）。关联：App.tsx、components.tsx。 */
+[data-theme="dark"] :is(.titlebar, .queue) {
+  background: transparent;
+  color: #e6edf5;
   border-color: var(--line);
 }
-[data-theme="dark"] :is(.workspace, .workspace-heading) {
-  background: #141f2c;
+[data-theme="dark"] :is(.composer, .modal, .picker-menu) {
+  background: #1a2430;
+  color: #e6edf5;
+  border-color: var(--line);
 }
+/* STYLE-00518 用途：生图模式的圆角主面板；中间工作区的项目标题和队列开关（深色模式）。关联：App.tsx。 */
+[data-theme="dark"] :is(.workspace, .workspace-heading) {
+  background: #131b24;
+  border-color: var(--line);
+}
+/* STYLE-00519 用途：左上角品牌名称和标志；中间工作区的项目标题和队列开关（深色模式）。关联：App.tsx、SettingsPanel.tsx、components.tsx。 */
 [data-theme="dark"]
   :is(
     .brand,
     .brand strong,
     .workspace-heading span,
     .settings-subheading,
-    .modal-heading h2
+    .modal-heading h2,
+    .section-heading
   ) {
-  color: #deebf5;
+  color: #e6edf5;
 }
+[data-theme="dark"] .section-heading small,
+[data-theme="dark"] .workspace-heading small {
+  background: #1f2b38;
+  color: #93a4b8;
+}
+[data-theme="dark"] .connection {
+  background: #161f2a;
+  border-color: var(--line);
+}
+[data-theme="dark"] .category-tabs,
+[data-theme="dark"] .queue-toggle {
+  background: #161f2a;
+}
+/* STYLE-00520 用途：风格、人设、场景分类按钮；生成队列“当前项目 / 全部”切换；图库尚无参考图时的导入区域（深色模式）。关联：ReferenceLibrary.tsx、App.tsx、SettingsPanel.tsx、CollapsiblePrompt.tsx。 */
 [data-theme="dark"]
   :is(
     .category-tabs button.active,
@@ -2257,34 +2881,41 @@ small {
     .library-image,
     .form-label input,
     .request-bubble,
-    .preview-image
+    .preview-image,
+    .credential-row
   ) {
-  background: #22384b;
-  color: #deebf5;
+  background: #1d2937;
+  color: #e6edf5;
   border-color: var(--line);
 }
+/* STYLE-00521 用途：生成队列“当前项目 / 全部”切换；已发送任务的单张参考图及序号；输入框单张参考图卡片（深色模式）。关联：App.tsx、components.tsx。 */
 [data-theme="dark"]
   :is(
-    .queue-toggle,
     .request-ref,
     .composer-ref,
     .gallery-main,
     .gallery-thumb,
-    .media-loading
+    .media-loading,
+    .main-output,
+    .waiting-output
   ) {
-  background: #172737;
+  background: #16202b;
   border-color: var(--line);
 }
+/* STYLE-00522 用途：项目标题、选中状态和展开箭头；提示词输入框外壳及自动增高文字区域；生成队列紧凑圆角任务卡片（深色模式）。关联：App.tsx、components.tsx、SettingsPanel.tsx。 */
 [data-theme="dark"]
   :is(
     .project-title,
     .composer textarea,
     .queue-item strong,
     .picker-trigger,
-    .form-label
+    .form-label,
+    .reference-name,
+    .settings-list dd
   ) {
-  color: #d7e8f5;
+  color: #dde7f2;
 }
+/* STYLE-00523 用途：次级操作按钮；通用小图标按钮；通用文字操作按钮，danger 为危险操作提示（深色模式）。关联：App.tsx、SettingsPanel.tsx、components.tsx。 */
 [data-theme="dark"]
   :is(
     .secondary-button,
@@ -2295,10 +2926,13 @@ small {
     .request-footer,
     .task-divider,
     .settings-navigation button,
-    .config-details dd
+    .config-details dd,
+    .category-tabs button,
+    .queue-toggle button
   ) {
-  color: #a9c5db;
+  color: #9bb0c6;
 }
+/* STYLE-00524 用途：项目列表中的单个项目；项目标题、选中状态和展开箭头（深色模式、鼠标悬停、选中状态）。关联：App.tsx、components.tsx、SettingsPanel.tsx。 */
 [data-theme="dark"]
   :is(
     .project.selected > .project-title,
@@ -2306,13 +2940,14 @@ small {
     .queue-item:hover,
     .picker-menu button:hover,
     .picker-menu button[aria-selected="true"],
-    .picker-trigger:hover,
+    .picker-trigger:hover:not(:disabled),
     .settings-navigation button.selected,
     .settings-navigation button:hover
   ) {
   background: var(--selected);
-  color: #bde5fc;
+  color: #93ccff;
 }
+/* STYLE-00525 用途：次级操作按钮；输入框单张参考图卡片；参考图库旧版缩略图显示规则（深色模式）。关联：App.tsx、SettingsPanel.tsx、ReferenceLibrary.tsx。 */
 [data-theme="dark"]
   :is(
     .secondary-button,
@@ -2321,29 +2956,47 @@ small {
     .sidebar-bottom,
     .queue-footer,
     .project-library,
-    .queue-item
+    .queue-item,
+    .composer-toolbar,
+    .request-footer,
+    .settings-summary
   ) {
   border-color: var(--line);
 }
+/* STYLE-00526 用途：次级操作按钮（深色模式、鼠标悬停、禁用状态）。关联：App.tsx、SettingsPanel.tsx。 */
 [data-theme="dark"] .secondary-button:hover:not(:disabled) {
   background: var(--selected);
 }
+/* STYLE-00527 用途：主要操作按钮；destructive 表示破坏性操作（深色模式）。关联：App.tsx、SettingsPanel.tsx、ArchivePanel.tsx。 */
 [data-theme="dark"] .primary-button {
-  background: #2787b8;
-  color: #fff;
+  background: #2b7cd3;
+  color: #ffffff;
 }
+[data-theme="dark"] .primary-button:hover:not(:disabled) {
+  background: #388be3;
+}
+/* STYLE-00528 用途：图片数量 1–4 的下拉按钮；通用下拉按钮、展开箭头与展开状态（深色模式）。关联：App.tsx、components.tsx。 */
 [data-theme="dark"] .count-picker .picker-trigger {
-  background: #24465e;
-  color: #9fddff;
+  background: #1e324a;
+  color: #8cc5ff;
 }
+[data-theme="dark"] .model-picker .picker-trigger,
+[data-theme="dark"] .add-reference {
+  background: #151e28;
+  border-color: var(--line);
+  color: #dde7f2;
+}
+/* STYLE-00529 用途：次级操作按钮；将当前提示词和参考图加入一个任务（深色模式）。关联：App.tsx、SettingsPanel.tsx。 */
 [data-theme="dark"] :is(.secondary-button, .add-task) {
-  background: #22384b;
-  color: #bde0f5;
+  background: #1d2937;
+  color: #b8d8f8;
   border-color: var(--line);
 }
+/* STYLE-00530 用途：将当前提示词和参考图加入一个任务（深色模式、鼠标悬停、禁用状态）。关联：App.tsx。 */
 [data-theme="dark"] .add-task:hover:not(:disabled) {
   background: var(--selected);
 }
+/* STYLE-00531 用途：通用小图标按钮；最小化、最大化和关闭窗口按钮；顶栏新建项目、视图、设置或关于入口（深色模式、鼠标悬停）。关联：components.tsx、App.tsx。 */
 [data-theme="dark"]
   :is(
     .icon-button:hover,
@@ -2351,54 +3004,80 @@ small {
     .top-actions button:hover
   ) {
   background: var(--selected);
-  color: #c8e9fa;
+  color: #c8e4ff;
 }
+/* STYLE-00532 用途：提示词输入框外壳及自动增高文字区域（深色模式、键盘或输入焦点）。关联：App.tsx。 */
 [data-theme="dark"] .composer:focus-within {
-  box-shadow: 0 0 0 3px #32749d20;
-  border-color: #4ba2d1;
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.16);
+  border-color: #4b96eb;
 }
+/* STYLE-00533 用途：新建、重命名或配置输入框标签（深色模式、键盘或输入焦点）。关联：App.tsx、SettingsPanel.tsx。 */
 [data-theme="dark"] .form-label input:focus {
-  box-shadow: 0 0 0 3px #32749d20;
-  border-color: #4ba2d1;
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.16);
+  border-color: #4b96eb;
 }
+/* STYLE-00534 用途：任务状态标签和颜色（深色模式）。关联：App.tsx、domain.ts。 */
 [data-theme="dark"] .status-tag.completed {
-  background: #194b35;
-  color: #88e3aa;
+  background: #143b29;
+  color: #7ee2a8;
 }
+/* STYLE-00535 用途：任务状态标签和颜色（深色模式）。关联：App.tsx、domain.ts。 */
 [data-theme="dark"] .status-tag.generating {
-  background: #55431c;
-  color: #ffda78;
+  background: #423113;
+  color: #fcd36a;
 }
+/* STYLE-00536 用途：任务状态标签和颜色（深色模式）。关联：App.tsx、domain.ts。 */
 [data-theme="dark"] .status-tag.failed {
-  background: #512c35;
-  color: #ffafb7;
+  background: #442029;
+  color: #ff9da9;
 }
+/* STYLE-00537 用途：任务状态标签和颜色（深色模式）。关联：App.tsx、domain.ts。 */
 [data-theme="dark"] .status-tag.pending {
-  background: #2a4155;
-  color: #b9d7ed;
+  background: #213040;
+  color: #b0c6dc;
 }
+/* STYLE-00538 用途：生成队列状态文字和指示灯（深色模式）。关联：App.tsx、domain.ts。 */
 [data-theme="dark"] .queue-state.completed {
-  color: #71d896;
+  color: #6bd696;
 }
+/* STYLE-00539 用途：生成队列状态文字和指示灯（深色模式）。关联：App.tsx、domain.ts。 */
 [data-theme="dark"] .queue-state.generating {
-  color: #ffd36a;
+  color: #fcd36a;
 }
+/* STYLE-00540 用途：生成队列状态文字和指示灯；设置保存 / 检查连接失败提示；任务错误说明文字（深色模式）。关联：App.tsx、domain.ts、SettingsPanel.tsx。 */
 [data-theme="dark"] :is(.queue-state.failed, .settings-error, .task-error) {
-  color: #ff9aa8;
+  color: #ff94a2;
 }
+/* STYLE-00541 用途：设置保存 / 检查连接成功提示（深色模式）。关联：SettingsPanel.tsx。 */
 [data-theme="dark"] .settings-success {
-  color: #71d896;
+  color: #6bd696;
 }
+/* STYLE-00542 用途：弹窗背景遮罩；仍需允许点击关闭（深色模式）。关联：components.tsx。 */
 [data-theme="dark"] .modal-scrim {
-  background: #040c1670;
+  background: rgba(4, 10, 18, 0.55);
 }
+/* STYLE-00543 用途：通用圆角下拉菜单与选中项（深色模式）。关联：components.tsx。 */
 [data-theme="dark"] .picker-menu {
-  box-shadow: 0 14px 45px #0006;
+  box-shadow: 0 14px 45px rgba(0, 0, 0, 0.45);
 }
+/* STYLE-00544 用途：滚动条宽度、轨道和滑块外观（深色模式）。关联：main.tsx / App.tsx / components.tsx。 */
 [data-theme="dark"] ::-webkit-scrollbar-thumb {
-  background: #3a5368;
+  background: #2f4154;
 }
+[data-theme="dark"] .welcome-card.front {
+  background: #1a2430;
+  border-color: var(--line);
+}
+[data-theme="dark"] .welcome-card.back {
+  background: #162231;
+  border-color: var(--line);
+}
+[data-theme="dark"] .empty-welcome h1 {
+  color: #e6edf5;
+}
+/* 用途：响应式或减少动画条件：(max-width: 690px)。 */
 @media (max-width: 690px) {
+  /* STYLE-00545 用途：左侧栏连续拖动、紧凑和收起布局。关联：App.tsx。 */
   .resizable-sidebar {
     position: fixed;
     top: 54px;
@@ -2407,22 +3086,27 @@ small {
     z-index: 35;
     animation: none;
   }
+  /* STYLE-00546 用途：左侧栏连续拖动、紧凑和收起布局。关联：App.tsx。 */
   .resizable-sidebar.collapsed {
     box-shadow: none;
   }
+  /* STYLE-00547 用途：左侧栏宽度拖动手柄。关联：App.tsx。 */
   .sidebar-resize {
     display: none;
   }
+  /* STYLE-00548 用途：设置弹窗整体双栏布局。关联：SettingsPanel.tsx。 */
   .settings-panel {
     grid-template-columns: 1fr;
     gap: 18px;
   }
+  /* STYLE-00549 用途：设置弹窗左侧分类导航。关联：SettingsPanel.tsx。 */
   .settings-navigation {
     flex-direction: row;
     border-right: 0;
     border-bottom: 1px solid var(--line);
     padding: 0 0 12px;
   }
+  /* STYLE-00550 用途：设置中的单行选项布局。关联：SettingsPanel.tsx。 */
   .setting-row {
     gap: 10px;
   }

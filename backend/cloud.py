@@ -38,7 +38,7 @@ class Cloud(Protocol):
 
 
 class GoogleCloud:
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, *, api_version="v1"):
         settings.require_cloud()
         from google import genai
         from google.genai import types
@@ -53,7 +53,7 @@ class GoogleCloud:
             credentials, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
         self.genai = genai.Client(vertexai=True, project=settings.project,
                                   location=settings.location, credentials=credentials,
-                                  http_options=types.HttpOptions(api_version="v1", timeout=60000))
+                                  http_options=types.HttpOptions(api_version=api_version, timeout=60000))
         self.storage = storage.Client(project=settings.project, credentials=credentials)
 
     @staticmethod
@@ -91,11 +91,21 @@ class GoogleCloud:
         if blob.content_type not in {mime, "application/octet-stream", None}:
             raise ValueError("远程参考图的 MIME 类型与后缀不符")
 
+    def count_request_tokens(self, request: dict, model: str = "gemini-4-argon") -> int:
+        from google.genai.types import CountTokensConfig
+        value = self.genai.models.count_tokens(
+            model=model, contents=request["contents"],
+            config=CountTokensConfig(system_instruction=request.get("systemInstruction"), tools=request.get("tools")))
+        return value.total_tokens
+
     def create_job(self, model: str, input_uri: str, output_prefix: str, display_name: str) -> Job:
-        from google.genai.types import CreateBatchJobConfig
+        from google.genai.types import CreateBatchJobConfig, HttpOptions, HttpRetryOptions
         return self.job(self.genai.batches.create(
             model=model, src=input_uri,
-            config=CreateBatchJobConfig(dest=output_prefix, display_name=display_name)))
+            # A lost response may already represent a paid job. Let the durable
+            # ledger reconcile it instead of allowing SDK transport retries.
+            config=CreateBatchJobConfig(dest=output_prefix, display_name=display_name,
+                http_options=HttpOptions(retry_options=HttpRetryOptions(attempts=1)))))
 
     def find_jobs(self, display_name: str, input_uri: str) -> list[Job]:
         found = []

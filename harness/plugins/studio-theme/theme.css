@@ -1,0 +1,155 @@
+/* STYLE-00551 用途：Harness 主题、输入框、弹窗和滚动条的基础颜色（浅色模式）。关联：Harness DSH 页面 / studio-theme。 */
+body:not([data-ds-dark-theme]) {
+  --dsw-alias-bg-base: #f7f3ed;
+  --dsw-alias-bg-layer-0: #f7f3ed;
+  --dsw-alias-bg-layer-1: #fdfbf7;
+  --dsw-alias-bg-layer-2: #fdfbf7;
+  --dsw-alias-bg-layer-3: #ffffff;
+  --dsw-alias-bg-module-platform: #f2e7d6;
+  --dsw-alias-brand-primary: #df7b12;
+  --dsw-alias-brand-text: #8c4608;
+  --dsw-alias-button-primary-fill: #df7b12;
+  --dsw-alias-button-primary-hover: #c96c0b;
+  --dsw-alias-label-primary: #2b221a;
+  --dsw-alias-label-primary-foreground: #ffffff;
+  --dsw-alias-label-secondary: #75604d;
+  --dsw-alias-link: #b85d0b;
+  --dsw-alias-state-business-primary: #c96c0b;
+  --dsw-alias-interactive-bg-active: #f2e7d6;
+  --dsw-alias-menu-group-header-fill: #fdfbf7;
+  --dsw-menu-surface-fill: #fdfbf7;
+  background: #f7f3ed;
+}
+/* STYLE-00552 用途：Harness 主题、输入框、弹窗和滚动条的基础颜色（深色模式）。关联：Harness DSH 页面 / studio-theme。 */
+body[data-ds-dark-theme] {
+  --dsw-alias-brand-primary: #f29d38;
+  --dsw-alias-button-primary-fill: #f29d38;
+  --dsw-alias-label-primary-foreground: #1f1812;
+  --dsw-alias-link: #f29d38;
+}
+/* 用途：响应式或减少动画条件：(prefers-reduced-motion: reduce)。 */
+@media(prefers-reduced-motion: reduce) { /* STYLE-00553 用途：全局盒模型或无障碍动画覆盖。关联：Harness DSH 页面 / studio-theme。 */ * { scroll-behavior:auto !important; } }
+/* STYLE-00554 用途：Harness Batch 状态、费用与进度条。关联：client.js、Activity。 */
+.vbs-batch-activity { margin:0 auto 10px; width:100%; color:var(--dsw-alias-label-secondary); font-size:12.5px; }
+/* STYLE-00555 用途：展开 Batch 详情的整行按钮。关联：client.js、Activity。 */
+.vbs-activity-toggle { display:flex; align-items:center; gap:9px; width:100%; padding:9px 14px; border:1px solid rgba(184, 93, 11, 0.14); border-radius:12px; background:var(--dsw-alias-bg-module-platform); color:inherit; cursor:pointer; text-align:left; font-weight:500; transition:background .16s, border-color .16s; }
+/* STYLE-00556 用途：Batch 活动状态指示点。关联：client.js、Activity。 */
+.vbs-activity-dot {width:7px;height:7px;flex:none;background:#df7b12;border-radius:50%;box-shadow:0 0 0 3px rgba(223, 123, 18, 0.18);}
+/* STYLE-00557 用途：预估、预留和预算金额文字。关联：client.js、Activity。 */
+.vbs-activity-cost {margin-left:auto;font-variant-numeric:tabular-nums;}
+/* STYLE-00558 用途：Batch 作业、等待时间及错误详情。关联：client.js、Activity。 */
+.vbs-activity-detail {margin-top:6px;padding:10px 14px;border-radius:12px;border:1px solid rgba(184, 93, 11, 0.12);background:var(--dsw-alias-bg-layer-1);overflow-wrap:anywhere;}
+/* STYLE-00559 用途：Batch 作业、等待时间及错误详情。关联：client.js、Activity。 */
+.vbs-activity-detail p {margin:5px 0;line-height:1.65;}
+
+/* STYLE-00560 用途：Harness 内的 Google Cloud 配置入口。关联：client.js、CloudSettingsEntry。 */
+
+.vbs-cloud-settings-entry {margin-top:16px;}
+/* STYLE-00561 用途：打开外层 Cloud 设置的按钮。关联：client.js、CloudSettingsEntry。 */
+.vbs-cloud-settings-button {display:inline-flex;align-items:center;gap:9px;padding:10px 16px;border:1px solid var(--dsw-alias-brand-primary);border-radius:11px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;font-weight:550;cursor:pointer;transition:background .18s,box-shadow .18s;}
+/* STYLE-00562 用途：打开外层 Cloud 设置的按钮（鼠标悬停）。关联：client.js、CloudSettingsEntry。 */
+.vbs-cloud-settings-button:hover {background:var(--dsw-alias-bg-layer-2);box-shadow:0 3px 12px rgba(223, 123, 18, 0.14);}
+/* STYLE-00563 用途：打开外层 Cloud 设置的按钮（键盘或输入焦点）。关联：client.js、CloudSettingsEntry。 */
+.vbs-cloud-settings-button:focus-visible {outline:2px solid var(--dsw-alias-brand-primary);outline-offset:3px;}
+/* STYLE-00564 用途：打开外层 Cloud 设置的按钮（禁用状态）。关联：client.js、CloudSettingsEntry。 */
+.vbs-cloud-settings-button:disabled {opacity:.65;cursor:wait;}
+/* STYLE-00565 用途：Harness 内的 Google Cloud 配置入口。关联：client.js、CloudSettingsEntry。 */
+.vbs-cloud-settings-entry p {color:#c83e52;font-size:13px;margin:9px 0;}
+
+/* STYLE-00566 用途：Harness 角色提示词编辑页。关联：client.js、PersonaSettings。 */
+
+.vbs-persona-settings {color:var(--dsw-alias-label-primary);max-width:760px;padding:4px 0 24px;}
+/* STYLE-00567 用途：Harness 角色提示词编辑页。关联：client.js、PersonaSettings。 */
+.vbs-persona-settings h2 {font-size:20px;margin:0 0 24px;font-weight:600;}
+/* STYLE-00568 用途：Harness 角色提示词编辑页。关联：client.js、PersonaSettings。 */
+.vbs-persona-settings label {display:block;font-size:13.5px;font-weight:500;margin-bottom:10px;}
+/* STYLE-00569 用途：Harness 角色提示词编辑页。关联：client.js、PersonaSettings。 */
+.vbs-persona-settings textarea {box-sizing:border-box;width:100%;min-height:240px;padding:16px 18px;border:1px solid var(--dsw-alias-bg-module-platform);border-radius:16px;background:var(--dsw-alias-bg-layer-1);color:inherit;font:inherit;font-size:14px;line-height:1.75;resize:vertical;transition:border-color .18s,box-shadow .18s;}
+/* STYLE-00570 用途：Harness 角色提示词编辑页（键盘或输入焦点）。关联：client.js、PersonaSettings。 */
+.vbs-persona-settings textarea:focus {outline:none;border-color:var(--dsw-alias-brand-primary);box-shadow:0 0 0 3px rgba(223, 123, 18, 0.14);}
+/* STYLE-00571 用途：提示词输入框下方说明及字符数。关联：client.js、PersonaSettings。 */
+.vbs-persona-note {display:flex;justify-content:flex-end;gap:18px;margin-top:10px;font-size:12px;line-height:1.7;color:var(--dsw-alias-label-secondary);}
+/* STYLE-00572 用途：提示词输入框下方说明及字符数。关联：client.js、PersonaSettings。 */
+.vbs-persona-note span:last-child {white-space:nowrap;font-variant-numeric:tabular-nums;}
+/* STYLE-00573 用途：提示词 / Batch 设置的保存和重置按钮栏。关联：client.js。 */
+.vbs-persona-actions {display:flex;justify-content:flex-end;gap:12px;margin-top:24px;}
+/* STYLE-00574 用途：提示词 / Batch 设置的保存和重置按钮栏。关联：client.js。 */
+.vbs-persona-actions button {padding:9px 18px;border-radius:10px;font:inherit;font-size:13.5px;font-weight:550;cursor:pointer;transition:background .18s;}
+/* STYLE-00575 用途：恢复默认角色提示词按钮。关联：client.js、PersonaSettings。 */
+.vbs-persona-reset {border:1px solid var(--dsw-alias-bg-module-platform);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);}
+/* STYLE-00576 用途：角色提示词或 Batch 配置的保存按钮。关联：client.js。 */
+.vbs-persona-save {border:1px solid var(--dsw-alias-brand-primary);background:var(--dsw-alias-brand-primary);color:var(--dsw-alias-label-primary-foreground);}
+/* STYLE-00577 用途：提示词 / Batch 设置的保存和重置按钮栏（禁用状态）。关联：client.js。 */
+.vbs-persona-actions button:disabled {opacity:.45;cursor:default;}
+/* STYLE-00578 用途：提示词 / Batch 设置的保存和重置按钮栏（键盘或输入焦点）。关联：client.js。 */
+.vbs-persona-actions button:focus-visible {outline:2px solid var(--dsw-alias-brand-primary);outline-offset:3px;}
+/* STYLE-00579 用途：角色提示词或 Batch 设置失败提示；角色提示词或 Batch 设置成功提示。关联：client.js。 */
+.vbs-persona-error,.vbs-persona-success {margin-top:14px;font-size:13px;}
+/* STYLE-00580 用途：角色提示词或 Batch 设置失败提示。关联：client.js。 */
+.vbs-persona-error {color:#c83e52;}
+/* STYLE-00581 用途：角色提示词或 Batch 设置成功提示。关联：client.js。 */
+.vbs-persona-success {color:#168a52;}
+
+/* Blocked video decoration; removal stays above the non-interactive mask. */
+/* STYLE-00582 用途：被标记为不支持的视频附件卡片。关联：video-overlay.js。 */
+.vbs-unsupported-video {position:relative;isolation:isolate;overflow:hidden;}
+/* STYLE-00583 用途：不支持视频附件的变暗遮罩和红字。关联：video-overlay.js。 */
+.vbs-unsupported-video-overlay {position:absolute;inset:0;z-index:1;display:flex;align-items:center;justify-content:center;gap:9px;padding:8px 26px 8px 12px;border-radius:inherit;background:rgba(21,17,14,.72);color:#ff8b83;font-size:13px;font-weight:600;pointer-events:none;}
+/* STYLE-00584 用途：不支持视频附件遮罩的圆圈感叹号。关联：video-overlay.js。 */
+.vbs-unsupported-video-icon {display:inline-flex;align-items:center;justify-content:center;flex:none;width:23px;height:23px;border:2px solid currentColor;border-radius:50%;font-size:17px;font-weight:700;line-height:1;}
+/* STYLE-00585 用途：被标记为不支持的视频附件卡片。关联：video-overlay.js。 */
+.vbs-unsupported-video > button:last-of-type {z-index:2;}
+
+/* STYLE-00586 用途：Harness 的 Batch 运行设置页面。关联：client.js、RunSettings。 */
+
+.vbs-run-settings {max-width:760px;color:var(--dsw-alias-label-primary);}
+/* STYLE-00587 用途：Harness 的 Batch 运行设置页面。关联：client.js、RunSettings。 */
+.vbs-run-settings h2 {font-size:20px;margin:0 0 24px;font-weight:600;}
+/* STYLE-00588 用途：Harness 的 Batch 运行设置页面。关联：client.js、RunSettings。 */
+.vbs-run-settings label {display:flex;align-items:center;justify-content:space-between;gap:20px;margin:18px 0;font-size:14px;}
+/* STYLE-00589 用途：Harness 的 Batch 运行设置页面。关联：client.js、RunSettings。 */
+.vbs-run-settings input {box-sizing:border-box;width:180px;padding:9px 13px;border:1px solid var(--dsw-alias-bg-module-platform);border-radius:10px;background:var(--dsw-alias-bg-layer-1);color:inherit;font:inherit;}
+/* STYLE-00590 用途：Harness 的 Batch 运行设置页面（键盘或输入焦点）。关联：client.js、RunSettings。 */
+.vbs-run-settings input:focus {outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px;}
+/* STYLE-00591 用途：Batch 额度和续传规则的说明文字。关联：client.js、RunSettings。 */
+.vbs-run-note {font-size:12.5px;line-height:1.8;color:var(--dsw-alias-label-secondary);}
+
+/* STYLE-00592 用途：启用 / 关闭 Batch 本地运行限额的开关。关联：client.js、RunSettings。 */
+
+.vbs-limit-switch {position:relative;flex:none;width:42px;height:24px;border:0;border-radius:20px;background:#c4b8aa;padding:3px;cursor:pointer;transition:background .18s;}
+/* STYLE-00593 用途：启用 / 关闭 Batch 本地运行限额的开关（选中状态）。关联：client.js、RunSettings。 */
+.vbs-limit-switch[aria-checked="true"] {background:#df7b12;}
+/* STYLE-00594 用途：启用 / 关闭 Batch 本地运行限额的开关。关联：client.js、RunSettings。 */
+.vbs-limit-switch span {display:block;width:18px;height:18px;border-radius:50%;background:white;box-shadow:0 1px 3px rgba(43, 34, 26, 0.22);transform:translateX(0);transition:transform .18s;}
+/* STYLE-00595 用途：启用 / 关闭 Batch 本地运行限额的开关（选中状态）。关联：client.js、RunSettings。 */
+.vbs-limit-switch[aria-checked="true"] span {transform:translateX(18px);}
+/* STYLE-00596 用途：启用 / 关闭 Batch 本地运行限额的开关（键盘或输入焦点）。关联：client.js、RunSettings。 */
+.vbs-limit-switch:focus-visible {outline:2px solid var(--dsw-alias-brand-primary);outline-offset:3px;}
+/* STYLE-00597 用途：Harness 的 Batch 运行设置页面（禁用状态）。关联：client.js、RunSettings。 */
+.vbs-run-settings input:disabled {opacity:.45;}
+
+/* A recovered answer is plain escaped text, never executable model HTML. */
+/* STYLE-00598 用途：已找回旧请求最终文本的展示框。关联：client.js、Activity。 */
+.vbs-recovered-answer { margin: 8px 0; padding: 12px 16px; border-radius: 14px; border: 1px solid rgba(184, 93, 11, 0.16); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); max-height: 36vh; overflow: auto; }
+/* STYLE-00599 用途：已找回旧请求最终文本的展示框。关联：client.js、Activity。 */
+.vbs-recovered-answer summary { cursor: pointer; font-weight: 600; }
+/* STYLE-00600 用途：已找回旧请求最终文本的展示框。关联：client.js、Activity。 */
+.vbs-recovered-answer p { margin: 8px 0; font-size: 12px; color: var(--dsw-alias-label-secondary); }
+/* STYLE-00601 用途：已找回旧请求最终文本的展示框。关联：client.js、Activity。 */
+.vbs-recovered-answer pre { margin: 12px 0 0; font: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* The app frame clips the translated, collapsed right panel. Unlike hidden,
+   clip cannot be scrolled by the browser's caret-reveal behavior on PgUp/PgDn.
+   Target the frame's own shell seats, independent of CSS module hashes and
+   sidebar state. Keep the editor and conversation scrollports scrollable. */
+/* STYLE-00602 用途：Harness 主框架的滚动裁剪，防止 PgUp / PgDn 挤出右侧空白。关联：Harness DSH 页面 / studio-theme。 */
+:has(> [data-shell-bottom]):has(> [data-shell-overlay]) {
+  overflow: clip;
+}
+
+/* 自定义外观覆盖区：可在下方追加同名选择器，只调整外观。
+   审批、状态、遮罩删除按钮、overflow:clip 和焦点滚动保护应保留。 */
+
+/* Harness reminder entry: use the approved theme tokens and shared settings spacing. */
+.vbs-notification-settings-entry .vbs-cloud-settings-button {margin-top:12px;}
+.vbs-notification-settings-entry .vbs-notification-error {font-size:13px;line-height:1.7;color:var(--dsw-alias-status-error,#c83e52);}

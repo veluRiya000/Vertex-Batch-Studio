@@ -76,7 +76,7 @@
 
 可选字段 `temperature` 为 0–2；不填时交给模型默认值。`generation_config` 可保留旧任务的其他生成配置，输出模态与图片参数由显式任务字段统一设置。宽高比、分辨率和参考图数量在本地检查。
 
-`image_count` 是 1–4 的整数，默认 1，旧任务兼容为 1。`prompt` 始终保存原文；生成 JSONL 时，2–4 张在原文末尾追加空行和 `请生成{数量}张独立图片，每张单独输出，不要将多张图片拼成一张。`，1 张不追加。每条任务仍只生成一行 JSONL，不修改 `candidateCount`，结果指纹使用实际提交文本。数量代表期望，返回图片全部保留；少图不会自动重提。
+`image_count` 是 1–4 的整数，默认 1，旧任务兼容为 1。`prompt` 始终保存并原样提交，不追加张数指令。一个逻辑任务生成 `image_count` 行完全相同的 JSONL 请求，同属一个云端 Batch 作业；每行仅含官方 `request` 字段。提示词、生成参数与参考图 GCS URI 复用，素材快照和上传清单去重，不使用 `candidateCount` 实现张数。清单 schema 2 的每个 occurrence 有独立 `request_id`、父级 `task_id` 与 `image_index`；结果按 occurrence 持久匹配后聚合为一个 GUI 任务，文件名包含 occurrence，防止互相覆盖。相同输入的多条结果可互换，但已关联的行不会因后续分片到达而重新分配。少图不会自动重提。
 
 批量替换时可保留当前批次已有任务的 `id`，用于重排任务而不改变编号；新增任务不填 `id`，由后端分配。单条编辑始终保留原 ID。重复 ID 或其他批次的 ID 会被拒绝。
 
@@ -90,7 +90,7 @@ JSONL 导入请求：`{"source":"D:/某个批次/prompts.jsonl"}`。
 
 批次 `phase`：`draft`、`prepared`、`uploading`、`upload_failed`、`submitting`、`submission_unknown`、`submission_failed`、`monitoring`、`downloading`、`paused`、`completed`、`completed_with_errors`、`failed`、`cancelled`。它与 Google 的 `cloud_state` 分开保存。
 
-结果中每条任务状态为 `pending`、`succeeded`、`error` 或 `missing`；一条任务可能有多张图片。原始 JSONL 始终保留，不能只根据“云端成功”推断所有图片已导出。
+结果中每条逻辑任务状态为 `pending`、`succeeded`、`error` 或 `missing`；一条任务可能有多张图片。`total_requests`、`completed_requests` 和 `succeeded_requests` 分别表示该任务的总请求数、已结束数与成功数，`generations` 保留每次的状态、错误和来源。未全部返回时保持 `pending`；部分失败或缺失后显示 `error`，成功图片继续可预览。已提交的 schema 1 作业按原清单解码，不会改成多次生成；未开始上传的旧准备批次在提交前校验原文件摘要，再升级为新格式，同时保留其模型、参数和参考图地址。原始 JSONL 始终保留，不能只根据“云端成功”推断所有图片已导出。
 
 ## SSE 与错误
 

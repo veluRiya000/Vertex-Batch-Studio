@@ -26,17 +26,42 @@ use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
+mod harness;
+mod cloud_pages;
+
 type Result<T> = std::result::Result<T, String>;
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct Preferences {
+    #[serde(default)]
+    notifications: NotificationPreferences,
     theme: String,
     language: String,
     close_to_tray: bool,
     auto_start: bool,
     start_minimized: bool,
     sidebar_width: u16,
+}
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields, default)]
+struct NotificationPreferences {
+    enabled: bool,
+    mode: String,
+    image_batches: bool,
+    harness_tasks: bool,
+    include_failures: bool,
+    sound_enabled: bool,
+    sound: String,
+    custom_sound_id: Option<String>,
+    custom_sound_name: Option<String>,
+}
+impl Default for NotificationPreferences {
+    fn default() -> Self {
+        Self { enabled:true, mode:"all".into(), image_batches:true, harness_tasks:true,
+            include_failures:true, sound_enabled:true, sound:"soft".into(),
+            custom_sound_id:None, custom_sound_name:None }
+    }
 }
 impl Default for Preferences {
     fn default() -> Self {
@@ -47,6 +72,7 @@ impl Default for Preferences {
             auto_start: false,
             start_minimized: false,
             sidebar_width: 258,
+            notifications: NotificationPreferences::default(),
         }
     }
 }
@@ -55,6 +81,8 @@ impl Preferences {
         if !matches!(self.theme.as_str(), "light" | "dark")
             || !matches!(self.language.as_str(), "zh-CN" | "en")
             || self.sidebar_width > 420
+            || !matches!(self.notifications.mode.as_str(), "all" | "each")
+            || !matches!(self.notifications.sound.as_str(), "soft" | "chime" | "double" | "custom")
         {
             return Err("设置参数无效".into());
         }
@@ -89,6 +117,7 @@ fn valid_id(id: &str) -> bool {
 
 // Match the same operations as the former desktop bridge, without arbitrary URLs.
 fn allowed(method: &str, path: &str) -> bool {
+    if matches!((method, path), ("GET", "/harness/status") | ("POST", "/harness/start") | ("POST", "/harness/stop")) { return true; }
     if path.len() > 4096
         || !path.starts_with('/')
         || path.starts_with("//")
@@ -101,10 +130,10 @@ fn allowed(method: &str, path: &str) -> bool {
     let rules = RULES.get_or_init(|| {
         let id = "[a-f0-9]{32}";
         [
-            ("GET", vec!["^/(health|config|preferences|references|batches)$".into(),
+            ("GET", vec!["^/(health|config|preferences|references|batches|notifications/status)$".into(),
                 "^/references/file$".into(),
                 format!("^/batches/{id}(/tasks|/results|/images/{id}/[0-9]+)?$")]),
-            ("POST", vec!["^/(batches|references/import|cloud/check)$".into(),
+            ("POST", vec!["^/(batches|references/import|cloud/check|models/refresh|models/selection|notifications/sound|notifications/test)$".into(),
                 format!("^/batches/{id}/(tasks|prepare|submit|poll|extract|cancel|retry|clone|archive|attach|import-jsonl)$"),
                 format!("^/workspaces/{id}/archive$")]),
             ("PUT", vec!["^/(preferences|cloud/configuration|references/order)$".into(),
@@ -430,7 +459,7 @@ async fn open_output(app: AppHandle, studio: State<'_, Arc<Studio>>, id: String)
 }
 
 fn show_window(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
+    if let Some(window) = app.get_window("main") {
         let _ = window.show();
         let _ = window.unminimize();
         let _ = window.set_focus();
@@ -513,7 +542,7 @@ async fn set_preferences(
 
 #[tauri::command]
 fn window_action(app: AppHandle, action: String) -> Result<()> {
-    let window = app.get_webview_window("main").ok_or("窗口不可用")?;
+    let window = app.get_window("main").ok_or("窗口不可用")?;
     let result = match action.as_str() {
         "minimize" => window.minimize(),
         "maximize" => {
@@ -642,6 +671,7 @@ fn main() {
     let smoke = std::env::args().any(|a| a == "--smoke-test");
     let test_mode = smoke || std::env::args().any(|a| a == "--ui-test");
     let builder = tauri::Builder::default()
+        .manage(harness::HarnessView::default())
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             show_window(app)
         }))
@@ -659,6 +689,8 @@ fn main() {
         )
         .invoke_handler(tauri::generate_handler![
             studio_api,
+            harness::harness_view,
+            cloud_pages::open_cloud_page,
             studio_image,
             studio_upload,
             choose_directory,
@@ -722,8 +754,14 @@ fn main() {
             if !smoke && !cfg!(debug_assertions) && preferences.auto_start {
                 app.autolaunch().enable()?;
             }
+            // Explicitly refresh the running window/taskbar and tray from the same logo.
+            // Shell file-icon caches must not decide the icon of an already visible window.
+            let studio_icon = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png"))?;
+            for window in app.windows().values() {
+                window.set_icon(studio_icon.clone())?;
+            }
             TrayIconBuilder::with_id("studio")
-                .icon(app.default_window_icon().unwrap().clone())
+                .icon(studio_icon)
                 .tooltip("Vertex Batch Studio")
                 .menu(&tray_menu(app.handle(), preferences.language == "en")?)
                 .show_menu_on_left_click(false)
@@ -748,6 +786,9 @@ fn main() {
             Ok(())
         })
         .on_window_event(|window, event| {
+            if matches!(event, WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. }) {
+                harness::resize(window.app_handle());
+            }
             if let WindowEvent::CloseRequested { api, .. } = event {
                 let studio = window.state::<Arc<Studio>>();
                 if !studio.quitting.load(Ordering::SeqCst) {
@@ -835,6 +876,10 @@ mod tests {
     fn desktop_bridge_rejects_external_and_encoded_routes() {
         let id = "a".repeat(32);
         assert!(allowed("GET", &format!("/batches/{id}/results")));
+        assert!(allowed("POST", "/models/refresh"));
+        assert!(allowed("POST", "/models/selection"));
+        assert!(!allowed("GET", "/models/selection"));
+        assert!(!allowed("POST", "/models/unknown"));
         assert!(allowed("GET", "/references/file?path=styles%2Fa.png"));
         assert!(allowed("POST", &format!("/workspaces/{id}/archive")));
         assert!(allowed("DELETE", &format!("/workspaces/{id}")));

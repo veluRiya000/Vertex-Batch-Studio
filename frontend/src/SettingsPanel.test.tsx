@@ -94,3 +94,13 @@ it("任意名称的 JSON 密钥导入后提交内容，界面不显示密钥", a
   });
   expect(screen.getByRole("status").textContent).toBe("连接已保存");
 });
+
+
+it('Cloud shortcut opens directly on the existing form, keeping its console links',async()=>{
+  render(<PreferencesProvider><SettingsPanel initialTab="cloud" config={config} close={()=>{}} configured={()=>{}}/></PreferencesProvider>);
+  expect(screen.getByRole('textbox',{name:'项目 ID'})).toBeTruthy();
+  expect(screen.getByRole('link',{name:'打开 Google Cloud 项目页面'}).getAttribute('href')).toContain('project=demo');
+  expect(screen.getByRole('link',{name:'打开 Google Cloud 存储桶页面'})).toBeTruthy();
+  expect(screen.getByRole('link',{name:'打开 Google Cloud 服务账号页面'})).toBeTruthy();
+  expect(screen.queryByRole('switch',{name:'深色主题'})).toBeNull();
+});

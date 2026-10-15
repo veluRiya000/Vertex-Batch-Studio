@@ -1,3 +1,5 @@
+/* 界面摘录说明：生图主界面、顶栏、项目侧栏、对话消息、参数栏、结果预览与生成队列。改 JSX 排列、图标和文案可改变界面；保留 send/submit/batchAction、API 参数和事件绑定。
+ * 仅此副本新增说明；原工程未改动。 */
 import {
   useCallback,
   useEffect,
@@ -19,17 +21,21 @@ import {
   FolderPlus,
   ImagePlus,
   Images,
+  Info,
   Layers,
+  LayoutPanelLeft,
   LoaderCircle,
   Maximize2,
   Minus,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
+  Proportions,
   RefreshCw,
   Settings2,
   SlidersHorizontal,
   Sparkle,
+  Sparkles,
   Square,
   Trash2,
   UploadCloud,
@@ -40,6 +46,7 @@ import { Media, Modal, Picker } from "./components";
 import { SettingsPanel } from "./SettingsPanel";
 import { ReferenceLibrary } from "./ReferenceLibrary";
 import { LibraryPane } from "./LibraryPane";
+import { HarnessPane } from "./HarnessPane";
 import { ProjectMenu } from "./ProjectMenu";
 import { CollapsiblePrompt } from "./CollapsiblePrompt";
 import { usePreferences } from "./preferences";
@@ -98,6 +105,7 @@ const time = (value: string) =>
   });
 
 const studioLogo = new URL("./assets/logo.svg", import.meta.url).href;
+// 界面组件 Logo：生图主界面、顶栏、项目侧栏、对话消息、参数栏、结果预览与生成队列。
 export function Logo({ large = false }: { large?: boolean }) {
   return (
     <img
@@ -108,6 +116,7 @@ export function Logo({ large = false }: { large?: boolean }) {
     />
   );
 }
+// 界面组件 ModelMark：生图主界面、顶栏、项目侧栏、对话消息、参数栏、结果预览与生成队列。
 export function ModelMark() {
   const id = "star-" + useId().replace(/:/g, "");
   const [reduced, setReduced] = useState(false);
@@ -124,24 +133,24 @@ export function ModelMark() {
         <defs>
           <linearGradient
             id={id}
-            x1="1"
-            y1="4"
-            x2="23"
-            y2="20"
+            x1="2"
+            y1="3"
+            x2="22"
+            y2="21"
             gradientUnits="userSpaceOnUse"
           >
-            <stop offset="0" stopColor="#4285F4" />
-            <stop offset=".25" stopColor="#8263F4" />
-            <stop offset=".5" stopColor="#E567B1" />
-            <stop offset=".75" stopColor="#F5B84C" />
-            <stop offset="1" stopColor="#32B992" />
+            <stop offset="0" stopColor="#2563EB" />
+            <stop offset=".28" stopColor="#6366F1" />
+            <stop offset=".55" stopColor="#EC4899" />
+            <stop offset=".8" stopColor="#F59E0B" />
+            <stop offset="1" stopColor="#10B981" />
             {!reduced && (
               <animateTransform
                 attributeName="gradientTransform"
                 type="rotate"
                 from="0 12 12"
                 to="360 12 12"
-                dur="8s"
+                dur="10s"
                 repeatCount="indefinite"
               />
             )}
@@ -156,6 +165,7 @@ export function ModelMark() {
   );
 }
 
+// 界面组件 TaskCard：生图主界面、顶栏、项目侧栏、对话消息、参数栏、结果预览与生成队列。
 function TaskCard({
   entry,
   edit,
@@ -242,6 +252,11 @@ function TaskCard({
             <i />
             {t(taskLabel(entry))}
           </span>
+          {(result?.total_requests || 0) > 1 && (
+            <span className="image-total" aria-label={t("生成请求进度")}>
+              {result?.completed_requests || 0}/{result?.total_requests}
+            </span>
+          )}
           {images.length > 0 && (
             <span className="image-total">
               {images.length}
@@ -370,12 +385,22 @@ function TaskCard({
 }
 
 export default function App() {
+  const [mode, setMode] = useState<"images" | "harness">("images");
+  useEffect(() => {
+    // Modal and dropdown portals live outside the shell, so theme the root.
+    document.documentElement.dataset.studioMode = mode;
+    return () => { delete document.documentElement.dataset.studioMode; };
+  }, [mode]);
   const t = useTranslation();
   const { preferences, update: updatePreferences } = usePreferences();
   const [batches, setBatches] = useState<Batch[]>([]);
   const [taskMap, setTaskMap] = useState<Record<string, Task[]>>({});
   const [results, setResults] = useState<Record<string, Results>>({});
   const [config, setConfig] = useState<PublicConfig>();
+  const [modelBusy, setModelBusy] = useState(false);
+  const catalogue = config?.model_catalog;
+  const selectedModel = catalogue?.models.find((model) => model.id === config?.model);
+  const temperatureSupported = !(config?.unsupported_generation_parameters || selectedModel?.unsupported_parameters || []).includes("temperature");
   const [activeId, setActiveId] = useState(
     localStorage.getItem("vbs-workspace") || "",
   );
@@ -412,6 +437,18 @@ export default function App() {
   const [modal, setModal] = useState<
     "new" | "rename" | "settings" | "about" | "output" | null
   >(null);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<"general" | "cloud" | "notifications">("general");
+  const openSettings = () => { setSettingsInitialTab("general"); setModal("settings"); };
+  useEffect(() => {
+    const openCloud = () => { setSettingsInitialTab("cloud"); setModal("settings"); };
+    window.addEventListener("vbs:open-cloud-settings", openCloud);
+    const openNotifications = () => { setSettingsInitialTab("notifications"); setModal("settings"); };
+    window.addEventListener("vbs:open-notification-settings", openNotifications);
+    return () => {
+      window.removeEventListener("vbs:open-cloud-settings", openCloud);
+      window.removeEventListener("vbs:open-notification-settings", openNotifications);
+    };
+  }, []);
   const [newName, setNewName] = useState("");
   const [renameProject, setRenameProject] = useState<{ id: string; name: string }>();
   const [output, setOutput] = useState("");
@@ -516,6 +553,32 @@ export default function App() {
       clearInterval(timer);
     };
   }, [refresh, notify]);
+  useEffect(() => {
+    let alive = true;
+    let reading = false;
+    const read = async (refreshModels = false) => {
+      if (reading) return;
+      reading = true;
+      try {
+        const value = await api<PublicConfig>(refreshModels ? "/models/refresh" : "/config", refreshModels ? "POST" : "GET");
+        if (alive) setConfig(value);
+      } catch (error) {
+        if (refreshModels && alive) notify((error as Error).message, true);
+      } finally { reading = false; }
+    };
+    // Also refresh on a fresh desktop launch when it reuses a running local server.
+    void read(true);
+    const timer = setInterval(() => void read(), 5000);
+    return () => { alive = false; clearInterval(timer); };
+  }, [notify]);
+  async function changeModel(model: string) {
+    if (modelBusy || model === config?.model) return;
+    setModelBusy(true);
+    try {
+      setConfig(await api<PublicConfig>("/models/selection", "POST", { model }));
+    } catch (error) { notify((error as Error).message, true); }
+    finally { setModelBusy(false); }
+  }
   const workspaces = groupBatches(batches).filter(
     (workspace) => !workspace.archived,
   );
@@ -606,12 +669,14 @@ export default function App() {
       100,
     );
   }
-  function switchWorkspace(id: string) {
+  function switchWorkspace(id: string, preserveComposer = false) {
     if (id === activeId) return;
     setTreeCollapsed(false);
     setActiveId(id);
-    setPrompt("");
-    setSelected([]);
+    if (!preserveComposer) {
+      setPrompt("");
+      setSelected([]);
+    }
     setEditing(undefined);
   }
   async function run(action: () => Promise<void>) {
@@ -693,7 +758,7 @@ export default function App() {
         name: editing?.task.name || prompt.trim().split("\n")[0].slice(0, 32),
         prompt,
         refs,
-        temperature: temperature === "default" ? null : Number(temperature),
+        temperature: temperatureSupported ? (temperature === "default" ? null : Number(temperature)) : (editing?.task.temperature ?? null),
         aspect_ratio: ratio === "reference" ? matchRatio(selected[0]) : ratio,
         image_size: size,
         image_count: Number(count),
@@ -817,7 +882,7 @@ export default function App() {
   return (
     <div
       className={
-        "studio-shell " +
+        "studio-shell " + (mode === "harness" ? "harness-mode " : "") +
         (resizing ? "resizing " : "") +
         (!sidebar ? "sidebar-hidden " : "") +
         (!queue ? "queue-hidden" : "")
@@ -836,17 +901,38 @@ export default function App() {
             Vertex<span>Studio</span>
           </strong>
         </div>
+        <div className="studio-mode-switch" aria-label={t("工作模式")}>
+          <button aria-pressed={mode === "images"} onClick={() => setMode("images")}>
+            <Sparkles size={13} aria-hidden />
+            {t("生图")}
+          </button>
+          <button aria-pressed={mode === "harness"} onClick={() => setMode("harness")}>
+            <Layers size={13} aria-hidden />
+            Harness
+          </button>
+        </div>
+        <span className="brand-divider" aria-hidden />
         <div className="top-actions">
           <button
             onClick={() => {
+              if (mode === "harness") { openSettings(); return; }
               setNewName("");
               setModal("new");
             }}
           >
-            {t("新建项目")}
+            {mode === "harness" ? <Settings2 size={14} aria-hidden /> : <FolderPlus size={14} aria-hidden />}
+            {t(mode === "harness" ? "设置" : "新建项目")}
           </button>
-          <button onClick={toggleSidebar}>{t("视图")}</button>
-          <button onClick={() => setModal("about")}>{t("关于")}</button>
+          {mode === "images" && (
+            <button onClick={toggleSidebar}>
+              <LayoutPanelLeft size={14} aria-hidden />
+              {t("视图")}
+            </button>
+          )}
+          <button onClick={() => setModal("about")}>
+            <Info size={14} aria-hidden />
+            {t("关于")}
+          </button>
         </div>
         <div className="titlebar-space" />
         <button className={"connection " + (cloudConnection.state === "online" ? "online" : "offline")}
@@ -879,7 +965,8 @@ export default function App() {
           </div>
         )}
       </header>
-      {narrow && sidebar && (
+      <HarnessPane active={mode === "harness"} blocked={!!modal || !!preview} />
+      {mode === "images" && narrow && sidebar && (
         <button
           className="sidebar-scrim"
           aria-label={t("关闭侧栏遮罩")}
@@ -887,7 +974,7 @@ export default function App() {
         />
       )}
       {
-        <aside
+        <aside inert={mode === "harness"}
           className={
             "sidebar resizable-sidebar " +
             (sidebarWidth < 160 && !narrow ? "compact " : "") +
@@ -1035,7 +1122,7 @@ export default function App() {
           <div className="sidebar-bottom">
             <button
               className="text-button"
-              onClick={() => setModal("settings")}
+              onClick={openSettings}
             >
               <Settings2 size={16} />
               {t("设置")}
@@ -1119,7 +1206,7 @@ export default function App() {
           />
         </aside>
       }
-      <main
+      <main inert={mode === "harness"}
         className={"workspace " + (!entries.length ? "empty-workspace" : "")}
       >
         <div className="workspace-heading">
@@ -1141,6 +1228,20 @@ export default function App() {
           )}
         </div>
         <div className="conversation" ref={scroller}>
+          {!entries.length && (
+            <div className="empty-welcome" aria-hidden="true">
+              <div className="welcome-art">
+                <div className="welcome-card back" />
+                <div className="welcome-card front">
+                  <Logo large />
+                </div>
+                <Sparkles className="welcome-spark" size={20} />
+              </div>
+              <p className="eyebrow">VERTEX BATCH STUDIO</p>
+              <h1>{workspace?.name || t("创作空间")}</h1>
+              <p>{t("在下方输入画面描述或拖入参考图，支持将多个创意加入同一批次并行生成。")}</p>
+            </div>
+          )}
           {entries.map((entry) => (
             <TaskCard
               key={entry.task.id}
@@ -1352,20 +1453,25 @@ export default function App() {
                 onClick={() => customInput.current?.click()}
                 disabled={!workspace || busy}
               >
-                <Plus size={19} />
+                <Plus size={18} />
               </button>
               <Picker
                 label={t("模型")}
-                value="nano"
-                onChange={() => {}}
+                value={config?.model || t("模型目录加载中")}
+                onChange={(model) => void changeModel(model)}
                 icon={<ModelMark />}
-                options={[{ value: "nano", label: "Nano Banana 2" }]}
+                options={(catalogue?.models || []).map((model) => ({ value: model.id, label: model.label }))}
+                title={catalogue?.message || config?.model}
                 className="model-picker"
               />
+              <span className="model-catalog-status" role="status" title={catalogue?.message || catalogue?.fetched_at || ""}>
+                {modelBusy ? t("切换中") : catalogue?.refreshing ? t("同步模型中") : catalogue?.source === "cache" ? t("模型缓存") : catalogue?.source === "unavailable" ? t("模型未验证") : catalogue && !selectedModel ? t("请选择可用模型") : ""}
+              </span>
               <span className="toolbar-space" />
               <Picker
                 label={t("比例")}
                 value={ratio}
+                icon={<Proportions size={14} aria-hidden />}
                 onChange={(value) => {
                   if (value === "reference") {
                     try {
@@ -1398,8 +1504,9 @@ export default function App() {
               <Picker
                 label={t("分辨率")}
                 value={size}
+                icon={<Sparkle size={14} aria-hidden />}
                 onChange={setSize}
-                options={["512", "1K", "2K", "4K"].map((value) => ({
+                options={(selectedModel ? ["1K"] : ["512", "1K", "2K", "4K"]).map((value) => ({
                   value,
                   label: value,
                 }))}
@@ -1412,23 +1519,24 @@ export default function App() {
                   value,
                   label: value,
                 }))}
-                icon={<Layers size={16} />}
+                icon={<Layers size={15} />}
                 unit={t("张")}
                 className="count-picker"
               />
               <Picker
                 label={t("温度")}
-                value={temperature}
+                value={temperatureSupported ? temperature : "unsupported"}
+                disabled={!temperatureSupported}
                 onChange={setTemperature}
-                icon={<><SlidersHorizontal size={15} /><span className="picker-caption">{t("温度")}</span></>}
-                title={t("控制生成的随机程度；默认使用模型设置")}
-                options={[
+                icon={<><SlidersHorizontal size={14} /><span className="picker-caption">{t("温度")}</span></>}
+                title={temperatureSupported ? t("控制生成的随机程度；默认使用模型设置") : t("当前模型不支持温度参数，提交时不会发送")}
+                options={temperatureSupported ? [
                   { value: "default", label: t("默认") },
                   { value: "0.5", label: "0.5" },
                   { value: "1", label: "1.0" },
                   { value: "1.5", label: "1.5" },
                   { value: "2", label: "2.0" },
-                ]}
+                ] : [{ value: "unsupported", label: t("不支持") }]}
                 className="temperature-picker"
               />
               <button
@@ -1437,9 +1545,9 @@ export default function App() {
                 disabled={busy || !workspace || !prompt.trim()}
               >
                 {busy ? (
-                  <LoaderCircle size={16} className="spin" />
+                  <LoaderCircle size={15} className="spin" />
                 ) : (
-                  <Plus size={16} />
+                  <Plus size={15} />
                 )}
                 <span>
                   {editing && editable(editing.batch)
@@ -1450,7 +1558,7 @@ export default function App() {
             </div>
             {dragging && (
               <div className="drop-overlay">
-                <ImagePlus size={25} />
+                <ImagePlus size={24} />
                 <span>{t("放开即可加入参考图")}</span>
               </div>
             )}
@@ -1470,7 +1578,7 @@ export default function App() {
                 onClick={() => void submit()}
                 disabled={busy || !taskMap[draft.id]?.length}
               >
-                <UploadCloud size={16} />
+                <UploadCloud size={15} />
                 {t("提交批次")}
               </button>
             )}
@@ -1487,7 +1595,7 @@ export default function App() {
         </div>
       </main>
       {queue && (
-        <aside className="queue" aria-label={t("生成队列")}>
+        <aside inert={mode === "harness"} className="queue" aria-label={t("生成队列")}>
           <div className="section-heading">
             <span>
               <Layers size={16} />
@@ -1521,6 +1629,13 @@ export default function App() {
             </button>
           </div>
           <div className="queue-list">
+            {!queued.length && (
+              <div className="queue-empty" aria-hidden="true">
+                <Layers size={24} />
+                <p>{t("队列暂无任务")}</p>
+                <span>{t("加入任务后在此追踪状态")}</span>
+              </div>
+            )}
             {queued.map((entry, i) => (
               <button
                 key={entry.task.id}
@@ -1586,7 +1701,9 @@ export default function App() {
                   project_name: newName,
                 });
                 setBatches((old) => [...old, batch]);
-                switchWorkspace(batch.id);
+                // Adopt text and public references composed before a project existed.
+                // Drafts belonging to an existing project still clear on switching.
+                switchWorkspace(batch.id, !workspace);
                 setModal(null);
                 await refresh();
                 notify(t("项目已创建"));
@@ -1648,7 +1765,7 @@ export default function App() {
             <dt>{t("存储桶")}</dt>
             <dd>{config?.bucket || t("未配置")}</dd>
             <dt>{t("模型")}</dt>
-            <dd>{config?.model || "Nano Banana 2"}</dd>
+            <dd>{config?.model || t("未配置")}</dd>
             <dt>{t("区域")}</dt>
             <dd>{config?.location || "global"}</dd>
             <dt>{t("凭证")}</dt>
@@ -1691,9 +1808,15 @@ export default function App() {
       )}
       {modal === "settings" && (
         <SettingsPanel
+          initialTab={settingsInitialTab}
           config={config}
           close={() => setModal(null)}
           configured={setConfig}
+          stopHarness={mode === "harness" ? async () => {
+            await window.studio?.harnessView?.(false, false);
+            await api("/harness/stop", "POST");
+            window.dispatchEvent(new Event("vbs:harness-stopped"));
+          } : undefined}
           checkConnection={cloudConnection.check}
           archivedProjects={archivedProjects}
           deleteArchived={async (id) => {
