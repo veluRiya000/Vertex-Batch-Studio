@@ -38,6 +38,11 @@ class HarnessRuntime:
     def source(self):
         import sys
         if getattr(sys, "frozen", False):
+            # The combined installer owns this versioned runtime. User sessions
+            # stay outside the installation folder, under settings.data_dir.
+            bundled = node_path(Path(sys.executable).resolve().parent.parent / "harness")
+            if (bundled / "component-manifest.json").is_file():
+                return bundled
             return node_path(self.settings.root / "components/harness")
         source = node_path(Path(__file__).resolve().parents[1] / "harness")
         component = source / "component"
@@ -52,7 +57,7 @@ class HarnessRuntime:
             frontend = source / "upstream/node_modules/@deepseek-ai/dsh-web-frontend/dist/index.html"
         available = (source / "upstream/apps/cli/lib/bin.js").is_file() and frontend.is_file()
         running = self.child is not None and self.child.poll() is None
-        limits = {"budgetUsd": 5, "maxRounds": 20, "maxOutputTokens": 65536, "limitsEnabled": True}
+        limits = {"budgetUsd": 5, "maxRounds": 20, "maxOutputTokens": 65536, "limitsEnabled": False}
         settings_file = self.settings.data_dir / "harness/home/vbs-run-settings.json"
         if settings_file.is_file():
             try:
@@ -88,7 +93,13 @@ class HarnessRuntime:
                 # Rebuild absolute plugin paths after component install or relocation.
                 import runpy
                 profile_builder = runpy.run_path(str(self.source / "setup_profile.py"))
-                profile_builder["generate"](self.source)
+                import inspect
+                generate = profile_builder["generate"]
+                if "output" in inspect.signature(generate).parameters:
+                    profile = generate(self.source, output=node_path(self.settings.root / ".runtime/harness-profile.yml"))
+                else:
+                    # Compatibility with an older, separately installed component.
+                    profile = generate(self.source)
                 home = self.settings.data_dir / "harness/home"
                 home.mkdir(parents=True, exist_ok=True)
                 workspace_parent = self.settings.data_dir / "harness/workspaces"
@@ -108,7 +119,7 @@ class HarnessRuntime:
                 self.offline = offline
                 self._ready.clear()
                 command = [str(node), str(self.source / "upstream/apps/cli/lib/bin.js"),
-                           "--patch", str(self.source / "studio.patch.yml"), "--profile", "web",
+                           "--patch", str(profile), "--profile", "web",
                            "--no-open", "--host", "127.0.0.1", "--port", "0"]
                 self.child = subprocess.Popen(command, cwd=self.source / "upstream", env=env,
                                               stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,

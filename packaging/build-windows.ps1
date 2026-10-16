@@ -2,6 +2,9 @@ param([string]$Python = 'python')
 $ErrorActionPreference = 'Stop'
 $sourceRoot = Split-Path $PSScriptRoot -Parent
 Set-Location $sourceRoot
+if (-not (Test-Path -LiteralPath (Join-Path $sourceRoot 'harness/component/component-manifest.json'))) {
+    throw 'Assemble and verify harness/component first; see docs/HARNESS_COMPONENT.md.'
+}
 if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
     throw 'Install stable Rust and Visual Studio Desktop development with C++ before building.'
 }

@@ -22,3 +22,22 @@ Run the installed `vertex-batch-studio.exe --smoke-test` to exercise renderer lo
 The native directory picker and Windows tray/startup behavior also require interactive checks. Closing to tray keeps the backend running; actual exit shuts down the backend spawned by this application. An independently started development server is left running.
 
 For interactive verification, start `vertex-batch-studio.exe --ui-test`. This uses `%APPDATA%/VertexBatchStudio-install-test/` and a separate startup entry, leaving normal user configuration untouched.
+
+## Combined installer
+
+The public installer includes both image generation and the pinned Harness
+runtime, including Node. Assemble and verify `harness/component/` before running
+the Windows build script; see `docs/HARNESS_COMPONENT.md`. Tauri places the
+component beside the bundled backend under the installation's `harness/` folder.
+No separate component installation or copy into AppData is required.
+
+User sessions, credentials, settings and outputs remain in
+`%APPDATA%/VertexBatchStudio/`. The launch profile is regenerated in that data
+directory's `.runtime/` folder, allowing the installed runtime to remain read-only.
+Upgrading the application updates its bundled runtime together; it does not
+replace user data. Older separately installed components remain readable as a
+fallback when no bundled component exists.
+
+Pinned upstream compiled files may be reused as a verified build cache. Verify
+the upstream commit, per-file checksums and every repository-owned plugin before
+packaging. Generated components and development dependencies are excluded from Git.

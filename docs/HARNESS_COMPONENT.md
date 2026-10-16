@@ -1,3 +1,8 @@
+> Current distribution: a single Windows installer includes image generation and
+> Harness. The component ZIP below is an intermediate build artifact. Bundled
+> runtime files live in the install folder; profiles and all user data stay in
+> AppData. The older separate-component placement is a compatibility fallback.
+
 # Lean Harness component
 
 Vertex Studio ships a Windows-only, single-agent Harness component. The pinned

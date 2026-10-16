@@ -9,6 +9,7 @@ import tempfile
 from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
+from . import __version__
 from .files import BusyError
 from .files import filename, read_json, beneath, sha256_file
 from .assets import inspect_image
@@ -63,7 +64,7 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
             await asyncio.to_thread(harness.close)
             await asyncio.to_thread(studio.close)
 
-    app = FastAPI(title="VertexBatchStudio", version="0.2.5", lifespan=lifespan)
+    app = FastAPI(title="VertexBatchStudio", version=__version__, lifespan=lifespan)
 
     @app.middleware("http")
     async def authenticate(request: Request, call_next):
@@ -95,7 +96,7 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "version": "0.2.5",
+        return {"status": "ok", "version": __version__,
                 "project_configured": bool(studio.settings.project),
                 "bucket_configured": bool(studio.settings.bucket)}
 

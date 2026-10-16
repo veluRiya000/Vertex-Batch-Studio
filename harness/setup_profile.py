@@ -4,7 +4,7 @@ import json
 import re
 
 
-def generate(root: Path):
+def generate(root: Path, output: Path | None = None):
     def bundle_file(bundle):
         source = root / "upstream/packages/bundle" / bundle / "cordis.patch.yml"
         if source.is_file():
@@ -62,8 +62,10 @@ def generate(root: Path):
     patch.append({"id":"workspace-controller", "config":{"documentsDirectory":"__WORKSPACE_DIRECTORY__"}})
     encoded=json.dumps(patch, indent=2, ensure_ascii=False)
     encoded=encoded.replace('"__WORKSPACE_DIRECTORY__"', '!!js process.env.VBS_HARNESS_WORKSPACE_PARENT')
-    (root / "studio.patch.yml").write_text(encoded,encoding="utf-8")
-    return root / "studio.patch.yml"
+    target = output if output is not None else root / "studio.patch.yml"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(encoded,encoding="utf-8")
+    return target
 
 
 if __name__ == "__main__":

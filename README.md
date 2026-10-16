@@ -38,7 +38,7 @@
 
 ### Windows 桌面版
 
-运行 `VertexBatchStudio-Setup-<版本>-x64.exe`，按安装向导完成安装。安装版自带后端运行环境，无需额外安装 Python 或 Node.js。
+运行 `VertexBatchStudio-Setup-<版本>-x64.exe`，按安装向导完成安装。当前预发布安装器同时包含生图和 Harness，无需另装组件。安装版自带后端运行环境，无需额外安装 Python 或 Node.js。
 
 桌面版从 0.2.0 起使用 Tauri 和系统 WebView2，不再随安装包附带完整浏览器内核。若电脑未安装 WebView2，安装向导会联网下载该运行环境。
 
@@ -245,6 +245,8 @@ npm.cmd run build
 自动测试使用临时目录和模拟云端，不要求真实密钥，也不会创建收费的生图任务。真实云端联调需要单独准备配置。
 
 ## 构建 Windows 安装包
+
+克隆源码时使用 `git clone --recurse-submodules`；已有克隆执行 `git submodule update --init --recursive`，取得固定版本的 DSH 上游。构建合并安装包前，按 [Harness 组件构建说明](docs/HARNESS_COMPONENT.md) 生成 `harness/component/`。
 
 在已安装 Python、Node.js、Rust 和 C++ 构建工具的 Windows 环境中，从仓库根目录执行：
 
