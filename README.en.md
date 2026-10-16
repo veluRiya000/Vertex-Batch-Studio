@@ -4,9 +4,11 @@
 
 A Windows desktop workspace for **Google Cloud Vertex AI Batch**, combining **batch image generation** and a **Harness local agent** in a single application.
 
-[Download Installer](https://github.com/veluRiya000/Vertex-Batch-Studio/releases/tag/v0.3.0-pre.1) · [Prerelease Source](https://github.com/veluRiya000/Vertex-Batch-Studio/tree/feature/harness-batch) · [Report an Issue](https://github.com/veluRiya000/Vertex-Batch-Studio/issues)
+[Download Installer](https://github.com/veluRiya000/Vertex-Batch-Studio/releases/tag/v0.3.1) · [Feature Source](https://github.com/veluRiya000/Vertex-Batch-Studio/tree/feature/harness-batch) · [Report an Issue](https://github.com/veluRiya000/Vertex-Batch-Studio/issues)
 
-> **Prerelease Notice (`v0.3.0-pre.1`)**
+> **New here? [Open the illustrated Google Cloud setup guide: Project ID, storage bucket, and JSON key](#google-cloud-setup-guide)**
+
+> **Release Notes (`v0.3.1`)**
 > A single installer (~**69.5 MB**) bundles batch image generation, Harness, the Python backend, and the Node.js runtime out of the box—no separate runtime installation required. Source code for the current feature set is on the `feature/harness-batch` branch.
 
 ---
@@ -68,7 +70,7 @@ Switch modes anytime from the top-left corner (Image Generation uses a blue them
 
 ### 1. Download & Install
 
-1. Visit the [0.3.0-pre.1 Release page](https://github.com/veluRiya000/Vertex-Batch-Studio/releases/tag/v0.3.0-pre.1) and download `VertexBatchStudio-Setup-0.3.0-pre.1-x64.exe`.
+1. Visit the [0.3.1 Release page](https://github.com/veluRiya000/Vertex-Batch-Studio/releases/tag/v0.3.1) and download `VertexBatchStudio-Setup-0.3.1-x64.exe`.
 2. Close any running older version of the app, then run the installer.
 3. Launch the application, configure Google Cloud, and select a mode.
 
@@ -83,30 +85,27 @@ Before running cloud models, complete the following one-time setup:
 3. **Prepare Service Account Credentials**: Create a service account JSON key with Vertex AI Batch and Storage bucket permissions (ensure the Vertex AI Service Agent also has access to bucket objects).
 4. **Connect in App**: Open **Settings → Google Cloud sign-in**, enter your Project ID and Bucket Name, import the JSON key file, and click **Check connection**.
 
-#### Illustrated Setup
+---
+
+## Google Cloud Setup Guide
 
 The screenshots below use the Chinese Google Cloud console. The accompanying instructions name the corresponding English controls.
 
-<details>
-<summary>Project ID: where to copy it</summary>
+### Project ID: where to copy it
 
 Open the Google Cloud console dashboard for your project and copy the value next to **ID** into the app's **Project ID** field. Use the project ID, rather than its display name or numeric project number.
 
 ![Google Cloud project dashboard showing where to copy the project ID](docs/images/google-cloud/project-id.png)
 
-</details>
 
-<details>
-<summary>Storage bucket: where to find its name</summary>
+### Storage bucket: where to find its name
 
 Create or select a bucket under **Cloud Storage → Buckets**, then copy its name into the app's **Bucket** field. The highlighted rows show bucket names; use the actual name from your own project.
 
 ![Cloud Storage bucket list with bucket names highlighted](docs/images/google-cloud/storage-bucket.png)
 
-</details>
 
-<details>
-<summary>Service account JSON key: how to create and download it</summary>
+### Service account JSON key: how to create and download it
 
 1. Open **IAM & Admin → Service Accounts** and choose a service account with the required permissions. If needed, click **Create service account**. The default service account shown in the screenshot is an example, not a requirement.
 
@@ -128,7 +127,6 @@ Create or select a bucket under **Cloud Storage → Buckets**, then copy its nam
 
    ![Choosing JSON and creating the downloadable service account key](docs/images/google-cloud/service-account-key-05.png)
 
-</details>
 
 ---
 
@@ -192,7 +190,7 @@ The installed Windows app stores user data in a dedicated directory (retained by
 - **Local Run Limits**: When enabled, local budgets and request caps only constrain subsequent submissions without altering jobs already in flight. Disabling local limits does not expand file/command permissions or bypass cloud quotas.
 - **Long-Output Continuation (Argon)**: Argon attempts long-output continuation only when the cloud returns a valid continuation token. Missing tokens, quota limits, or errors stop generation while preserving raw results; million-token output is not guaranteed.
 - **Safety & Sandbox Scope**: Truncated or malformed tool arguments are rejected before execution. The Windows sandbox primarily restricts file writes—it is not a full virtual machine and does not isolate file reads, networking, or processes (nor do external MCP servers inherit sandbox isolation).
-- **Prerelease Status**: Basic offline and packaged startup flows have been verified, while broader cloud edge cases, failure recovery, and in-place upgrade paths remain under active testing.
+- **Validation Status**: Basic offline and packaged startup flows have been verified, while broader cloud edge cases, failure recovery, and in-place upgrade paths remain under active testing.
 
 ---
 

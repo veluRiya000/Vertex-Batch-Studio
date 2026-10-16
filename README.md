@@ -4,9 +4,11 @@
 
 面向 **Google Cloud Vertex AI Batch** 的 Windows 桌面工作台，将**批量生图**与 **Harness 本地 Agent** 集成在同一个应用中，该Harness经过batchAPI调用魔改。*注意：经过实测，批量推理下，Gemini 4 Argon等推理模型速度较慢，等待时间长，仅适合一次性大批量处理代码（例如本应用前端页面由Gemini 4 Argon优化，耗时1h15min）*
 
-[下载安装包](https://github.com/veluRiya000/Vertex-Batch-Studio/releases/tag/v0.3.0-pre.1) · [预发布源码](https://github.com/veluRiya000/Vertex-Batch-Studio/tree/feature/harness-batch) · [问题反馈](https://github.com/veluRiya000/Vertex-Batch-Studio/issues)
+[下载安装包](https://github.com/veluRiya000/Vertex-Batch-Studio/releases/tag/v0.3.1) · [功能源码](https://github.com/veluRiya000/Vertex-Batch-Studio/tree/feature/harness-batch) · [问题反馈](https://github.com/veluRiya000/Vertex-Batch-Studio/issues)
 
-> **预发布说明（v0.3.0-pre.1）**
+> **首次使用？[点击查看 Google Cloud 图文配置教程：项目 ID、存储桶、JSON 密钥](#google-cloud-配置图解)**
+
+> **版本说明（v0.3.1）**
 > 单个安装包（约 **69.5 MB**）已内置生图模块、Harness、Python 后端及 Node 运行时，开箱即用，无需额外部署环境。当前最新功能源码位于 `feature/harness-batch` 分支。
 
 ---
@@ -66,7 +68,7 @@
 
 ### 1. 下载与安装
 
-1. 前往 [0.3.0-pre.1 Release 页面](https://github.com/veluRiya000/Vertex-Batch-Studio/releases/tag/v0.3.0-pre.1) 下载 `VertexBatchStudio-Setup-0.3.0-pre.1-x64.exe`。
+1. 前往 [0.3.1 Release 页面](https://github.com/veluRiya000/Vertex-Batch-Studio/releases/tag/v0.3.1) 下载 `VertexBatchStudio-Setup-0.3.1-x64.exe`。
 2. 若本地正在运行旧版本，请先完全退出后再运行安装程序。
 3. 启动应用，进入设置，完成 Google Cloud 配置后即可选择模式开始使用。
 
@@ -81,28 +83,25 @@
 3. **配置服务账号密钥**：创建服务账号并导出 JSON 密钥，赋予其 Vertex AI Batch 操作及存储桶读写权限（同时确保 Vertex AI Service Agent 具备该存储桶的访问权限）。
 4. **导入软件**：打开软件 **设置 → Google Cloud 登录**，填入项目 ID（Project ID）、存储桶名称并导入 JSON 密钥，点击 **检查连接** 验证。
 
-#### 配置图解
+---
 
-<details>
-<summary>项目 ID：在哪里复制？</summary>
+## Google Cloud 配置图解
+
+### 项目 ID：在哪里复制？
 
 打开目标项目的 Google Cloud 控制台首页，复制 **ID** 一栏的值，填入软件的“项目 ID”。这里填写的是项目 ID，而非项目显示名称或项目编号。
 
 ![Google Cloud 项目首页：复制项目 ID](docs/images/google-cloud/project-id.png)
 
-</details>
 
-<details>
-<summary>存储桶：在哪里查看名称？</summary>
+### 存储桶：在哪里查看名称？
 
 在 **Cloud Storage → 存储桶** 中创建或选择一个存储桶，复制其名称，填入软件的“存储桶”。图中框选的是存储桶名称，请使用自己项目中的实际名称。
 
 ![Cloud Storage 存储桶列表：找到并复制存储桶名称](docs/images/google-cloud/storage-bucket.png)
 
-</details>
 
-<details>
-<summary>服务账号 JSON 密钥：如何创建并下载？</summary>
+### 服务账号 JSON 密钥：如何创建并下载？
 
 1. 打开 **IAM 和管理 → 服务账号**，选择具备所需权限的服务账号；若尚未创建，点击 **创建服务账号**。截图使用默认服务账号演示，并不要求必须使用该账号。
 
@@ -124,7 +123,6 @@
 
    ![选择 JSON 类型并创建下载服务账号密钥](docs/images/google-cloud/service-account-key-05.png)
 
-</details>
 
 ---
 
@@ -188,7 +186,7 @@ Windows 安装版将用户数据独立保存在以下目录（卸载程序时默
 - **本地运行限额**：启用本地预算或请求次数限制后，仅约束后续新提交的请求，已提交的云端任务不受影响。关闭本地限额不会扩大文件/命令权限，也不会解除云端本身的配额限制。
 - **长输出续传（Argon）**：仅当云端返回有效续传令牌时，Argon 才会尝试续传长文本；若遇到令牌缺失、云端限制或报错则会停止并保留已有结果，不保证单次稳定输出百万 Token。
 - **安全与沙盒边界**：截断或格式损坏的工具参数不会被直接执行。Windows 沙盒主要用于约束文件写入，并非完整虚拟机，不提供全面的读取、网络或进程隔离（外部 MCP 服务亦不自动继承沙盒隔离）。
-- **预发布状态**：当前版本已完成基础离线与打包启动验证，极端云端异常恢复与跨版本覆盖升级场景仍在持续完善中。
+- **验证状态**：当前版本已完成基础离线与打包启动验证，极端云端异常恢复与跨版本覆盖升级场景仍在持续完善中。
 
 ---
 
