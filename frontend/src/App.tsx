@@ -10,7 +10,7 @@ import {
 } from "react";
 import {
   Archive,
-  ArrowDownUp,
+  ArrowDown,
   ArrowUp,
   Check,
   ChevronDown,
@@ -27,6 +27,7 @@ import {
   LoaderCircle,
   Maximize2,
   Minus,
+  MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
@@ -53,6 +54,7 @@ import { usePreferences } from "./preferences";
 import { useCloudConnection } from "./cloud-connection";
 import { useTranslation } from "./i18n";
 import {
+  archivable,
   editable,
   groupBatches,
   landscape,
@@ -173,6 +175,7 @@ function TaskCard({
   preview,
   action,
   openFolder,
+  revision,
 }: {
   entry: Entry;
   edit: (entry: Entry) => void;
@@ -180,6 +183,7 @@ function TaskCard({
   preview: (value: Preview) => void;
   action: (batch: Batch, action: string) => void;
   openFolder: (batch: Batch) => void;
+  revision?: string;
 }) {
   const t = useTranslation();
   const { task, batch, result } = entry;
@@ -187,7 +191,7 @@ function TaskCard({
   const images = result?.images || [];
   const current = Math.min(index, Math.max(0, images.length - 1));
   const paths = images.map(
-    (_, i) => `/batches/${batch.id}/images/${task.id}/${i}`,
+    (image, i) => `/batches/${batch.id}/images/${task.id}/${i}?v=${encodeURIComponent((revision || batch.updated_at) + image.sha256)}`,
   );
   const color = statusClass(batch, result?.state);
   return (
@@ -338,9 +342,10 @@ function TaskCard({
           </div>
         )}
         {batch.last_error && <p className="task-error">{batch.last_error}</p>}
+        {result?.export_warnings?.map((warning, i) => <p className="task-error" key={i}>{warning}</p>)}
         {!editable(batch) && (
           <div className="result-actions">
-            {(batch.job_name || ["submitting", "submission_unknown"].includes(batch.phase)) && (
+            {(batch.job_name || ["submitting", "submission_unknown", "submission_unconfirmed"].includes(batch.phase)) && (
               <button className="text-button" onClick={() => action(batch, "poll")}>
                 <RefreshCw size={13} />{t("刷新结果")}
               </button>
@@ -367,14 +372,6 @@ function TaskCard({
                 onClick={() => action(batch, "submit")}
               >
                 {t("重新提交本轮")}
-              </button>
-            )}
-            {!terminal(batch) && (
-              <button
-                className="text-button"
-                onClick={() => action(batch, "cancel")}
-              >
-                {t("取消本轮")}
               </button>
             )}
           </div>
@@ -406,6 +403,7 @@ export default function App() {
   );
   const [references, setReferences] = useState<Reference[]>([]);
   const [category, setCategory] = useState("styles");
+  const [categories, setCategories] = useState([{ id: "styles", label: "风格" }, { id: "characters", label: "人设" }, { id: "scenes", label: "场景" }]);
   const [selected, setSelected] = useState<Reference[]>([]);
   const [prompt, setPrompt] = useState("");
   const [ratio, setRatio] = useState("16:9");
@@ -431,7 +429,9 @@ export default function App() {
   const paneWidth = narrow ? 36 : Math.max(36, sidebarWidth);
   const [queue, setQueue] = useState(() => window.innerWidth > 990);
   const [queueAll, setQueueAll] = useState(false);
-  const [sortName, setSortName] = useState(false);
+  const [queueNewest, setQueueNewest] = useState(() => localStorage.getItem("vbs-queue-sort") !== "oldest");
+  const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
+  const [projectNewest, setProjectNewest] = useState(() => localStorage.getItem("vbs-project-sort") !== "oldest");
   const [projectMenu, setProjectMenu] = useState<{ id: string; x: number; y: number }>();
   const closeProjectMenu = useCallback(() => setProjectMenu(undefined), []);
   const [modal, setModal] = useState<
@@ -464,6 +464,7 @@ export default function App() {
   const scroller = useRef<HTMLDivElement>(null);
   const stamps = useRef<Record<string, string>>({});
   const pending = useRef(new Set<string>());
+  const refreshing = useRef<Promise<Batch[]> | null>(null);
   const inAction = useRef(false);
   const notify = useCallback(
     (message: string, error = false) => setNotice({ message, error }),
@@ -506,6 +507,8 @@ export default function App() {
   }
 
   const refresh = useCallback(async () => {
+    if (refreshing.current) return refreshing.current;
+    const operation = (async () => {
     const values = await api<Batch[]>("/batches");
     // HTTP is authoritative; don't release an optimistic submission lock until the worker changes phase.
     const visible = values.map((batch) => {
@@ -534,6 +537,9 @@ export default function App() {
       );
     }
     return visible;
+    })();
+    refreshing.current = operation;
+    try { return await operation; } finally { refreshing.current = null; }
   }, []);
   useEffect(() => {
     let alive = true;
@@ -598,15 +604,16 @@ export default function App() {
       })),
     );
   const entries = entriesFor(rounds);
-  const queued = entriesFor(
+  const queuedChronological = entriesFor(
     queueAll ? batches.filter((batch) => !batch.archived) : rounds,
   ).sort((a, b) =>
     (a.task.created_at || a.batch.created_at).localeCompare(
       b.task.created_at || b.batch.created_at,
-    ),
-  );
+    ) || a.batch.created_at.localeCompare(b.batch.created_at),
+  ).map((entry, index) => ({ ...entry, sequence: index + 1 }));
+  const queued = queueNewest ? [...queuedChronological].reverse() : queuedChronological;
   const filteredRefs = references.filter((ref) =>
-    ref.path.startsWith("references/" + category + "/"),
+    (ref.category_id || ref.path.split("/")[1]) === category,
   );
   const roundIds = rounds.map((batch) => batch.id).join(",");
   useEffect(() => {
@@ -622,6 +629,12 @@ export default function App() {
         if (alive) setReferences(value);
       })
       .catch((error) => notify(error.message, true));
+    void api<{ id: string; label: string }[]>("/references/categories").then(value => {
+      if (alive && Array.isArray(value)) {
+        setCategories(value);
+        setCategory(old => value.some(item => item.id === old) ? old : value[0]?.id || "");
+      }
+    }).catch(() => {});
     return () => {
       alive = false;
     };
@@ -704,6 +717,7 @@ export default function App() {
     return next;
   }
   async function addFiles(files: File[], global: boolean) {
+    if (global && category === "uncategorized") return;
     await run(async () => {
       if (!files.length) return;
       if (!global && selected.length + files.length > 14)
@@ -871,9 +885,19 @@ export default function App() {
       }
     });
   }
-  const sortedWorkspaces = sortName
-    ? [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-CN"))
-    : workspaces;
+  // Resolve the current revision even while a preview modal remains open.
+  function livePreviewPath(path: string) {
+    const match = path.match(/^\/batches\/([a-f0-9]{32})\/images\//);
+    if (!match) return path;
+    const revision = results[match[1]]?.updated_at || batches.find(batch => batch.id === match[1])?.updated_at || "";
+    return path.split("?")[0] + "?v=" + encodeURIComponent(revision);
+  }
+  // A project's creation time is its first round, not its latest activity.
+  const sortedWorkspaces = [...workspaces].sort((a, b) => {
+    const created = (rounds: Batch[]) => rounds.map(round => round.created_at).sort()[0] || "";
+    const order = created(a.batches).localeCompare(created(b.batches)) || a.id.localeCompare(b.id);
+    return projectNewest ? -order : order;
+  });
   const currentRefsBatch = (ref: Reference) =>
     batches.find((batch) =>
       ref.path.startsWith("batches/" + batch.folder + "/"),
@@ -996,6 +1020,25 @@ export default function App() {
           >
             <LibraryPane><ReferenceLibrary
               references={filteredRefs}
+              categories={categories}
+              categoryCounts={Object.fromEntries(categories.map(item => [item.id,
+                references.filter(ref => (ref.category_id || ref.path.split("/")[1]) === item.id).length]))}
+              addCategory={async label => {
+                const value = await api<{ id: string; label: string }[]>("/references/categories", "POST", { label });
+                setCategories(value); setCategory(value.find(item => item.label === label.trim())?.id || value[0]?.id || "");
+              }}
+              deleteCategory={async id => {
+                const hasImages = references.some(ref => (ref.category_id || ref.path.split("/")[1]) === id);
+                const value = await api<{ id: string; label: string }[]>("/references/categories/" + id, "DELETE");
+                setCategories(value); setCategory(old => hasImages && value.some(item => item.id === "uncategorized")
+                  ? "uncategorized" : value.some(item => item.id === old) ? old : value[0]?.id || "");
+                setReferences(await api<Reference[]>("/references"));
+              }}
+              moveCategory={async (ref, destination) => {
+                const value = await api<{ references: Reference[]; categories: { id: string; label: string }[] }>(
+                  "/references/move", "POST", { path: ref.path, category: destination });
+                setReferences(value.references); setCategories(value.categories); setCategory(destination);
+              }}
               category={category}
               setCategory={setCategory}
               busy={busy}
@@ -1005,6 +1048,9 @@ export default function App() {
               remove={async (ref) => {
                 const value = await api<Reference[]>("/references?" + new URLSearchParams({ path: ref.path }), "DELETE");
                 setReferences(value);
+                const remaining = await api<{ id: string; label: string }[]>("/references/categories");
+                setCategories(remaining);
+                setCategory(old => remaining.some(item => item.id === old) ? old : remaining[0]?.id || "");
                 setSelected((old) => old.filter((item) => item.path !== ref.path));
               }}
               preview={(items, index) =>
@@ -1035,12 +1081,18 @@ export default function App() {
                 </span>
                 <div>
                   <button
-                    className={"icon-button " + (sortName ? "active" : "")}
+                    className="icon-button project-sort"
                     aria-label={t("切换项目排序")}
-                    title={sortName ? t("按名称排序") : t("按最近创建排序")}
-                    onClick={() => setSortName(!sortName)}
+                    aria-description={t(projectNewest ? "最新在前" : "最早在前")}
+                    onClick={() => {
+                      setProjectNewest(!projectNewest);
+                      localStorage.setItem("vbs-project-sort", projectNewest ? "oldest" : "newest");
+                    }}
                   >
-                    <ArrowDownUp size={15} />
+                    <span className="queue-sort-arrows" aria-hidden="true">
+                      <ArrowDown size={13} className={!projectNewest ? "active" : ""} />
+                      <ArrowUp size={13} className={projectNewest ? "active" : ""} />
+                    </span>
                   </button>
                   <button
                     className="icon-button"
@@ -1062,7 +1114,7 @@ export default function App() {
                       "project " + (activeId === item.id ? "selected" : "")
                     }
                   >
-                    <button
+                    <div className="project-title-row"><button
                       className="project-title"
                       onContextMenu={(event) => {
                         event.preventDefault();
@@ -1090,9 +1142,12 @@ export default function App() {
                         <ChevronRight size={13} />
                       )}
                     </button>
+                    <button className="icon-button project-options" aria-label={t("项目菜单 ") + item.name} title={t("重命名或归档项目")}
+                      onClick={event => { const box = event.currentTarget.getBoundingClientRect(); setProjectMenu({ id: item.id, x: box.left, y: box.bottom }); }}><MoreHorizontal size={16} /></button>
+                    </div>
                     {activeId === item.id && !treeCollapsed && (
                       <div className="project-tasks">
-                        {entries.map((entry) => (
+                        {(expandedProjects[item.id] ? entries : entries.slice(0, 6)).map((entry) => (
                           <button
                             key={entry.task.id}
                             onClick={() => jump(entry)}
@@ -1107,6 +1162,9 @@ export default function App() {
                             <span>{entry.task.name}</span>
                           </button>
                         ))}
+                        {entries.length > 6 && <button className="project-expand" onClick={() => setExpandedProjects(old => ({ ...old, [item.id]: !old[item.id] }))}
+                          aria-expanded={!!expandedProjects[item.id]}><ChevronDown size={13} className={expandedProjects[item.id] ? "turned" : ""} />
+                          {expandedProjects[item.id] ? t("收起") : t("展开其余") + ` ${entries.length - 6}`}</button>}
                         {!entries.length && (
                           <span className="project-no-tasks">
                             {t("还没有任务")}
@@ -1246,6 +1304,7 @@ export default function App() {
             <TaskCard
               key={entry.task.id}
               entry={entry}
+              revision={results[entry.batch.id]?.updated_at}
               edit={(entry) => void reuse(entry)}
               remove={(entry) =>
                 void run(async () => {
@@ -1464,6 +1523,9 @@ export default function App() {
                 title={catalogue?.message || config?.model}
                 className="model-picker"
               />
+              <button className="icon-button" aria-label={t("更新模型目录")} title={t("更新模型目录")}
+                disabled={!!catalogue?.refreshing} onClick={() => void api<PublicConfig>("/models/refresh", "POST")
+                  .then(setConfig).catch(error => notify(error.message, true))}><RefreshCw size={13} className={catalogue?.refreshing ? "spin" : ""} /></button>
               <span className="model-catalog-status" role="status" title={catalogue?.message || catalogue?.fetched_at || ""}>
                 {modelBusy ? t("切换中") : catalogue?.refreshing ? t("同步模型中") : catalogue?.source === "cache" ? t("模型缓存") : catalogue?.source === "unavailable" ? t("模型未验证") : catalogue && !selectedModel ? t("请选择可用模型") : ""}
               </span>
@@ -1582,15 +1644,6 @@ export default function App() {
                 {t("提交批次")}
               </button>
             )}
-            {latest && !terminal(latest) && (!editable(latest) || !!latest.last_error) && (
-              <button
-                className="text-button"
-                disabled={busy}
-                onClick={() => void batchAction(latest, "cancel")}
-              >
-                {t("取消本轮")}
-              </button>
-            )}
           </div>
         </div>
       </main>
@@ -1628,6 +1681,11 @@ export default function App() {
               {t("全部")}
             </button>
           </div>
+          <button className="text-button queue-sort" onClick={() => {
+            setQueueNewest(!queueNewest); localStorage.setItem("vbs-queue-sort", queueNewest ? "oldest" : "newest");
+          }} aria-label={t("按时间排序")} aria-description={t(queueNewest ? "最新在前" : "最早在前")}>
+            <span className="queue-sort-arrows" aria-hidden="true"><ArrowDown size={13} className={!queueNewest ? "active" : ""} />
+              <ArrowUp size={13} className={queueNewest ? "active" : ""} /></span>{t("按时间排序")}</button>
           <div className="queue-list">
             {!queued.length && (
               <div className="queue-empty" aria-hidden="true">
@@ -1636,14 +1694,14 @@ export default function App() {
                 <span>{t("加入任务后在此追踪状态")}</span>
               </div>
             )}
-            {queued.map((entry, i) => (
+            {queued.map((entry) => (
               <button
                 key={entry.task.id}
                 className="queue-item"
                 onClick={() => jump(entry)}
               >
                 <span className="queue-number">
-                  {String(i + 1).padStart(2, "0")}
+                  {String(entry.sequence).padStart(2, "0")}
                 </span>
                 <span className="queue-item-body">
                   <strong title={entry.task.name}>{entry.task.name}</strong>
@@ -1797,8 +1855,7 @@ export default function App() {
             const project = workspaces.find(item => item.id === projectMenu.id);
             if (project) { setRenameProject({ id: project.id, name: project.name }); setModal("rename"); }
           }}
-          allowed={!busy && !!workspaces.find((item) => item.id === projectMenu.id)?.batches.every((batch) =>
-            batch.archived || editable(batch) || terminal(batch) || ["upload_failed", "submission_failed"].includes(batch.phase))}
+          allowed={!busy && !!workspaces.find((item) => item.id === projectMenu.id)?.batches.every(archivable)}
           archive={() => void run(async () => {
             await api(`/workspaces/${projectMenu.id}/archive`, "POST");
             if (activeId === projectMenu.id) { setEditing(undefined); setPrompt(""); setSelected([]); setActiveId(""); }
@@ -1819,6 +1876,7 @@ export default function App() {
           } : undefined}
           checkConnection={cloudConnection.check}
           archivedProjects={archivedProjects}
+          openArchived={async id => { await api(`/batches/${id}/open-folder`, "POST"); }}
           deleteArchived={async (id) => {
             await api(`/workspaces/${id}`, "DELETE");
             await refresh();
@@ -1881,7 +1939,7 @@ export default function App() {
         >
           <div className="preview-image">
             <Media
-              path={preview.paths[preview.index]}
+              path={livePreviewPath(preview.paths[preview.index])}
               alt={preview.names[preview.index]}
             />
           </div>

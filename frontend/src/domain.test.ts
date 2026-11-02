@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { groupBatches, matchRatio, statusClass } from './domain'
+import { archivable, groupBatches, matchRatio, statusClass } from './domain'
 import type { Batch, Reference } from './types'
 
 const batch = (id:string, source?:string) => ({id,workspace_id:id,source_batch_id:source,project_name:'夏日祭',created_at:id,phase:'draft',archived:false} as Batch)
@@ -21,5 +21,13 @@ describe('项目和图片参数',()=>{
     expect(statusClass(active,'succeeded')).toBe('completed')
     expect(statusClass(active,'error')).toBe('failed')
     expect(statusClass(active,'pending')).toBe('generating')
+  })
+  it('除正在生成或传输中的状态外均可归档',()=>{
+    for (const phase of ['uploading','submitting','submission_unknown','monitoring','downloading']) {
+      expect(archivable({...batch('a'),phase})).toBe(false)
+    }
+    for (const phase of ['draft','prepared','completed','completed_with_errors','failed','cancelled','upload_failed','submission_failed','submission_unconfirmed','paused']) {
+      expect(archivable({...batch('a'),phase})).toBe(true)
+    }
   })
 })

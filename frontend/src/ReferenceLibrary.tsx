@@ -1,6 +1,7 @@
 /* 界面摘录说明：参考图库的窗格/列表、点击预览、加号添加、拖动排序和删除。可改缩略图排版；保留预览/添加/排序/删除的各自事件和拖动数据。
  * 仅此副本新增说明；原工程未改动。 */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   GripVertical,
   ImagePlus,
@@ -27,6 +28,11 @@ export function ReferenceLibrary({
   reorder,
   error,
   busy,
+  categories = [{ id: "styles", label: "风格" }, { id: "characters", label: "人设" }, { id: "scenes", label: "场景" }],
+  addCategory,
+  deleteCategory,
+  moveCategory,
+  categoryCounts,
 }: {
   references: Reference[];
   category: string;
@@ -39,8 +45,58 @@ export function ReferenceLibrary({
   reorder: (paths: string[]) => Promise<void>;
   error: (message: string) => void;
   busy: boolean;
+  categories?: { id: string; label: string }[];
+  addCategory?: (label: string) => Promise<void>;
+  deleteCategory?: (id: string) => Promise<void>;
+  moveCategory?: (ref: Reference, destination: string) => Promise<void>;
+  categoryCounts?: Record<string, number>;
 }) {
   const t = useTranslation();
+  const browser = useRef<HTMLDivElement>(null);
+  const [compact, setCompact] = useState(false);
+  const [categoryDialog, setCategoryDialog] = useState<"add" | string>();
+  const [categoryName, setCategoryName] = useState("");
+  const [categoryBusy, setCategoryBusy] = useState(false);
+  const [categoryError, setCategoryError] = useState("");
+  const [referenceMenu, setReferenceMenu] = useState<{ ref: Reference; x: number; y: number }>();
+  const [movingCategory, setMovingCategory] = useState(false);
+  const [categoryMenu, setCategoryMenu] = useState<{ id: string; x: number; y: number }>();
+  const menu = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!categoryMenu && !referenceMenu) return;
+    menu.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    const dismiss = (event: PointerEvent) => {
+      if (!menu.current?.contains(event.target as Node)) { setCategoryMenu(undefined); setReferenceMenu(undefined); }
+    };
+    const keyboard = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { setCategoryMenu(undefined); setReferenceMenu(undefined); }
+    };
+    const scroll = (event: Event) => {
+      if (event.target instanceof Node && menu.current?.contains(event.target)) return;
+      setCategoryMenu(undefined); setReferenceMenu(undefined);
+    };
+    document.addEventListener("pointerdown", dismiss);
+    document.addEventListener("keydown", keyboard);
+    window.addEventListener("resize", scroll);
+    window.addEventListener("scroll", scroll, true);
+    return () => {
+      document.removeEventListener("pointerdown", dismiss);
+      document.removeEventListener("keydown", keyboard);
+      window.removeEventListener("resize", scroll);
+      window.removeEventListener("scroll", scroll, true);
+    };
+  }, [categoryMenu, referenceMenu]);
+  useLayoutEffect(() => {
+    if (!browser.current || typeof ResizeObserver === "undefined") return;
+    const measure = () => {
+      const node = browser.current!;
+      setCompact(node.clientHeight < 125 || node.clientWidth < 165);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(browser.current);
+    measure();
+    return () => observer.disconnect();
+  }, []);
   const [deleting, setDeleting] = useState<Reference>(), [deleteBusy, setDeleteBusy] = useState(false), [deleteError, setDeleteError] = useState("");
   const [mode, setMode] = useState<"grid" | "list">(() => {
     try {
@@ -90,6 +146,18 @@ export function ReferenceLibrary({
     }
   }
   const name = (ref: Reference) => ref.path.split("/").at(-1)!;
+  const closingCount = categoryDialog ? (categoryCounts?.[categoryDialog] ?? (categoryDialog === category ? references.length : undefined)) : undefined;
+  const closingLabel = categories.find(item => item.id === categoryDialog)?.label || "";
+  function openReferenceMenu(ref: Reference, x: number, y: number) {
+    if (!moveCategory || busy || saving || movingCategory) return;
+    setCategoryMenu(undefined); setReferenceMenu({ ref, x, y });
+  }
+  function chooseImport() {
+    if (category === "uncategorized") return;
+    if (!categories.length && addCategory) {
+      setCategoryName(""); setCategoryError(""); setCategoryDialog("add");
+    } else chooseFiles();
+  }
   return (
     <section className="reference-library">
       <div className="section-heading">
@@ -116,27 +184,37 @@ export function ReferenceLibrary({
           >
             <LayoutGrid size={15} />
           </button>
-          <button
-            className="icon-button"
-            onClick={chooseFiles}
-            title={t("导入公共参考图")}
-            aria-label={t("导入公共参考图")}
-            disabled={busy}
-          >
-            <Plus size={17} />
-          </button>
         </div>
       </div>
       <div className="category-tabs">
-        {[
-          ["styles", t("风格")],
-          ["characters", t("人设")],
-          ["scenes", t("场景")],
-        ].map(([id, label]) => (
+        {categories.map(({ id, label }) => (
+          <span className={"category-tab " + (category === id ? "active" : "")} key={id}>
           <button
-            key={id}
             className={category === id ? "active" : ""}
+            title={deleteCategory && id !== "uncategorized" ? t("右键删除分类") : undefined}
+            aria-haspopup={deleteCategory && id !== "uncategorized" ? "menu" : undefined}
+            onContextMenu={event => {
+              if (id === "uncategorized") { event.preventDefault(); return; }
+              if (!deleteCategory) return;
+              event.preventDefault();
+              setReferenceMenu(undefined);
+              if (!saving && !busy) setCategoryMenu({ id, x: event.clientX, y: event.clientY });
+            }}
+            onKeyDown={event => {
+              if (id === "uncategorized" && (event.key === "ContextMenu" || event.shiftKey && event.key === "F10")) {
+                event.preventDefault(); return;
+              }
+              if (deleteCategory && id !== "uncategorized" && !saving && !busy &&
+                  (event.key === "ContextMenu" || event.shiftKey && event.key === "F10")) {
+                event.preventDefault();
+                const box = event.currentTarget.getBoundingClientRect();
+                setReferenceMenu(undefined);
+                setCategoryMenu({ id, x: box.left, y: box.bottom });
+              }
+            }}
             onClick={() => {
+              setCategoryMenu(undefined);
+              setReferenceMenu(undefined);
               if (!saving) {
                 clearDrag();
                 setCategory(id);
@@ -144,18 +222,29 @@ export function ReferenceLibrary({
             }}
             disabled={saving}
           >
-            {label}
+            {t(label)}
           </button>
+          </span>
         ))}
+        {addCategory && <button className="category-create" aria-label={t("添加参考图分类")} title={t("添加参考图分类")}
+          disabled={saving || busy} onClick={() => { setCategoryDialog("add"); setCategoryName(""); setCategoryError(""); }}><Plus size={15} /></button>}
       </div>
       <div
-        className={"reference-grid reference-browser " + mode + "-mode"}
+        ref={browser}
+        className={"reference-grid reference-browser " + mode + "-mode" + (compact ? " compact-refs" : "")}
         aria-busy={saving}
-        onDragOver={(event) => event.preventDefault()}
+        onDragOver={(event) => {
+          event.preventDefault();
+          if (category === "uncategorized" && !source.current) event.dataTransfer.dropEffect = "none";
+        }}
         onDrop={(event) => {
           event.preventDefault();
-          if (event.dataTransfer.files.length)
-            importFiles(Array.from(event.dataTransfer.files));
+          if (event.dataTransfer.files.length) {
+            event.stopPropagation();
+            if (category === "uncategorized") { clearDrag(); return; }
+            if (!categories.length) chooseImport();
+            else importFiles(Array.from(event.dataTransfer.files));
+          }
           else if (source.current && items.length)
             void move(source.current, items.at(-1)!.path);
           clearDrag();
@@ -164,6 +253,10 @@ export function ReferenceLibrary({
         {items.map((ref, index) => (
           <div
             key={ref.path}
+            onContextMenu={event => {
+              if (!moveCategory) return;
+              event.preventDefault(); openReferenceMenu(ref, event.clientX, event.clientY);
+            }}
             className={
               "reference-card " +
               (dragging === ref.path ? "drag-source " : "") +
@@ -212,6 +305,14 @@ export function ReferenceLibrary({
                 if (!suppressClick.current) preview(items, index);
               }}
               onKeyDown={(event) => {
+                if (event.key === "ContextMenu" || event.shiftKey && event.key === "F10") {
+                  if (moveCategory) {
+                    event.preventDefault();
+                    const box = event.currentTarget.getBoundingClientRect();
+                    openReferenceMenu(ref, box.left, box.bottom);
+                  }
+                  return;
+                }
                 if (
                   event.altKey &&
                   ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(
@@ -234,12 +335,12 @@ export function ReferenceLibrary({
                   aria-hidden
                 />
               )}
-              <Media
+              <span className="reference-photo"><Media
                 path={
                   "/references/file?" + new URLSearchParams({ path: ref.path })
                 }
                 alt={name(ref)}
-              />
+              /></span>
               <span className="reference-name">{name(ref)}</span>
             </button>
             <button
@@ -261,17 +362,63 @@ export function ReferenceLibrary({
             </button>}
           </div>
         ))}
-        {!items.length && (
+        {!items.length && category !== "uncategorized" && (
           <button
             className="library-empty"
-            aria-label={t("导入公共参考图")}
-            onClick={chooseFiles}
+            aria-label={t("导入参考图")}
+            onClick={chooseImport}
           >
             <ImagePlus size={22} aria-hidden />
-            <span aria-hidden="true">{t("导入公共参考图")}</span>
+            <span aria-hidden="true">{t("导入参考图")}</span>
           </button>
         )}
+        {!!items.length && category !== "uncategorized" && <button className="library-import-more" aria-label={t("导入参考图")} title={t("导入参考图")}
+          disabled={busy} onClick={chooseImport}><ImagePlus size={17} /><span>{t("导入参考图")}</span></button>}
       </div>
+      {categoryMenu && createPortal(<div ref={menu} className="project-context-menu category-context-menu" role="menu" aria-label={t("参考图分类操作")}
+        style={{ left: Math.max(8, Math.min(categoryMenu.x, window.innerWidth - 198)), top: Math.max(8, Math.min(categoryMenu.y, window.innerHeight - 65)) }}>
+        <button role="menuitem" disabled={busy || saving} onClick={() => {
+          setCategoryDialog(categoryMenu.id); setCategoryError(""); setCategoryMenu(undefined);
+        }}><Trash2 size={14} />{t("删除分类")}</button>
+      </div>, document.body)}
+      {referenceMenu && createPortal(<div ref={menu} className="project-context-menu reference-move-menu" role="menu" aria-label={t("移至分类")}
+        style={{ left: Math.max(8, Math.min(referenceMenu.x, window.innerWidth - 210)), top: Math.max(8, Math.min(referenceMenu.y, window.innerHeight - 328)), maxHeight: "min(320px, calc(100vh - 24px))", overflowY: "auto" }}>
+        <span className="reference-menu-label">{t("移至分类")}</span>
+        {categories.filter(item => item.id !== (referenceMenu.ref.category_id || category)).map(item =>
+          <button key={item.id} role="menuitem" disabled={movingCategory || busy || saving} onClick={async () => {
+            if (!moveCategory || movingCategory) return;
+            setMovingCategory(true);
+            try { await moveCategory(referenceMenu.ref, item.id); setReferenceMenu(undefined); }
+            catch (e) { error(e instanceof Error ? e.message : t("操作未完成")); }
+            finally { setMovingCategory(false); }
+          }}>{t(item.label)}</button>)}
+        {categories.length < 2 && <span className="reference-menu-label">{t("请先添加其他分类")}</span>}
+      </div>, document.body)}
+      {categoryDialog && <Modal title={t(categoryDialog === "add" ? "添加参考图分类" : "删除分类")}
+        close={() => { if (!categoryBusy) setCategoryDialog(undefined); }}>
+        <form onSubmit={async event => {
+          event.preventDefault(); if (categoryBusy) return;
+          setCategoryBusy(true); setCategoryError("");
+          try {
+            if (categoryDialog === "add") await addCategory?.(categoryName);
+            else await deleteCategory?.(categoryDialog);
+            setCategoryDialog(undefined);
+          } catch (e) { setCategoryError(e instanceof Error ? e.message : t("操作未完成")); }
+          finally { setCategoryBusy(false); }
+        }}>
+          {categoryDialog === "add" ? <label className="form-label">{t("分类名称")}<input autoFocus maxLength={30} value={categoryName}
+            onChange={event => setCategoryName(event.target.value)} /></label>
+            : <p>{closingCount === 0
+              ? t("删除空分类") + `「${closingLabel}」？`
+              : closingCount !== undefined
+                ? `「${closingLabel}」${t("中的")} ${closingCount} ${t("张参考图会归入“未分类”，图片不会删除。")}`
+                : t("删除此分类？图片文件和任务引用会保留。")}</p>}
+          {categoryError && <p className="settings-error" role="alert">{categoryError}</p>}
+          <div className="archive-confirm-actions"><button className="secondary-button" type="button" disabled={categoryBusy}
+            onClick={() => setCategoryDialog(undefined)}>{t("取消")}</button>
+            <button className="primary-button" disabled={categoryBusy || categoryDialog === "add" && !categoryName.trim()}>{t(categoryDialog === "add" ? "添加" : "确认删除")}</button></div>
+        </form>
+      </Modal>}
       {deleting && <Modal title={t("删除参考图")} close={() => { if (!deleteBusy) setDeleting(undefined) }}>
         <p className="reference-delete-message">{t("从参考图库中删除")}「{name(deleting)}」？</p>
         {deleteError && <p className="settings-error" role="alert">{deleteError}</p>}

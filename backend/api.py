@@ -3,7 +3,10 @@
 import asyncio
 from contextlib import asynccontextmanager
 import json
+import logging
 import secrets
+
+logger = logging.getLogger("vertex_backend.api")
 import time
 import tempfile
 from pathlib import Path
@@ -36,16 +39,27 @@ class ReferenceOrder(InputModel):
     paths: list[str]
 
 
+class ReferenceCategory(InputModel):
+    label: str
+
+
+class ReferenceMove(InputModel):
+    path: str
+    category: str
+
+
 def create_app(studio: Studio, token: str, on_shutdown=None,
-               background: bool = True) -> FastAPI:
+               background: bool = True, instance_id: str | None = None,
+               mode: str = "standalone") -> FastAPI:
     if not token:
         raise ValueError("本地 API 必须设置访问令牌")
 
     from .harness_batch import HarnessBatch
     from .harness_runtime import HarnessRuntime
     from .harness_api import mount_harness
+    from .lifecycle import log_lifecycle_event
     harness = HarnessBatch(studio)
-    harness_runtime = HarnessRuntime(studio.settings)
+    harness_runtime = HarnessRuntime(studio.settings, instance_id=instance_id)
     harness_token = secrets.token_urlsafe(32)
     from .notifications import NotificationCenter
     notifications = NotificationCenter(studio, harness)
@@ -59,12 +73,41 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
         try:
             yield
         finally:
-            await asyncio.to_thread(notifications.close)
-            await asyncio.to_thread(harness_runtime.close)
-            await asyncio.to_thread(harness.close)
-            await asyncio.to_thread(studio.close)
+            shutdown_started = time.monotonic()
+            app.state.shutting_down = True
+            studio.request_stop()
+            harness.request_stop()
+            harness_runtime.request_stop()
+            log_lifecycle_event(
+                studio.settings.root,
+                "lifespan_shutdown_start",
+                instance_id=instance_id,
+                mode=mode,
+            )
+            # Independent shutdowns share one grace period; never wait for a
+            # remote inference or network retry before asking Node to flush logs.
+            results = await asyncio.gather(
+                asyncio.to_thread(notifications.close),
+                asyncio.to_thread(harness_runtime.close),
+                asyncio.to_thread(harness.close, wait=False),
+                asyncio.to_thread(studio.close, wait=False), return_exceptions=True)
+            errors = {}
+            for name, res in zip(["notifications", "harness_runtime", "harness", "studio"], results):
+                if isinstance(res, BaseException):
+                    errors[name] = f"{type(res).__name__}: {res}"
+                    logger.error("Error shutting down %s: %s", name, res, exc_info=res)
+            log_lifecycle_event(
+                studio.settings.root,
+                "lifespan_shutdown_complete",
+                instance_id=instance_id,
+                mode=mode,
+                elapsed_ms=round((time.monotonic() - shutdown_started) * 1000, 1),
+                harness_close=results[1] if isinstance(results[1], dict) else None,
+                errors=errors,
+            )
 
     app = FastAPI(title="VertexBatchStudio", version=__version__, lifespan=lifespan)
+    app.state.shutting_down = False
 
     @app.middleware("http")
     async def authenticate(request: Request, call_next):
@@ -78,6 +121,8 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
         scoped_valid = bool(provider_route or ui_route) and secrets.compare_digest(scoped, harness_token)
         if not secrets.compare_digest(given, token) and not scoped_valid:
             return JSONResponse({"detail": "本地访问令牌无效"}, status_code=401)
+        if app.state.shutting_down and request.url.path != "/shutdown":
+            return JSONResponse({"detail": "工作室正在退出"}, status_code=503)
         response = await call_next(request)
         response.headers["Cache-Control"] = "no-store"
         return response
@@ -103,6 +148,32 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
     @app.get("/references")
     def references(batch_id: str | None = None):
         return studio.assets.list(batch_id)
+
+    @app.get("/references/categories")
+    def reference_categories():
+        return studio.assets.categories()
+
+    @app.post("/references/categories", status_code=201)
+    def add_reference_category(value: ReferenceCategory):
+        return studio.assets.add_category(value.label)
+
+    @app.delete("/references/categories/{category}")
+    def delete_reference_category(category: str, move_to: str | None = None):
+        return studio.assets.delete_category(category, move_to)
+
+    @app.post('/references/move')
+    def move_reference(value: ReferenceMove):
+        return studio.assets.move(value.path, value.category)
+
+    @app.post("/batches/{batch_id}/open-folder")
+    def open_batch_folder(batch_id: str):
+        # Only resolve managed batch paths; never accept arbitrary shell commands.
+        directory = studio.repo.directory(batch_id)
+        import os
+        if os.name != "nt":
+            raise ValueError("此操作需要 Windows 桌面")
+        os.startfile(str(directory))
+        return {"opened": True}
 
     @app.put('/references/order')
     def reorder_references(value: ReferenceOrder):
@@ -194,7 +265,17 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
     @app.post("/cloud/check")
     async def check_cloud():
         try:
-            details = await asyncio.to_thread(lambda: studio.cloud.check_connection(studio.settings.bucket))
+            # Share a single probe. Shield prevents HTTP timeout/cancellation
+            # from making the next caller spawn another still-running thread.
+            scope = (studio.settings.project, studio.settings.bucket, studio.settings.credentials_file)
+            probe = getattr(app.state, "cloud_probe", None)
+            if probe is None or probe[0] != scope or probe[1].done():
+                task = asyncio.create_task(asyncio.to_thread(lambda: studio.cloud.check_connection(studio.settings.bucket)))
+                task.add_done_callback(lambda done: done.exception() if not done.cancelled() else None)
+                app.state.cloud_probe = probe = (scope, task)
+            details = await asyncio.wait_for(asyncio.shield(probe[1]), timeout=30)
+        except asyncio.TimeoutError:
+            raise ValueError("连接检查超时，请检查网络后重试") from None
         except Exception:
             raise ValueError("连接检查失败，请检查项目、桶、凭证及其访问权限") from None
         return {"ok": True, "details": details}
@@ -347,7 +428,7 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
         async def snapshots():
             previous = None
             heartbeat = time.monotonic()
-            while not await request.is_disconnected():
+            while not app.state.shutting_down and not await request.is_disconnected():
                 value = await asyncio.to_thread(studio.repo.get, batch_id)
                 report = await asyncio.to_thread(studio.results, batch_id)
                 snapshot = {"batch": value, "results": report}
@@ -356,7 +437,7 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
                     yield f"id: {value['updated_at']}\nevent: snapshot\ndata: {encoded}\n\n"
                     previous = encoded
                     heartbeat = time.monotonic()
-                    if value["phase"] in {"completed", "completed_with_errors", "failed", "cancelled"}:
+                    if value["phase"] in {"completed", "completed_with_errors", "failed", "cancelled", "submission_unconfirmed"}:
                         break
                 elif time.monotonic() - heartbeat >= 15:
                     yield ": keepalive\n\n"
@@ -367,7 +448,19 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
                                  headers={"X-Accel-Buffering": "no"})
 
     @app.post("/shutdown")
-    def shutdown():
+    async def shutdown():
+        app.state.shutting_down = True
+        studio.request_stop()
+        harness.request_stop()
+        harness_runtime.request_stop()
+        log_lifecycle_event(
+            studio.settings.root,
+            "shutdown_requested",
+            instance_id=instance_id,
+            mode=mode,
+            harness_running=bool(harness_runtime.child and harness_runtime.child.poll() is None),
+            harness_pid=harness_runtime.child.pid if harness_runtime.child else None,
+        )
         if on_shutdown:
             on_shutdown()
         return {"status": "stopping"}

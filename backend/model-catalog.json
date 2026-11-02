@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "version": "2026.11.03.1",
+  "updated_at": "2026-11-03",
+  "models": [
+    {
+      "id": "gemini-nano-banana-2.1",
+      "label": "Gemini Nano Banana 2.1",
+      "regions": [
+        "global"
+      ],
+      "source_url": "https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/nano-banana-2-1?hl=en",
+      "supports_image_size": true,
+      "aspect_ratios": [
+        "1:1",
+        "3:2",
+        "2:3",
+        "3:4",
+        "1:4",
+        "4:1",
+        "4:3",
+        "4:5",
+        "5:4",
+        "1:8",
+        "8:1",
+        "9:16",
+        "16:9",
+        "21:9"
+      ],
+      "max_references": 14,
+      "batch_image_sizes": [
+        "1K"
+      ],
+      "retirement_date": null,
+      "unsupported_parameters": [
+        "logprobs",
+        "responseLogprobs",
+        "seed",
+        "temperature",
+        "topK",
+        "topP"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "gemini-3.1-flash-image",
+      "label": "Gemini 3.1 Flash Image (Nano Banana 2)",
+      "regions": [
+        "global",
+        "us",
+        "eu"
+      ],
+      "source_url": "https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-1-flash-image?hl=en",
+      "supports_image_size": true,
+      "aspect_ratios": [
+        "1:1",
+        "3:2",
+        "2:3",
+        "3:4",
+        "1:4",
+        "4:1",
+        "4:3",
+        "4:5",
+        "5:4",
+        "1:8",
+        "8:1",
+        "9:16",
+        "16:9",
+        "21:9"
+      ],
+      "max_references": 14,
+      "batch_image_sizes": [
+        "1K"
+      ],
+      "retirement_date": null,
+      "unsupported_parameters": [],
+      "enabled": true
+    },
+    {
+      "id": "gemini-3-pro-image",
+      "label": "Gemini 3 Pro Image (Nano Banana Pro)",
+      "regions": [
+        "global"
+      ],
+      "source_url": "https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-pro-image?hl=en",
+      "supports_image_size": true,
+      "aspect_ratios": [
+        "1:1",
+        "3:2",
+        "2:3",
+        "3:4",
+        "1:4",
+        "4:1",
+        "4:3",
+        "4:5",
+        "5:4",
+        "1:8",
+        "8:1",
+        "9:16",
+        "16:9",
+        "21:9"
+      ],
+      "max_references": 14,
+      "batch_image_sizes": [
+        "1K"
+      ],
+      "retirement_date": null,
+      "unsupported_parameters": [],
+      "enabled": true
+    },
+    {
+      "id": "gemini-2.5-flash-image",
+      "label": "Gemini 2.5 Flash Image",
+      "regions": [
+        "global",
+        "us-central1",
+        "us-east1",
+        "us-east4",
+        "us-east5",
+        "us-south1",
+        "us-west1",
+        "us-west4",
+        "europe-central2",
+        "europe-north1",
+        "europe-southwest1",
+        "europe-west1",
+        "europe-west4",
+        "europe-west8"
+      ],
+      "source_url": "https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/2-5-flash-image?hl=en",
+      "supports_image_size": false,
+      "aspect_ratios": [
+        "1:1",
+        "3:2",
+        "2:3",
+        "3:4",
+        "4:3",
+        "4:5",
+        "5:4",
+        "9:16",
+        "16:9",
+        "21:9"
+      ],
+      "max_references": 3,
+      "batch_image_sizes": [
+        "1K"
+      ],
+      "retirement_date": "2027-03-15",
+      "unsupported_parameters": [],
+      "enabled": true
+    }
+  ]
+}

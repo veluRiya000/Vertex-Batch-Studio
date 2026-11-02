@@ -49,14 +49,25 @@ class ManagementTests(unittest.TestCase):
     def test_running_round_blocks_whole_project_before_any_move(self):
         root = self.repo.create("根项目")
         child = self.repo.create("根项目", source_batch_id=root["id"])
-        child["phase"] = "monitoring"
-        self.repo.save(child)
-        with self.assertRaisesRegex(ValueError, "运行中"):
-            self.repo.archive_workspace(root["id"])
-        self.assertFalse(self.repo.get(root["id"])["archived"])
+        for generating in ("uploading", "submitting", "submission_unknown", "monitoring", "downloading"):
+            child["phase"] = generating
+            self.repo.save(child)
+            with self.assertRaisesRegex(ValueError, "运行中"):
+                self.repo.archive_workspace(root["id"])
+            with self.assertRaisesRegex(ValueError, "运行中"):
+                self.repo.archive(child["id"])
+            self.assertFalse(self.repo.get(root["id"])["archived"])
         with self.assertRaisesRegex(ValueError, "完全归档"):
             self.repo.delete_workspace(root["id"])
         self.assertEqual(len(self.repo.list()), 2)
+        for non_generating in ("submission_unconfirmed", "paused", "cancelled", "failed",
+                               "completed_with_errors", "upload_failed", "submission_failed"):
+            round_batch = self.repo.create("非生成中项目")
+            round_batch["phase"] = non_generating
+            self.repo.save(round_batch)
+            self.repo.archive_workspace(round_batch["id"])
+            self.assertTrue(self.repo.get(round_batch["id"])["archived"])
+            self.repo.delete_workspace(round_batch["id"])
 
     def test_reference_delete_updates_order_and_rejects_unsafe_paths(self):
         ref = self.reference()

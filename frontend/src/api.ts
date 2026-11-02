@@ -1,9 +1,18 @@
 import type { ImportOptions, Reference, Snapshot } from './types'
 
-export async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
+export async function api<T>(path: string, method = 'GET', body?: unknown, timeoutMs = path.startsWith('/harness/') ? 120000 : 25000): Promise<T> {
+  const controller = new AbortController()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => { controller.abort(); reject(new Error('操作超时，请检查连接后重试')) }, timeoutMs)
+  })
+  try { return await Promise.race([timeout, request<T>(path, method, body, controller.signal)]) }
+  finally { clearTimeout(timer) }
+}
+async function request<T>(path: string, method: string, body: unknown, signal: AbortSignal): Promise<T> {
   if (window.studio) return window.studio.api(method, path, body) as Promise<T>
   const response = await fetch('/api' + path, {
-    method, headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+    method, signal, headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
   })
   if (!response.ok) {
@@ -48,7 +57,7 @@ export function watchBatch(id: string, callback: (snapshot: Snapshot) => void): 
             if (data) {
               const snapshot: Snapshot = JSON.parse(data)
               callback(snapshot)
-              if (['completed','completed_with_errors','failed','cancelled'].includes(snapshot.batch.phase)) { controller.abort(); return }
+              if (['completed','completed_with_errors','failed','cancelled','submission_unconfirmed'].includes(snapshot.batch.phase)) { controller.abort(); return }
             }
           }
         }

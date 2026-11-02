@@ -14,8 +14,9 @@ from .files import read_json, write_json, project_name, operation_lock, beneath
 from .models import Task, TaskInput
 
 BEIJING = timezone(timedelta(hours=8))
+GENERATING_PHASES = {"uploading", "submitting", "submission_unknown", "monitoring", "downloading"}
 ARCHIVABLE = {"draft", "prepared", "completed", "completed_with_errors", "failed",
-              "cancelled", "upload_failed", "submission_failed"}
+              "cancelled", "upload_failed", "submission_failed", "submission_unconfirmed", "paused"}
 
 
 def now() -> str:
@@ -178,7 +179,7 @@ class Repository:
     def _archive_locked(self, batch: dict) -> dict:
         if batch["archived"]:
             return batch
-        if batch["phase"] not in ARCHIVABLE:
+        if batch["phase"] in GENERATING_PHASES:
             raise ValueError("运行中或尚待处理的批次不能归档")
         source = self.directory(batch["id"])
         target = self.settings.data_dir / "archive" / source.name
@@ -234,7 +235,7 @@ class Repository:
                 locks.enter_context(self.lock(batch["id"]))
             members = [self.get(batch["id"]) for batch in members]
             # Validate every round before moving any, so a running round cannot split a project.
-            if any(not batch["archived"] and batch["phase"] not in ARCHIVABLE for batch in members):
+            if any(not batch["archived"] and batch["phase"] in GENERATING_PHASES for batch in members):
                 raise ValueError("项目中有运行中或尚待处理的批次，请完成或取消后再归档")
             for batch in members:
                 if not batch["archived"] and (self.settings.data_dir / "archive" / batch["folder"]).exists():

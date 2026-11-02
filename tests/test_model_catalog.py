@@ -168,7 +168,7 @@ class CatalogueTests(unittest.TestCase):
             state=self.catalog.snapshot()
             self.assertEqual(state['source'],'cache')
             self.assertEqual(state['models'],self.models)
-            self.assertNotIn('secret',state['message'])
+            self.assertNotIn('secret',state['message'] or '')
 
     def test_no_cache_failure_has_no_invented_dynamic_models(self):
         self.source.models=TimeoutError()
@@ -194,11 +194,11 @@ class CatalogueTests(unittest.TestCase):
         for delta in (timedelta(days=31),timedelta(days=-2)):
             value={**cached,'fetched_at':(datetime.now(timezone.utc)-delta).isoformat()}
             write_json(self.catalog.path,value)
-            self.assertEqual(ModelCatalogue(self.settings).snapshot()['source'],'unavailable')
+            self.assertEqual(ModelCatalogue(self.settings).snapshot()['source'],'builtin')
         write_json(self.catalog.path,{**cached,'scope':{'project':'other','location':'global'}})
-        self.assertEqual(ModelCatalogue(self.settings).snapshot()['source'],'unavailable')
+        self.assertEqual(ModelCatalogue(self.settings).snapshot()['source'],'builtin')
         self.catalog.path.write_text('{broken',encoding='utf-8')
-        self.assertEqual(ModelCatalogue(self.settings).snapshot()['models'],[])
+        self.assertTrue(ModelCatalogue(self.settings).snapshot()['models'])
 
     def test_malformed_retirement_and_capability_cache_fall_back_cleanly(self):
         self.refresh()
@@ -206,7 +206,7 @@ class CatalogueTests(unittest.TestCase):
         for field,value in [('retirement_date','invalid'),('batch_image_sizes',['4K']),('max_references','bad')]:
             cached={**original,'models':[{**original['models'][0],field:value}]}
             write_json(self.catalog.path,cached)
-            self.assertEqual(ModelCatalogue(self.settings).snapshot()['source'],'unavailable')
+            self.assertEqual(ModelCatalogue(self.settings).snapshot()['source'],'builtin')
 
     def test_known_retirement_is_honored_during_offline_startup(self):
         self.refresh()

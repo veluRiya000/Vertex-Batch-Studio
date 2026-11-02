@@ -14,7 +14,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex, OnceLock,
     },
-    time::Duration,
+    time::{Duration, Instant},
 };
 use tauri::{
     ipc::Channel,
@@ -28,6 +28,7 @@ use tauri_plugin_opener::OpenerExt;
 
 mod harness;
 mod cloud_pages;
+mod winjob;
 
 type Result<T> = std::result::Result<T, String>;
 
@@ -94,14 +95,29 @@ impl Preferences {
 struct Connection {
     url: String,
     token: String,
+    #[serde(default)]
+    pid: Option<u32>,
+    #[serde(default)]
+    mode: Option<String>,
+    #[serde(default)]
+    instance_id: Option<String>,
+    #[serde(default)]
+    process_created_filetime: Option<u64>,
+    #[serde(default)]
+    executable: Option<String>,
 }
 
 struct Studio {
     root: PathBuf,
+    instance_id: String,
     client: Client,
     connection: Mutex<Option<Connection>>,
     preferences: Mutex<Preferences>,
     child: Mutex<Option<Child>>,
+    #[cfg(windows)]
+    job: Mutex<Option<winjob::Job>>,
+    #[cfg(windows)]
+    reused_managed: Mutex<Option<winjob::VerifiedProcess>>,
     watchers: Mutex<HashMap<String, tokio::sync::watch::Sender<bool>>>,
     quitting: AtomicBool,
     stopped: AtomicBool,
@@ -131,15 +147,15 @@ fn allowed(method: &str, path: &str) -> bool {
         let id = "[a-f0-9]{32}";
         [
             ("GET", vec!["^/(health|config|preferences|references|batches|notifications/status)$".into(),
-                "^/references/file$".into(),
+                "^/references/(file|categories)$".into(),
                 format!("^/batches/{id}(/tasks|/results|/images/{id}/[0-9]+)?$")]),
-            ("POST", vec!["^/(batches|references/import|cloud/check|models/refresh|models/selection|notifications/sound|notifications/test)$".into(),
-                format!("^/batches/{id}/(tasks|prepare|submit|poll|extract|cancel|retry|clone|archive|attach|import-jsonl)$"),
+            ("POST", vec!["^/(batches|references/import|references/move|references/categories|cloud/check|models/refresh|models/selection|notifications/sound|notifications/test)$".into(),
+                format!("^/batches/{id}/(tasks|prepare|submit|poll|extract|cancel|retry|clone|archive|attach|import-jsonl|open-folder)$"),
                 format!("^/workspaces/{id}/archive$")]),
             ("PUT", vec!["^/(preferences|cloud/configuration|references/order)$".into(),
                 format!("^/workspaces/{id}$"),
                 format!("^/batches/{id}/(tasks|output-directory|tasks/{id})$")]),
-            ("DELETE", vec!["^/references$".into(), format!("^/workspaces/{id}$"), format!("^/batches/{id}/tasks/{id}$")]),
+            ("DELETE", vec!["^/references$".into(), "^/references/categories/[a-z0-9_-]{1,60}$".into(), format!("^/workspaces/{id}$"), format!("^/batches/{id}/tasks/{id}$")]),
         ].into_iter().map(|(method, patterns)|
             (method, patterns.into_iter().map(|p: String| regex::Regex::new(&p).unwrap()).collect())
         ).collect()
@@ -150,6 +166,10 @@ fn allowed(method: &str, path: &str) -> bool {
 }
 
 impl Studio {
+    fn log(&self, event: &str, details: Value) {
+        winjob::log_lifecycle(&self.root, &self.instance_id, event, details);
+    }
+
     fn read_connection(&self) -> Result<Connection> {
         let bytes =
             fs::read(self.root.join(".runtime/connection.json")).map_err(|e| e.to_string())?;
@@ -190,6 +210,38 @@ impl Studio {
     async fn start(&self, app: &AppHandle) -> Result<()> {
         if let Ok(value) = self.read_connection() {
             if self.healthy(&value).await {
+                if value.mode.as_deref() == Some("managed") {
+                    #[cfg(windows)]
+                    {
+                        let verified = value.pid.and_then(|pid| {
+                            winjob::VerifiedProcess::open_verified(
+                                pid,
+                                value.process_created_filetime,
+                                value.executable.as_deref(),
+                            )
+                        });
+                        let has_verified = verified.is_some();
+                        *self.reused_managed.lock().unwrap() = verified;
+                        self.log(
+                            "backend_reuse_managed",
+                            json!({
+                                "reused_pid": value.pid,
+                                "reused_instance_id": value.instance_id,
+                                "reused_created_filetime": value.process_created_filetime,
+                                "verified_handle": has_verified,
+                            }),
+                        );
+                    }
+                } else {
+                    self.log(
+                        "backend_reuse_external",
+                        json!({
+                            "reused_pid": value.pid,
+                            "reused_mode": value.mode,
+                            "reused_instance_id": value.instance_id,
+                        }),
+                    );
+                }
                 *self.connection.lock().unwrap() = Some(value);
                 return Ok(());
             }
@@ -213,7 +265,15 @@ impl Studio {
             command.arg("--root").arg(&self.root);
         }
         command
-            .args(["serve", "--port", "0"])
+            .args([
+                "serve",
+                "--port",
+                "0",
+                "--mode",
+                "managed",
+                "--instance-id",
+                &self.instance_id,
+            ])
             .current_dir(&self.root)
             .env("PYTHONIOENCODING", "utf-8")
             .stdin(Stdio::null());
@@ -228,14 +288,59 @@ impl Studio {
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
-            command.creation_flags(0x08000000);
+            command.creation_flags(winjob::CREATE_NO_WINDOW | winjob::CREATE_SUSPENDED);
         }
-        *self.child.lock().unwrap() = Some(command.spawn().map_err(|e| e.to_string())?);
+        let mut spawned = command.spawn().map_err(|e| e.to_string())?;
+        let child_pid = spawned.id();
+        #[cfg(windows)]
+        {
+            use std::os::windows::io::AsRawHandle;
+            let raw_handle = spawned.as_raw_handle();
+            let job_result = winjob::Job::create().and_then(|job| {
+                job.assign_process(raw_handle)?;
+                winjob::resume_suspended_process(raw_handle)?;
+                Ok(job)
+            });
+            match job_result {
+                Ok(job) => {
+                    let child_ft = winjob::process_filetime_from_handle(raw_handle);
+                    *self.job.lock().unwrap() = Some(job);
+                    self.log(
+                        "backend_spawned",
+                        json!({
+                            "backend_pid": child_pid,
+                            "backend_created_filetime": child_ft,
+                            "job_managed": true,
+                        }),
+                    );
+                }
+                Err(error) => {
+                    self.log(
+                        "backend_job_assign_failed",
+                        json!({
+                            "backend_pid": child_pid,
+                            "error": error,
+                        }),
+                    );
+                    let _ = spawned.kill();
+                    let _ = spawned.wait();
+                    return Err(format!("后端受管作业初始化失败: {error}"));
+                }
+            }
+        }
+        *self.child.lock().unwrap() = Some(spawned);
         for _ in 0..150 {
             {
                 let mut child = self.child.lock().unwrap();
                 if let Some(child) = child.as_mut() {
                     if let Some(code) = child.try_wait().map_err(|e| e.to_string())? {
+                        self.log(
+                            "backend_spawn_exited_early",
+                            json!({
+                                "backend_pid": child_pid,
+                                "exit_code": code.code(),
+                            }),
+                        );
                         return Err(format!(
                             "后端启动失败 ({code})，请检查 .runtime/desktop-backend.log"
                         ));
@@ -243,7 +348,18 @@ impl Studio {
                 }
             }
             if let Ok(value) = self.read_connection() {
-                if self.healthy(&value).await {
+                let matches_instance = value
+                    .instance_id
+                    .as_deref()
+                    .is_none_or(|id| id == self.instance_id);
+                if matches_instance && self.healthy(&value).await {
+                    self.log(
+                        "backend_connected",
+                        json!({
+                            "backend_pid": value.pid.unwrap_or(child_pid),
+                            "backend_created_filetime": value.process_created_filetime,
+                        }),
+                    );
                     *self.connection.lock().unwrap() = Some(value);
                     return Ok(());
                 }
@@ -277,32 +393,195 @@ impl Studio {
     }
 
     async fn stop(&self) {
+        let started = Instant::now();
         for (_, cancel) in self.watchers.lock().unwrap().drain() {
             let _ = cancel.send(true);
         }
+        let has_child = self.child.lock().unwrap().is_some();
+        #[cfg(windows)]
+        let has_reused = self.reused_managed.lock().unwrap().is_some();
+        #[cfg(not(windows))]
+        let has_reused = false;
+        #[cfg(windows)]
+        let has_job = self.job.lock().unwrap().is_some();
+        #[cfg(not(windows))]
+        let has_job = false;
+
         // Leave a separately launched development server running.
-        if self.child.lock().unwrap().is_none() {
+        if !has_child && !has_reused && !has_job {
+            self.log("stop_skip_external", json!({}));
             return;
         }
+
+        self.log(
+            "stop_start",
+            json!({
+                "has_child": has_child,
+                "has_reused_managed": has_reused,
+                "has_job": has_job,
+            }),
+        );
+
+        // One total grace period, harmonized with Python's <= 8.5s close budget.
+        // Never cancel a cloud job here.
+        let deadline = started + Duration::from_secs(12);
+        let http_started = Instant::now();
+        let mut shutdown_http_ok = false;
         if let Ok(request) = self.request(Method::POST, "/shutdown") {
-            let _ = request.timeout(Duration::from_secs(10)).send().await;
+            if let Ok(resp) = request.timeout(Duration::from_millis(1500)).send().await {
+                shutdown_http_ok = resp.status().is_success();
+            }
         }
-        for _ in 0..100 {
-            let exited = self
-                .child
-                .lock()
-                .unwrap()
-                .as_mut()
-                .is_none_or(|child| child.try_wait().ok().flatten().is_some());
-            if exited {
-                return;
+        let shutdown_http_ms = http_started.elapsed().as_millis() as u64;
+
+        let mut child_exit_code: Option<i32> = None;
+        let mut child_exited = false;
+        let mut reused_exited = true;
+        let mut job_active: u32 = 0;
+
+        while Instant::now() < deadline {
+            child_exited = {
+                let mut guard = self.child.lock().unwrap();
+                match guard.as_mut() {
+                    None => true,
+                    Some(child) => match child.try_wait() {
+                        Ok(Some(status)) => {
+                            child_exit_code = status.code();
+                            true
+                        }
+                        Ok(None) => false,
+                        Err(_) => true,
+                    },
+                }
+            };
+            #[cfg(windows)]
+            {
+                reused_exited = self
+                    .reused_managed
+                    .lock()
+                    .unwrap()
+                    .as_ref()
+                    .is_none_or(|p| p.is_exited());
+                job_active = self
+                    .job
+                    .lock()
+                    .unwrap()
+                    .as_ref()
+                    .and_then(|j| j.active_processes().ok())
+                    .unwrap_or(0);
+            }
+            if child_exited && reused_exited && job_active == 0 {
+                break;
             }
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
-        if let Some(child) = self.child.lock().unwrap().as_mut() {
-            let _ = child.kill();
-            let _ = child.wait();
+
+        let mut forced_cleanup = false;
+        let mut job_terminate_error: Option<String> = None;
+        let mut taskkill_code: Option<i32> = None;
+
+        if !child_exited || !reused_exited || job_active > 0 {
+            forced_cleanup = true;
+            self.log(
+                "stop_deadline_expired",
+                json!({
+                    "child_exited": child_exited,
+                    "reused_exited": reused_exited,
+                    "job_active": job_active,
+                    "elapsed_ms": started.elapsed().as_millis() as u64,
+                }),
+            );
+            #[cfg(windows)]
+            {
+                if let Some(job) = self.job.lock().unwrap().as_ref() {
+                    if let Err(err) = job.terminate(1) {
+                        job_terminate_error = Some(err);
+                    }
+                }
+                if let Some(reused) = self.reused_managed.lock().unwrap().as_ref() {
+                    if !reused.is_exited() {
+                        self.log("stop_terminate_reused", json!({ "reused_pid": reused.pid }));
+                        let _ = reused.terminate(1);
+                    }
+                }
+            }
+            let owned = self.child.lock().unwrap().take();
+            if let Some(mut child) = owned {
+                let cleanup = tauri::async_runtime::spawn_blocking(move || {
+                    let mut tk_rc = None;
+                    if child.try_wait().ok().flatten().is_none() {
+                        #[cfg(windows)]
+                        {
+                            use std::os::windows::process::CommandExt;
+                            if let Ok(status) = Command::new("taskkill")
+                                .args(["/PID", &child.id().to_string(), "/T", "/F"])
+                                .creation_flags(winjob::CREATE_NO_WINDOW)
+                                .stdout(Stdio::null())
+                                .stderr(Stdio::null())
+                                .status()
+                            {
+                                tk_rc = status.code();
+                            }
+                        }
+                        let _ = child.kill();
+                    }
+                    let code = child.wait().ok().and_then(|s| s.code());
+                    (code, tk_rc)
+                });
+                if let Ok(Ok((code, tk_rc))) =
+                    tokio::time::timeout(Duration::from_secs(3), cleanup).await
+                {
+                    if child_exit_code.is_none() {
+                        child_exit_code = code;
+                    }
+                    taskkill_code = tk_rc;
+                }
+            }
+            #[cfg(windows)]
+            {
+                let verify_deadline = Instant::now() + Duration::from_secs(2);
+                while Instant::now() < verify_deadline {
+                    job_active = self
+                        .job
+                        .lock()
+                        .unwrap()
+                        .as_ref()
+                        .and_then(|j| j.active_processes().ok())
+                        .unwrap_or(0);
+                    reused_exited = self
+                        .reused_managed
+                        .lock()
+                        .unwrap()
+                        .as_ref()
+                        .is_none_or(|p| p.is_exited());
+                    if job_active == 0 && reused_exited {
+                        break;
+                    }
+                    tokio::time::sleep(Duration::from_millis(50)).await;
+                }
+            }
         }
+
+        let _ = self.child.lock().unwrap().take();
+        #[cfg(windows)]
+        {
+            let _ = self.reused_managed.lock().unwrap().take();
+            let _ = self.job.lock().unwrap().take();
+        }
+
+        self.log(
+            "stop_complete",
+            json!({
+                "elapsed_ms": started.elapsed().as_millis() as u64,
+                "shutdown_http_ok": shutdown_http_ok,
+                "shutdown_http_ms": shutdown_http_ms,
+                "forced_cleanup": forced_cleanup,
+                "child_exit_code": child_exit_code,
+                "job_active_after_stop": job_active,
+                "job_terminate_error": job_terminate_error,
+                "taskkill_returncode": taskkill_code,
+            }),
+        );
     }
 }
 
@@ -330,6 +609,9 @@ async fn studio_api(
 ) -> Result<Value> {
     if !allowed(&method, &path) {
         return Err("不支持的工作室操作".into());
+    }
+    if studio.quitting.load(Ordering::SeqCst) && method == "POST" && path == "/harness/start" {
+        return Err("工作室正在退出".into());
     }
     studio
         .json(
@@ -459,6 +741,9 @@ async fn open_output(app: AppHandle, studio: State<'_, Arc<Studio>>, id: String)
 }
 
 fn show_window(app: &AppHandle) {
+    if app.try_state::<Arc<Studio>>().is_some_and(|studio| studio.quitting.load(Ordering::SeqCst)) {
+        return;
+    }
     if let Some(window) = app.get_window("main") {
         let _ = window.show();
         let _ = window.unminimize();
@@ -540,6 +825,39 @@ async fn set_preferences(
     }
 }
 
+fn begin_exit(app: &AppHandle, code: i32, reason: &str) {
+    let Some(studio) = app.try_state::<Arc<Studio>>() else {
+        app.exit(code);
+        return;
+    };
+    if studio.stopped.load(Ordering::SeqCst) {
+        app.exit(code);
+        return;
+    }
+    if studio.quitting.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    studio.log("exit_requested", json!({ "reason": reason, "code": code }));
+    // Exit feedback belongs on the UI thread, before any network
+    // or worker cleanup. The close-to-tray path never enters here.
+    if let Some(view) = app.get_webview("harness") {
+        let _ = view.close();
+    }
+    for window in app.windows().values() {
+        let _ = window.hide();
+    }
+    if let Some(tray) = app.remove_tray_by_id("studio") {
+        let _ = tray.set_visible(false);
+    }
+    let studio = studio.inner().clone();
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        studio.stop().await;
+        studio.stopped.store(true, Ordering::SeqCst);
+        app.exit(code);
+    });
+}
+
 #[tauri::command]
 fn window_action(app: AppHandle, action: String) -> Result<()> {
     let window = app.get_window("main").ok_or("窗口不可用")?;
@@ -552,9 +870,25 @@ fn window_action(app: AppHandle, action: String) -> Result<()> {
                 window.maximize()
             }
         }
-        "hide" => window.close(),
+        "hide" => {
+            if let Some(studio) = app.try_state::<Arc<Studio>>() {
+                let close_to_tray = studio.preferences.lock().unwrap().close_to_tray;
+                studio.log(
+                    "window_action_hide",
+                    json!({ "close_to_tray": close_to_tray }),
+                );
+                if !close_to_tray {
+                    begin_exit(&app, 0, "window_action_hide");
+                    return Ok(());
+                }
+            }
+            window.close()
+        }
         "quit" => {
-            app.exit(0);
+            if let Some(studio) = app.try_state::<Arc<Studio>>() {
+                studio.log("window_action_quit", json!({}));
+            }
+            begin_exit(&app, 0, "window_action_quit");
             return Ok(());
         }
         _ => return Err("窗口操作无效".into()),
@@ -649,7 +983,7 @@ async fn stream_events(
                             let terminal = matches!(
                                 snapshot["batch"]["phase"].as_str(),
                                 Some(
-                                    "completed" | "completed_with_errors" | "failed" | "cancelled"
+                                    "completed" | "completed_with_errors" | "failed" | "cancelled" | "submission_unconfirmed"
                                 )
                             );
                             if channel.send(snapshot).is_err() || terminal {
@@ -726,11 +1060,17 @@ fn main() {
                 .and_then(|b| serde_json::from_slice::<Preferences>(&b).ok())
                 .filter(|p| p.validate().is_ok())
                 .unwrap_or_default();
+            let instance_id = winjob::generate_instance_id();
             let studio = Arc::new(Studio {
                 root,
+                instance_id,
                 preferences: Mutex::new(preferences.clone()),
                 connection: Mutex::new(None),
                 child: Mutex::new(None),
+                #[cfg(windows)]
+                job: Mutex::new(None),
+                #[cfg(windows)]
+                reused_managed: Mutex::new(None),
                 watchers: Mutex::new(HashMap::new()),
                 quitting: AtomicBool::new(false),
                 stopped: AtomicBool::new(false),
@@ -741,8 +1081,18 @@ fn main() {
                     .connect_timeout(Duration::from_secs(3))
                     .build()?,
             });
+            studio.log(
+                "desktop_setup_start",
+                json!({
+                    "close_to_tray": preferences.close_to_tray,
+                    "smoke": smoke,
+                    "test_mode": test_mode,
+                    "exe": std::env::current_exe().ok().and_then(|p| p.to_str().map(String::from)),
+                }),
+            );
             app.manage(studio.clone());
             if let Err(error) = tauri::async_runtime::block_on(studio.start(app.handle())) {
+                studio.log("desktop_setup_failed", json!({ "error": error }));
                 tauri::async_runtime::block_on(studio.stop());
                 app.dialog()
                     .message(&error)
@@ -767,7 +1117,12 @@ fn main() {
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "open" => show_window(app),
-                    "quit" => app.exit(0),
+                    "quit" => {
+                        if let Some(studio) = app.try_state::<Arc<Studio>>() {
+                            studio.log("tray_quit_clicked", json!({}));
+                        }
+                        begin_exit(app, 0, "tray_quit");
+                    }
                     _ => {}
                 })
                 .on_tray_icon_event(|tray, event| {
@@ -793,10 +1148,18 @@ fn main() {
                 let studio = window.state::<Arc<Studio>>();
                 if !studio.quitting.load(Ordering::SeqCst) {
                     api.prevent_close();
-                    if studio.preferences.lock().unwrap().close_to_tray {
+                    let close_to_tray = studio.preferences.lock().unwrap().close_to_tray;
+                    studio.log(
+                        "window_close_requested",
+                        json!({
+                            "window": window.label(),
+                            "close_to_tray": close_to_tray,
+                        }),
+                    );
+                    if close_to_tray {
                         let _ = window.hide();
                     } else {
-                        window.app_handle().exit(0);
+                        begin_exit(window.app_handle(), 0, "window_close");
                     }
                 }
             }
@@ -805,22 +1168,13 @@ fn main() {
         .build(tauri::generate_context!())
         .expect("Desktop initialization failed");
     app.run(|app, event| {
-        if let tauri::RunEvent::ExitRequested { api, .. } = event {
+        if let tauri::RunEvent::ExitRequested { api, code, .. } = event {
             let Some(studio) = app.try_state::<Arc<Studio>>() else {
                 return;
             };
             if !studio.stopped.load(Ordering::SeqCst) {
                 api.prevent_exit();
-                if studio.quitting.swap(true, Ordering::SeqCst) {
-                    return;
-                }
-                let studio = studio.inner().clone();
-                let app = app.clone();
-                tauri::async_runtime::spawn(async move {
-                    studio.stop().await;
-                    studio.stopped.store(true, Ordering::SeqCst);
-                    app.exit(0);
-                });
+                begin_exit(app, code.unwrap_or(0), "run_event_exit_requested");
             }
         }
     });
@@ -913,5 +1267,31 @@ mod tests {
         assert!(
             serde_json::from_value::<Preferences>(json!({"theme":"light","unknown":true})).is_err()
         );
+    }
+    #[cfg(windows)]
+    #[test]
+    fn winjob_kills_suspended_child_on_drop() {
+        use std::os::windows::{io::AsRawHandle, process::CommandExt};
+        let started = Instant::now();
+        let job = winjob::Job::create().expect("create job");
+        let mut child = Command::new("powershell")
+            .args(["-NoProfile", "-Command", "Start-Sleep -Seconds 60"])
+            .creation_flags(winjob::CREATE_NO_WINDOW | winjob::CREATE_SUSPENDED)
+            .spawn()
+            .expect("spawn suspended child");
+        let handle = child.as_raw_handle();
+        let pid = child.id();
+        let ft = winjob::process_filetime_from_handle(handle).expect("filetime");
+        job.assign_process(handle).expect("assign process");
+        winjob::resume_suspended_process(handle).expect("resume process");
+        assert!(job.active_processes().expect("active") >= 1);
+        let verified = winjob::VerifiedProcess::open_verified(pid, Some(ft), None)
+            .expect("open verified process");
+        assert_eq!(verified.pid, pid);
+        assert!(!verified.is_exited());
+        drop(job);
+        let _ = child.wait().expect("wait child");
+        assert!(started.elapsed() < Duration::from_secs(5));
+        assert!(verified.is_exited());
     }
 }

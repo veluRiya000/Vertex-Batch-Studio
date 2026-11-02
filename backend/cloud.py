@@ -3,12 +3,36 @@
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
+import time
 from .config import Settings
 from .files import sha256_file
 from .jsonl import split_gcs
 
 TERMINAL = {"JOB_STATE_SUCCEEDED", "JOB_STATE_FAILED", "JOB_STATE_CANCELLED",
             "JOB_STATE_EXPIRED", "JOB_STATE_PARTIALLY_SUCCEEDED"}
+
+
+def bounded_credentials(credentials):
+    """SDK HTTP timeouts don't cover OAuth refresh. Bound that transport too."""
+    from google.auth.credentials import Credentials
+    class BoundedCredentials(Credentials):
+        def __init__(self, inner):
+            super().__init__()
+            self.inner = inner
+            self.token, self.expiry = inner.token, inner.expiry
+            self._quota_project_id = getattr(inner, "quota_project_id", None)
+
+        def refresh(self, request):
+            deadline = time.monotonic() + 20
+            def bounded(*args, **kwargs):
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError("凭证刷新超时")
+                kwargs["timeout"] = min(float(kwargs.get("timeout") or 20), remaining)
+                return request(*args, **kwargs)
+            self.inner.refresh(bounded)
+            self.token, self.expiry = self.inner.token, self.inner.expiry
+    return BoundedCredentials(credentials)
 
 
 @dataclass
@@ -51,9 +75,12 @@ class GoogleCloud:
                 str(settings.credentials_file), scopes=["https://www.googleapis.com/auth/cloud-platform"])
         else:
             credentials, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+        credentials = bounded_credentials(credentials)
+        self.credentials = credentials
         self.genai = genai.Client(vertexai=True, project=settings.project,
                                   location=settings.location, credentials=credentials,
-                                  http_options=types.HttpOptions(api_version=api_version, timeout=60000))
+                                  http_options=types.HttpOptions(api_version=api_version, timeout=60000,
+                                      retry_options=types.HttpRetryOptions(attempts=1)))
         self.storage = storage.Client(project=settings.project, credentials=credentials)
 
     @staticmethod
@@ -69,10 +96,11 @@ class GoogleCloud:
 
     def upload(self, bucket: str, name: str, local: Path, mime: str) -> bool:
         from google.api_core.exceptions import NotFound
+        from google.api_core.retry import Retry
         checksum = sha256_file(local)
         blob = self.storage.bucket(bucket).blob(name)
         try:
-            blob.reload(timeout=60)
+            blob.reload(timeout=30, retry=Retry(deadline=45))
             if blob.size == local.stat().st_size and (blob.metadata or {}).get("sha256") == checksum:
                 return False
             generation = blob.generation
@@ -80,12 +108,13 @@ class GoogleCloud:
             generation = 0
         blob.metadata = {"sha256": checksum}
         blob.upload_from_filename(str(local), content_type=mime, checksum="crc32c",
-                                  if_generation_match=generation, timeout=120)
+                                  if_generation_match=generation, timeout=60, retry=Retry(deadline=120))
         return True
 
     def validate_reference(self, bucket: str, name: str, mime: str) -> None:
         blob = self.storage.bucket(bucket).blob(name)
-        blob.reload(timeout=60)
+        from google.api_core.retry import Retry
+        blob.reload(timeout=30, retry=Retry(deadline=45))
         if blob.size > 30 * 1024 * 1024:
             raise ValueError("远程参考图超过 30 MB")
         if blob.content_type not in {mime, "application/octet-stream", None}:
@@ -107,9 +136,21 @@ class GoogleCloud:
             config=CreateBatchJobConfig(dest=output_prefix, display_name=display_name,
                 http_options=HttpOptions(retry_options=HttpRetryOptions(attempts=1)))))
 
+    def prepare_submission(self):
+        # Refresh before persisting the create intent. A failed OAuth refresh
+        # cannot have created a job and must remain safely retryable.
+        from google.auth.transport.requests import Request
+        if not self.credentials.valid:
+            self.credentials.refresh(Request())
+
     def find_jobs(self, display_name: str, input_uri: str) -> list[Job]:
         found = []
-        for job in self.genai.batches.list(config={"page_size": 100}):
+        deadline = time.monotonic() + 70
+        for job in self.genai.batches.list(config={"page_size": 100,
+                "filter": 'display_name="' + display_name + '"',
+                "http_options": {"timeout": 20000, "retry_options": {"attempts": 1}}}):
+            if time.monotonic() > deadline:
+                raise TimeoutError("核对提交超时，请稍后刷新")
             sources = getattr(getattr(job, "src", None), "gcs_uri", None) or []
             if job.display_name == display_name and input_uri in sources:
                 found.append(self.job(job))
@@ -139,11 +180,13 @@ class GoogleCloud:
     def check_connection(self, bucket: str) -> dict:
         """Read-only diagnostics; does not upload objects or create a prediction job."""
         from itertools import islice
+        from google.api_core.retry import Retry
         permissions = self.storage.bucket(bucket).test_iam_permissions([
             "storage.objects.get", "storage.objects.list", "storage.objects.create",
-            "storage.objects.delete"], timeout=30)
-        list(islice(self.storage.list_blobs(bucket, prefix="batches/", max_results=1, timeout=30), 1))
-        list(islice(self.genai.batches.list(config={"page_size": 1}), 1))
+            "storage.objects.delete"], timeout=8, retry=Retry(deadline=10))
+        list(islice(self.storage.list_blobs(bucket, prefix="batches/", max_results=1, timeout=8, retry=Retry(deadline=10)), 1))
+        list(islice(self.genai.batches.list(config={"page_size": 1,
+            "http_options": {"timeout": 10000, "retry_options": {"attempts": 1}}}), 1))
         return {"storage_connection": "ok", "vertex_batch_list": "ok",
                 "bucket_permissions": permissions,
                 "note": "未创建生图任务；服务代理读写权限仍需首次真实任务验证"}

@@ -2,6 +2,7 @@
 
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from datetime import datetime
 import hashlib
 import json
 import threading
@@ -76,7 +77,7 @@ class Studio:
         self.settings.require_cloud()
         if batch["phase"] == "draft":
             self.model_catalog.validate(self.settings.model)
-        elif batch["phase"] not in {"submitting", "submission_unknown"}:
+        elif batch["phase"] not in {"submitting", "submission_unknown", "submission_unconfirmed"}:
             self.validate_manifest_parameters(self.manifest(batch_id))
         if not self.repo.tasks(batch_id):
             raise ValueError("批次至少需要一条任务")
@@ -145,17 +146,25 @@ class Studio:
         self.log(batch["id"], "job_attached", job_name=job.name)
 
     def _reconcile(self, batch: dict, manifest: dict) -> dict:
+        batch.setdefault("submission_started_at", batch["updated_at"])
         jobs = self.cloud.find_jobs("vbs-" + batch["id"], manifest["input_uri"])
         if len(jobs) == 1:
             self._attach(batch, jobs[0])
         else:
-            batch.update(phase="submission_unknown", last_error=(
-                "尚未找到已提交任务；将继续核对，不会自动重复提交" if not jobs else
+            age = (datetime.fromisoformat(now()) - datetime.fromisoformat(
+                batch.get("submission_started_at") or batch["updated_at"])).total_seconds()
+            # Unknown is not proof of failure. Stop the endless activity indicator,
+            # but never issue another paid create without resolving the old intent.
+            batch.update(phase="submission_unconfirmed" if age >= 600 else "submission_unknown", last_error=(
+                ("未查到对应云端任务；已暂停自动核对，可刷新结果再次核对，不会重复提交" if age >= 600 else
+                 "尚未找到已提交任务；将继续核对，不会自动重复提交") if not jobs else
                 "找到多个对应的云端任务，请通过 attach 指定正确的任务编号"))
             self.repo.save(batch)
         return batch
 
     def submit(self, batch_id: str) -> dict:
+        if self._stop.is_set():
+            return self.repo.get(batch_id)
         before = self.repo.get(batch_id)
         # Credential discovery can be slow. Keep the batch unlocked so a local
         # cancellation can complete, then re-read its state before any upload.
@@ -179,7 +188,7 @@ class Studio:
             else:
                 manifest = self.manifest(batch_id)
             self._check_context(manifest)
-            if batch["phase"] in {"submitting", "submission_unknown"}:
+            if batch["phase"] in {"submitting", "submission_unknown", "submission_unconfirmed"}:
                 return self._reconcile(batch, manifest)
             if batch["phase"] not in {"prepared", "upload_failed", "uploading", "submission_failed"}:
                 raise ValueError("该批次不能提交；重复生成请创建新批次")
@@ -209,6 +218,17 @@ class Studio:
                 self.repo.save(batch)
                 self.log(batch_id, "upload_failed", error=str(exc))
                 raise
+            if self._stop.is_set():
+                return batch
+            try:
+                if hasattr(cloud, "prepare_submission"):
+                    cloud.prepare_submission()
+            except Exception as exc:
+                batch.update(phase="submission_failed", last_error="提交前凭证检查失败：" + str(exc))
+                self.repo.save(batch)
+                raise
+            if self._stop.is_set():
+                return batch
             batch.update(phase="submitting", submission_started_at=now())
             self.repo.save(batch)
             try:
@@ -275,7 +295,7 @@ class Studio:
             batch = self.repo.get(batch_id)
             if batch["archived"]:
                 return batch
-            if not batch["job_name"] and batch["phase"] not in {"submitting", "submission_unknown"}:
+            if not batch["job_name"] and batch["phase"] not in {"submitting", "submission_unknown", "submission_unconfirmed"}:
                 if batch["phase"] == "cancelled":
                     return batch
                 raise ValueError("该批次尚未提交，无需刷新云端结果")
@@ -283,7 +303,7 @@ class Studio:
             self._check_context(manifest)
             try:
                 if not batch["job_name"]:
-                    if batch["phase"] in {"submitting", "submission_unknown"}:
+                    if batch["phase"] in {"submitting", "submission_unknown", "submission_unconfirmed"}:
                         return self._reconcile(batch, manifest)
                     raise ValueError("该批次尚未提交")
                 job = self.cloud.get_job(batch["job_name"])
@@ -357,7 +377,7 @@ class Studio:
             if batch["archived"]:
                 raise ValueError("归档批次不能取消")
             if not batch["job_name"]:
-                if batch["phase"] in {"submitting", "submission_unknown"}:
+                if batch["phase"] in {"submitting", "submission_unknown", "submission_unconfirmed"}:
                     raise ValueError("提交结果尚未确认；请检查云端连接并核对任务后再取消")
                 batch.update(phase="cancelled", cancel_requested=True, last_error=None)
                 self.repo.save(batch)
@@ -409,6 +429,8 @@ class Studio:
             return self.repo.get(target["id"])
 
     def enqueue(self, batch_id: str, action: str = "poll") -> bool:
+        if self._stop.is_set():
+            return False
         if action not in {"submit", "poll", "cancel", "extract_local"}:
             raise ValueError("不支持的后台动作")
         if action == "submit":
@@ -455,11 +477,16 @@ class Studio:
         self._worker = threading.Thread(target=monitor, name="vbs-monitor", daemon=True)
         self._worker.start()
 
-    def close(self) -> None:
-        self.model_catalog.close()
+    def request_stop(self) -> None:
         self._stop.set()
+
+    def close(self, *, wait=True) -> None:
+        self.model_catalog.close()
+        self.request_stop()
         if self._worker:
-            self._worker.join(timeout=5)
-        self._executor.shutdown(wait=True)
-        if self._cloud and hasattr(self._cloud, "close"):
+            self._worker.join(timeout=2 if wait else .1)
+        self._executor.shutdown(wait=wait, cancel_futures=True)
+        # Active operations still need their client to persist the last receipt.
+        # Desktop shutdown has a bounded owned-process fallback for stuck I/O.
+        if (wait or not self._inflight) and self._cloud and hasattr(self._cloud, "close"):
             self._cloud.close()

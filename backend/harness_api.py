@@ -71,7 +71,7 @@ def mount_harness(app, batch, runtime, scoped_token):
         batch.get(request_id)
         async def stream():
             previous = None
-            while not await request.is_disconnected():
+            while not getattr(app.state, "shutting_down", False) and not await request.is_disconnected():
                 snapshot = await asyncio.to_thread(lambda: batch.public(batch.get(request_id)))
                 encoded = json.dumps(snapshot, ensure_ascii=False)
                 if encoded != previous:

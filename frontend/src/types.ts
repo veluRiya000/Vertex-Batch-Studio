@@ -10,14 +10,14 @@ export interface TaskInput {
   aspect_ratio: string; image_size: string; image_count: number; generation_config: Record<string, unknown>;
 }
 export interface Task extends TaskInput { id: string; created_at?: string | null }
-export interface Reference { path: string; mime_type: string; dimensions: [number, number]; size: number; sha256: string }
+export interface Reference { path: string; category_id?: string; mime_type: string; dimensions: [number, number]; size: number; sha256: string }
 export interface ImageResult { path: string; mime_type: string; sha256: string; size: number }
-export interface TaskResult { total_requests?: number; completed_requests?: number; succeeded_requests?: number; task_id: string; state: string; name: string; images: ImageResult[]; error: string | null }
-export interface Results { tasks: TaskResult[]; counts: Record<string, number>; final: boolean; row_errors: unknown[] }
+export interface TaskResult { export_warnings?: string[]; total_requests?: number; completed_requests?: number; succeeded_requests?: number; task_id: string; state: string; name: string; images: ImageResult[]; error: string | null }
+export interface Results { updated_at?: string; tasks: TaskResult[]; counts: Record<string, number>; final: boolean; row_errors: unknown[] }
 export interface Snapshot { batch: Batch; results: Results }
 export interface ModelCatalogue {
   models: { id: string; label: string; regions: string[]; source_url: string; supports_image_size: boolean; aspect_ratios: string[]; max_references: number | null; batch_image_sizes: string[]; unsupported_parameters?: string[] }[];
-  source: 'official' | 'cache' | 'unavailable'; refreshing: boolean;
+  source: 'official' | 'maintained' | 'builtin' | 'cache' | 'unavailable'; refreshing: boolean;
   fetched_at: string | null; message: string | null;
 }
 export interface PublicConfig { project: string; bucket: string; model: string; location: string; data_dir: string; root: string; poll_seconds: number; credentials_configured: boolean; credential_name?: string | null; authentication_mode?: 'service_account' | 'adc'; model_catalog?: ModelCatalogue; unsupported_generation_parameters?: string[] }

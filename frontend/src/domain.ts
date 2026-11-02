@@ -3,6 +3,8 @@ export const landscape = ['16:9', '4:3', '3:2', '21:9']
 export const portrait = ['9:16', '3:4', '2:3', '9:21']
 export const editable = (batch: Batch) => !batch.archived && ['draft', 'prepared'].includes(batch.phase)
 export const terminal = (batch: Batch) => ['completed', 'completed_with_errors', 'failed', 'cancelled'].includes(batch.phase)
+export const generatingPhases = ['uploading', 'submitting', 'submission_unknown', 'monitoring', 'downloading']
+export const archivable = (batch: Batch) => batch.archived || !generatingPhases.includes(batch.phase)
 export function workspaceId(batch: Batch, batches: Batch[]): string {
   const visited = new Set<string>()
   let root = batch
@@ -36,13 +38,13 @@ export function matchRatio(reference?: Reference): string {
 }
 export function phaseLabel(batch: Batch): string {
   return ({draft:'待提交',prepared:'待提交',uploading:'上传中',upload_failed:'上传失败',submitting:'提交中',
-    submission_unknown:'核对提交中',submission_failed:'提交失败',monitoring:'生成中',completed:'已完成',
+    submission_unknown:'核对提交中',submission_unconfirmed:'提交未确认',submission_failed:'提交失败',monitoring:'生成中',completed:'已完成',
     completed_with_errors:'部分失败',failed:'失败',cancelled:'已取消',paused:'已暂停',downloading:'下载结果中'} as Record<string,string>)[batch.phase] || batch.phase
 }
 export function statusClass(batch: Batch, state?: string): string {
   if (state === 'succeeded') return 'completed'
   if (state === 'error' || state === 'missing' || ['failed','completed_with_errors','upload_failed','submission_failed'].includes(batch.phase)) return 'failed'
-  if (['draft','prepared','paused','cancelled'].includes(batch.phase)) return 'pending'
+  if (['draft','prepared','paused','cancelled','submission_unconfirmed'].includes(batch.phase)) return 'pending'
   if (batch.phase === 'completed') return 'completed'
   if (batch.phase === 'uploading') return 'uploading'
   return 'generating'

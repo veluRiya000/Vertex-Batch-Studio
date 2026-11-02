@@ -104,9 +104,40 @@ class VertexAdapter extends LlmAdapter {
 
 export function apply(ctx) {
   ctx.effect(() => {
+    const managed=process.env.VBS_HARNESS_MANAGED==='1';
+    const parentPid=Number.parseInt(process.env.VBS_HARNESS_PARENT_PID||'',10);
+    let disposed=false;
+    let shutdownTriggered=false;
+    let parentWatch;
+    const triggerShutdown=(reason)=>{
+      if(shutdownTriggered||disposed)return;
+      shutdownTriggered=true;
+      closing=true;
+      if(parentWatch)clearInterval(parentWatch);
+      try{process.stderr.write(`[VBS-HARNESS] vbs-shutdown-ack reason=${reason} pid=${process.pid}\n`);}catch{}
+      process.emit('SIGTERM');
+    };
     const input=createInterface({input:process.stdin});
-    input.on('line',line => {if (line === 'vbs-shutdown') {closing=true; process.emit('SIGTERM');}});
-    return () => input.close();
+    input.on('line',line=>{if(line.trim()==='vbs-shutdown')triggerShutdown('vbs-shutdown');});
+    if(managed){
+      const onEof=(kind)=>{if(!disposed)triggerShutdown(kind);};
+      input.on('close',()=>onEof('stdin:close'));
+      process.stdin.on('end',()=>onEof('stdin:end'));
+      process.stdin.on('error',()=>onEof('stdin:error'));
+      if(process.stdin.readableEnded||process.stdin.destroyed)onEof('stdin:already-ended');
+      if(Number.isInteger(parentPid)&&parentPid>0){
+        parentWatch=setInterval(()=>{
+          try{process.kill(parentPid,0);}
+          catch(err){if(err&&err.code==='ESRCH')triggerShutdown('parent:exited');}
+        },1000);
+        parentWatch.unref?.();
+      }
+    }
+    return () => {
+      disposed=true;
+      if(parentWatch)clearInterval(parentWatch);
+      input.close();
+    };
   });
   const identities=new Map();
   const delivery=createBatchDelivery(ctx,identities,createAssistantMessage);
@@ -136,7 +167,7 @@ export function apply(ctx) {
     return {...config,provider:'vertex-batch',model,maxTokens};
   });
   const finishTurn=async ({agent,turn}) => {
-    if (!offline) await broker(`/harness/runs/${hash(`${agent.id}:${turn}`)}/finish`,{}).catch(error => ctx.logger.warn(error.message));
+    if (!offline && !closing) await broker(`/harness/runs/${hash(`${agent.id}:${turn}`)}/finish`,{}).catch(error => ctx.logger.warn(error.message));
   };
   ctx.on('agent/turn-stopping',async payload=>{delivery.clear(payload.agent,payload.turn);await finishTurn(payload);});
   // DSH emits errors instead of the normal stopping boundary on failure.

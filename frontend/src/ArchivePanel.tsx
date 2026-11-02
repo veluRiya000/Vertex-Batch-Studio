@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Archive, Trash2 } from 'lucide-react'
+import { Archive, Trash2, FolderOpen } from 'lucide-react'
 import { useTranslation } from './i18n'
 import type { Workspace } from './types'
 
-export function ArchivePanel({ projects, remove }: { projects: Workspace[]; remove: (id: string) => Promise<void> }) {
+export function ArchivePanel({ projects, remove, openFolder }: { projects: Workspace[]; remove: (id: string) => Promise<void>; openFolder?: (id: string) => Promise<void> }) {
   const t = useTranslation()
   const [confirm, setConfirm] = useState<Workspace>(), [busy, setBusy] = useState(false), [error, setError] = useState('')
   async function destroy() {
@@ -25,7 +25,14 @@ export function ArchivePanel({ projects, remove }: { projects: Workspace[]; remo
     </div> : <div className="archived-projects">
       {projects.map(project => <div className="archived-project" key={project.id}>
         <Archive size={16} />
-        <div><strong>{project.name}</strong><small>{project.batches.at(-1)?.created_at.slice(0, 10)} · {project.batches.length} {t('个批次')}</small></div>
+        <div><strong>{project.name}</strong><small>{project.batches.at(-1)?.created_at.slice(0, 10)} · {project.batches.length} {t('个批次')}</small>
+          {openFolder && project.batches.length > 1 && <details className="archive-folders"><summary>{t('全部批次文件夹')}</summary>
+            {[...project.batches].reverse().map(batch => <button className="text-button" key={batch.id}
+              onClick={() => { setError(''); void openFolder(batch.id).catch(e => setError(String(e.message || e))) }}><FolderOpen size={13} />{batch.folder}</button>)}
+          </details>}
+        </div>
+        {openFolder && <button className="icon-button" title={t('打开项目文件夹')} aria-label={t('打开项目文件夹 ') + project.name}
+          onClick={() => { setError(''); void openFolder(project.batches.at(-1)!.id).catch(e => setError(String(e.message || e))) }}><FolderOpen size={16} /></button>}
         <button className="icon-button danger" aria-label={t('删除归档项目 ') + project.name} title={t('删除归档项目')}
           onClick={() => { setConfirm(project); setError('') }}><Trash2 size={16} /></button>
       </div>)}

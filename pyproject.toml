@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vertex-batch-studio"
-version = "0.3.0a1"
+version = "0.3.2"
 description = "Local Vertex AI image batch backend"
 requires-python = ">=3.12"
 dependencies = [
@@ -27,3 +27,6 @@ vertex-batch = "backend.cli:main"
 
 [tool.setuptools]
 packages = ["backend"]
+
+[tool.setuptools.package-data]
+backend = ["model-catalog.json"]

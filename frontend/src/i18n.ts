@@ -160,7 +160,7 @@ export const english: Record<string, string> = {
   竖屏: "Portrait",
   "1:1 · 方形": "1:1 · Square",
   匹配参考图: "Match reference",
-  导入公共参考图: "Import shared references",
+  导入参考图: "Import references",
   导入当前任务参考图: "Import task references",
   选择或新建项目: "Choose or create project",
   放开即可加入参考图: "Drop to add references",

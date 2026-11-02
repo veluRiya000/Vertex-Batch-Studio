@@ -20,7 +20,7 @@ def configure_cloud(studio, value: CloudConfiguration):
     # The enqueue lock closes the gap between an HTTP submission and its worker starting.
     with studio._inflight_lock, operation_lock(studio.settings.root / ".runtime/cloud-config.lock"):
         if studio._inflight or any(not b["archived"] and b["phase"] in {
-            "monitoring", "uploading", "downloading", "submitting", "submission_unknown", "paused"
+            "monitoring", "uploading", "downloading", "submitting", "submission_unknown", "submission_unconfirmed", "paused"
         } for b in studio.repo.list()):
             raise BusyError("当前还有运行中的批次，请完成或取消后再更换连接配置")
         key = None

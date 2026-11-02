@@ -318,7 +318,7 @@ class HarnessBatch:
 
     def advance(self, request_id):
         value = self.get(request_id)
-        if value["phase"] in FINAL:
+        if self._stop.is_set() or value["phase"] in FINAL:
             return self.public(value)
         try:
             self._context(value)
@@ -363,6 +363,8 @@ class HarnessBatch:
                 bucket = value["cloud_context"][2]
                 key = f"harness/requests/{request_id}{suffix}/input.jsonl"
                 cloud.upload(bucket, key, source, "application/jsonl")
+                if self._stop.is_set():
+                    return self.public(self.get(request_id))
                 with self.connection():
                     value = self.get(request_id)
                     if value["phase"] != "uploading":
@@ -535,6 +537,8 @@ class HarnessBatch:
             while not self._stop.is_set():
                 with self._lock:
                     for value in self.list():
+                        if self._stop.is_set():
+                            break
                         key = value["request_id"]
                         if value["phase"] not in FINAL and key not in self._inflight:
                             self._inflight.add(key)
@@ -547,11 +551,19 @@ class HarnessBatch:
         self._thread = threading.Thread(target=loop, daemon=True, name="harness-monitor")
         self._thread.start()
 
-    def close(self):
+    def request_stop(self):
         self._stop.set()
+
+    def close(self, *, wait=True):
+        self.request_stop()
         if self._thread:
-            self._thread.join(timeout=2)
-        self._pool.shutdown(wait=True, cancel_futures=True)
-        if self._agent_cloud is not None:
+            self._thread.join(timeout=2 if wait else .1)
+        # monitor submits under this RLock. Cancel callbacks acquire it too:
+        # serialize the non-waiting shutdown here to avoid a lock inversion.
+        with self._lock:
+            self._pool.shutdown(wait=False, cancel_futures=True)
+        if wait:
+            self._pool.shutdown(wait=True)
+        if (wait or not self._inflight) and self._agent_cloud is not None:
             self._agent_cloud.close()
             self._agent_cloud=None

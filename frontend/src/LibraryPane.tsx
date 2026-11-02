@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useTranslation } from './i18n'
 
-const minimum = 144, storageKey = 'vbs-library-height'
+const minimum = 190, storageKey = 'vbs-library-height'
 export function LibraryPane({ children }: { children: ReactNode }) {
   const t = useTranslation(), pane = useRef<HTMLDivElement>(null)
   const drag = useRef<{ id: number; y: number; height: number } | undefined>(undefined)

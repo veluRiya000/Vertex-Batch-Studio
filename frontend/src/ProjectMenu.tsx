@@ -27,7 +27,7 @@ export function ProjectMenu({ x, y, allowed, close, archive, rename }: {
   return createPortal(<div ref={menu} className="project-context-menu" role="menu" aria-label={t('项目操作')}
     style={{ left: Math.max(8, Math.min(x, window.innerWidth - 198)), top: Math.max(8, Math.min(y, window.innerHeight - 112)) }}>
     <button role="menuitem" onClick={() => { close(); rename() }}><Pencil size={15} />{t("重命名项目")}</button>
-    <button role="menuitem" disabled={!allowed} title={!allowed ? t('请完成或取消运行中的任务后再归档') : undefined}
+    <button role="menuitem" disabled={!allowed} title={!allowed ? t('请等待运行中的任务结束后再归档') : undefined}
       onClick={() => { close(); archive() }}><Archive size={15} />{t('归档项目')}</button>
   </div>, document.body)
 }

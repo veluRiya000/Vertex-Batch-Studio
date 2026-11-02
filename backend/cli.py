@@ -4,9 +4,11 @@ import argparse
 from dataclasses import replace
 import json
 from pathlib import Path
+import os
 import secrets
 import socket
 import sys
+import time
 import re
 from .config import Settings
 from .files import read_json, write_json, operation_lock
@@ -32,6 +34,8 @@ def parser():
     commands.add_parser("stop", help="正常停止已运行的本机后端")
     serve = commands.add_parser("serve", help="启动本地接口与后台监控")
     serve.add_argument("--port", type=int, default=0, help="0 表示自动选择空闲端口")
+    serve.add_argument("--mode", choices=["managed", "standalone"], default="standalone", help="运行模式：managed (受桌面生命周期纳管) 或 standalone (独立运行)")
+    serve.add_argument("--instance-id", dest="instance_id", default=None, help="受管启动实例 ID")
     ref = commands.add_parser("import-ref", help="导入参考图")
     ref.add_argument("source")
     selection = ref.add_mutually_exclusive_group(required=True)
@@ -56,11 +60,15 @@ def parser():
     return p
 
 
-def serve(settings: Settings, port: int):
+def serve(settings: Settings, port: int, mode: str = "standalone", instance_id: str | None = None):
     import uvicorn
     from .api import create_app
+    from .lifecycle import log_lifecycle_event, process_creation_filetime, process_executable_path
     runtime = settings.root / ".runtime"
     runtime.mkdir(parents=True, exist_ok=True)
+    resolved_instance = instance_id or secrets.token_hex(16)
+    created_filetime = process_creation_filetime()
+    executable = process_executable_path()
     with operation_lock(runtime / "server.lock"):
         studio = Studio(settings)
         token = secrets.token_urlsafe(32)
@@ -68,11 +76,30 @@ def serve(settings: Settings, port: int):
         sock.bind(("127.0.0.1", port))
         sock.listen(128)
         actual_port = sock.getsockname()[1]
-        app = create_app(studio, token, lambda: setattr(server, "should_exit", True))
+        app = create_app(studio, token, lambda: setattr(server, "should_exit", True), instance_id=resolved_instance, mode=mode)
         server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=actual_port,
-                                              log_level="info", access_log=False))
+                                              log_level="info", access_log=False,
+                                              timeout_graceful_shutdown=2))
         connection = runtime / "connection.json"
-        write_json(connection, {"url": f"http://127.0.0.1:{actual_port}", "token": token})
+        write_json(connection, {
+            "url": f"http://127.0.0.1:{actual_port}",
+            "token": token,
+            "pid": os.getpid(),
+            "ppid": os.getppid(),
+            "mode": mode,
+            "instance_id": resolved_instance,
+            "created_at": time.time(),
+            "process_created_filetime": created_filetime,
+            "executable": executable,
+        })
+        log_lifecycle_event(
+            settings.root,
+            "backend_start",
+            instance_id=resolved_instance,
+            mode=mode,
+            port=actual_port,
+            executable=executable,
+        )
         print(f"本地接口：http://127.0.0.1:{actual_port}", flush=True)
         print(f"连接信息：{connection}（包含本机访问令牌）", flush=True)
         try:
@@ -80,6 +107,13 @@ def serve(settings: Settings, port: int):
         finally:
             sock.close()
             connection.unlink(missing_ok=True)
+            log_lifecycle_event(
+                settings.root,
+                "backend_exit",
+                instance_id=resolved_instance,
+                mode=mode,
+                port=actual_port,
+            )
 
 
 def main(argv=None):
@@ -104,7 +138,7 @@ def main(argv=None):
                 show(response.json())
             return 0
         if args.command == "serve":
-            serve(settings, args.port)
+            serve(settings, args.port, getattr(args, "mode", "standalone"), getattr(args, "instance_id", None))
             return 0
         studio = Studio(settings)
         repo = studio.repo

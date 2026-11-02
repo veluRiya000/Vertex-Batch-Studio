@@ -195,18 +195,23 @@ it("右键归档隐藏项目，设置归档中确认后才删除", async () => {
   await screen.findByText("暂无归档项目");
   expect(deleted).toBe(true);
 });
-it("运行中的项目不能从右键菜单归档", async () => {
+it("运行中的项目不能从右键菜单归档，非生成中的未完成状态允许归档", async () => {
   batch.phase = "monitoring";
-  render(<App />);
+  const { unmount } = render(<App />);
   fireEvent.contextMenu(await screen.findByRole("button", { name: "测试项目" }));
   expect((screen.getByRole("menuitem", { name: "归档项目" }) as HTMLButtonElement).disabled).toBe(true);
+  unmount();
+  batch.phase = "submission_unconfirmed";
+  render(<App />);
+  fireEvent.contextMenu(await screen.findByRole("button", { name: "测试项目" }));
+  expect((screen.getByRole("menuitem", { name: "归档项目" }) as HTMLButtonElement).disabled).toBe(false);
 });
 it("没有云端凭证时不会显示已连接", async () => {
   render(<App />);
   expect(await screen.findByRole("button", { name: "Google Cloud：未配置" })).toBeTruthy();
   expect(screen.queryByText("已连接")).toBeNull();
 });
-it("后台凭证失败解除提交状态并允许取消本地批次", async () => {
+it("后台凭证失败解除提交状态并恢复提交入口，不再显示取消本轮", async () => {
   const user = userEvent.setup(), base = vi.mocked(api).getMockImplementation()!;
   tasks = [{ id: 'b'.repeat(32), name: '测试任务', prompt: 'draw', refs: [], temperature: null,
     aspect_ratio: '16:9', image_size: '1K', image_count: 1, generation_config: {} }];
@@ -226,9 +231,8 @@ it("后台凭证失败解除提交状态并允许取消本地批次", async () =
   await screen.findByText('未配置凭证');
   expect(screen.queryByText('提交中')).toBeNull();
   expect(screen.queryByRole('button', { name: '刷新结果' })).toBeNull();
-  await user.click(screen.getByRole('button', { name: '取消本轮' }));
-  await waitFor(() => expect(batch.phase).toBe('cancelled'));
-  expect(screen.getAllByText('已取消').length).toBeGreaterThan(0);
+  expect(screen.queryByRole('button', { name: '取消本轮' })).toBeNull();
+  expect((screen.getByRole('button', { name: '提交批次' }) as HTMLButtonElement).disabled).toBe(false);
 });
 it("图库图片点击只预览，加号添加，图库排序拖入输入框不会添加", async () => {
   const user = userEvent.setup(),
@@ -563,4 +567,109 @@ it("四次生图结果仍显示一条对话，支持切换第四张缩略图", a
   expect(screen.getByLabelText("生成请求进度").textContent).toBe("4/4");
   await user.click(screen.getByRole("button",{name:"查看第 4 张"}));
   await waitFor(()=>expect(screen.getByRole("img",{name:"四张图 第 4 张"}).getAttribute("src")).toContain(`/images/${tasks[0].id}/3`));
+});
+
+it("队列排序只改变位置和箭头高亮，编号保持创建顺序", async () => {
+  tasks = [1, 2, 3].map(i => ({ id:String(i).repeat(32), name:`任务${i}`, prompt:'draw', refs:[],
+    temperature:null, aspect_ratio:'16:9', image_size:'1K', image_count:1, generation_config:{},
+    created_at:`2026-10-03T12:0${i}:00+08:00` }));
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByRole('button', { name:'项目菜单 测试项目' });
+  await waitFor(() => expect(document.querySelectorAll('.queue-item')).toHaveLength(3));
+  const values = () => [...document.querySelectorAll('.queue-item')].map(row => [
+    row.querySelector('.queue-number')!.textContent!.trim(), row.querySelector('strong')!.textContent]);
+  expect(values()).toEqual([['03','任务3'],['02','任务2'],['01','任务1']]);
+  const sort = screen.getByRole('button', { name:'按时间排序' });
+  expect(sort.textContent).toBe('按时间排序');
+  expect(sort.hasAttribute('title')).toBe(false);
+  expect(sort.querySelector('.lucide-arrow-up.active')).toBeTruthy();
+  expect(sort.querySelector('.lucide-arrow-down.active')).toBeNull();
+  await user.click(sort);
+  expect(values()).toEqual([['01','任务1'],['02','任务2'],['03','任务3']]);
+  expect(sort.querySelector('.lucide-arrow-down.active')).toBeTruthy();
+  expect(sort.querySelector('.lucide-arrow-up.active')).toBeNull();
+  await user.click(sort);
+  expect(values()[2]).toEqual(['01','任务1']);
+});
+
+it("删除有图片的分类后自动打开未分类，参考图仍可见", async () => {
+  const base=vi.mocked(api).getMockImplementation()!;
+  let deleted=false;
+  const ref={path:'references/characters/preserved.png',category_id:'characters',mime_type:'image/png',dimensions:[100,100],size:100,sha256:'saved'};
+  vi.mocked(api).mockImplementation(async(path,method,body)=>{
+    if(path==='/references/categories/characters'&&method==='DELETE') deleted=true;
+    if(path==='/references/categories'||path==='/references/categories/characters') return (deleted
+      ? [{id:'styles',label:'风格'},{id:'scenes',label:'场景'},{id:'uncategorized',label:'未分类'}]
+      : [{id:'styles',label:'风格'},{id:'characters',label:'人设'},{id:'scenes',label:'场景'}]) as never;
+    if(path==='/references') return [{...ref,category_id:deleted?'uncategorized':'characters'}] as never;
+    return base(path,method,body);
+  });
+  const user=userEvent.setup();render(<App/>);
+  await screen.findByRole('button',{name:'项目菜单 测试项目'});
+  fireEvent.contextMenu(screen.getByRole('button',{name:'人设'}));
+  await user.click(screen.getByRole('menuitem',{name:'删除分类'}));
+  await screen.findByText(/1 张参考图会归入/);
+  await user.click(screen.getByRole('button',{name:'确认删除'}));
+  await screen.findByRole('button',{name:'预览参考图 preserved.png'});
+  expect(screen.getByRole('button',{name:'未分类'}).className).toBe('active');
+});
+
+it("项目用成对箭头按创建时间排序，无文字或悬浮提示，新轮次不改变项目年龄", async () => {
+  const base=vi.mocked(api).getMockImplementation()!;
+  const older={...batch,project_name:'较早项目',created_at:'2026-10-01T12:00:00+08:00'};
+  const newestRound={...older,id:'e'.repeat(32),created_at:'2026-10-05T12:00:00+08:00'};
+  const newer={...batch,id:'d'.repeat(32),workspace_id:'d'.repeat(32),project_name:'较新项目'};
+  vi.mocked(api).mockImplementation(async(path,method,body)=>{
+    if(path==='/batches')return [newestRound,newer,older] as never;
+    return base(path,method,body);
+  });
+  const user=userEvent.setup();render(<App/>);
+  await screen.findByRole('button',{name:'项目菜单 较新项目'});
+  const titles=()=>[...document.querySelectorAll('.project-title span')].map(node=>node.textContent);
+  expect(titles()).toEqual(['较新项目','较早项目']);
+  const sort=screen.getByRole('button',{name:'切换项目排序'});
+  expect(sort.textContent).toBe('');
+  expect(sort.hasAttribute('title')).toBe(false);
+  expect(sort.querySelector('.lucide-arrow-up.active')).toBeTruthy();
+  await user.click(sort);
+  expect(titles()).toEqual(['较早项目','较新项目']);
+  expect(sort.querySelector('.lucide-arrow-down.active')).toBeTruthy();
+  expect(localStorage.getItem('vbs-project-sort')).toBe('oldest');
+});
+
+it("最后一张未分类移至风格后自动删除未分类栏", async () => {
+  const base=vi.mocked(api).getMockImplementation()!;
+  let moved=false;
+  const ref={path:'references/characters/preserved.png',category_id:'uncategorized',mime_type:'image/png',dimensions:[100,100],size:100,sha256:'saved'};
+  const categories=[{id:'styles',label:'风格'},{id:'uncategorized',label:'未分类'}];
+  vi.mocked(api).mockImplementation(async(path,method,body)=>{
+    if(path==='/references/categories')return categories as never;
+    if(path==='/references')return [ref] as never;
+    if(path==='/references/move') {moved=true;return {categories:[categories[0]],references:[{...ref,category_id:'styles'}]} as never;}
+    if(path==='/references/categories/styles'&&method==='DELETE')return [] as never;
+    return base(path,method,body);
+  });
+  const user=userEvent.setup();render(<App/>);
+  await screen.findByRole('button',{name:'未分类'});
+  await user.click(screen.getByRole('button',{name:'未分类'}));
+  fireEvent.contextMenu(await screen.findByRole('button',{name:'预览参考图 preserved.png'}));
+  await user.click(screen.getByRole('menuitem',{name:'风格'}));
+  await waitFor(()=>expect(screen.queryByRole('button',{name:'未分类'})).toBeNull());
+  expect(moved).toBe(true);
+  expect(screen.getByRole('button',{name:'预览参考图 preserved.png'})).toBeTruthy();
+});
+
+it("所有分类删除后保持空列表，导入入口提示添加分类", async () => {
+  const base=vi.mocked(api).getMockImplementation()!;
+  vi.mocked(api).mockImplementation(async(path,method,body)=>{
+    if(path==='/references/categories')return [] as never;
+    return base(path,method,body);
+  });
+  const user=userEvent.setup();render(<App/>);
+  await screen.findByRole('button',{name:'项目菜单 测试项目'});
+  await waitFor(()=>expect(document.querySelectorAll('.category-tab')).toHaveLength(0));
+  await user.click(screen.getByRole('button',{name:'导入参考图'}));
+  expect(screen.getByRole('dialog',{name:'添加参考图分类'})).toBeTruthy();
+  expect(vi.mocked(api).mock.calls.some(([path,method])=>path.includes('/references/upload')&&method==='POST')).toBe(false);
 });

@@ -206,6 +206,7 @@ def completion_snapshot(studio, harness):
         status = ("success" if phase in {"completed", "completed_with_errors"} else
                   "failed" if phase in {"failed", "upload_failed", "submission_failed"} else
                   "cancelled" if phase == "cancelled" else
+                  "paused" if phase == "submission_unconfirmed" else
                   "idle" if phase in {"draft", "prepared"} else "active")
         items["image:" + batch["id"]] = dict(status=status, kind="image", name=batch["project_name"],
                                              warning=phase == "completed_with_errors")

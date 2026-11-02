@@ -33,3 +33,14 @@ it('换凭证后忽略旧检查的成功响应', async () => {
   await act(async () => resolve({ ok: true }))
   expect(result.current.state).toBe('unconfigured')
 })
+it('重复刷新配置对象不会重发连接检查，进行中的手动检查也去重', async () => {
+  let resolve!: (value: unknown) => void
+  vi.mocked(api).mockImplementation(() => new Promise(done => { resolve = done }))
+  const { result, rerender } = renderHook(({ value }) => useCloudConnection(value, true), { initialProps: { value: config } })
+  for (let i = 0; i < 15; i++) rerender({ value: { ...config } })
+  expect(api).toHaveBeenCalledTimes(1)
+  const pending = result.current.check()
+  await act(async () => { resolve({ ok: true }); await pending })
+  expect(result.current.state).toBe('online')
+  expect(api).toHaveBeenCalledTimes(1)
+})

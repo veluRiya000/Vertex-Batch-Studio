@@ -30,6 +30,7 @@ export function SettingsPanel({
   configured,
   archivedProjects = [],
   deleteArchived,
+  openArchived,
   checkConnection,
   stopHarness,
   initialTab = "general",
@@ -39,6 +40,7 @@ export function SettingsPanel({
   configured: (value: PublicConfig) => void;
   archivedProjects?: Workspace[];
   deleteArchived?: (id: string) => Promise<void>;
+  openArchived?: (batchId: string) => Promise<void>;
   checkConnection?: () => Promise<void>;
   stopHarness?: () => Promise<void>;
   initialTab?: "general" | "cloud" | "notifications";
@@ -206,7 +208,7 @@ export function SettingsPanel({
           ) : tab === "notifications" ? (
             <NotificationSettings />
           ) : tab === "archive" ? (
-            <ArchivePanel projects={archivedProjects} remove={deleteArchived || (async () => {})} />
+            <ArchivePanel projects={archivedProjects} remove={deleteArchived || (async () => {})} openFolder={openArchived} />
           ) : (
             <form
               className="cloud-form"

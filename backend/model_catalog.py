@@ -13,6 +13,7 @@ import re
 import queue
 import threading
 import time
+import json
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
 import requests
@@ -23,6 +24,39 @@ BATCH_URL = "https://docs.cloud.google.com/vertex-ai/generative-ai/docs/multimod
 MAX_AGE = timedelta(days=30)
 TOTAL_TIMEOUT = 45
 MODEL_ID = re.compile(r"gemini-[a-z0-9][a-z0-9.-]*\Z")
+MAINTAINED_URL = "https://raw.githubusercontent.com/veluRiya000/Vertex-Batch-Studio/master/backend/model-catalog.json"
+
+
+def maintained_models(value, location):
+    """A data-only catalogue; never import or execute downloaded Python/JS."""
+    if not isinstance(value, dict) or value.get("schema_version") != 1:
+        raise CatalogueError("模型目录格式无效")
+    date.fromisoformat(value["updated_at"])
+    if not isinstance(value.get("version"), str) or not isinstance(value.get("models"), list) or not 1 <= len(value["models"]) <= 100:
+        raise CatalogueError("模型目录内容无效")
+    result = []
+    seen = set()
+    for model in value["models"]:
+        if (not isinstance(model, dict) or not MODEL_ID.fullmatch(model.get("id", ""))
+            or model["id"] in seen or not isinstance(model.get("label"), str)
+            or not isinstance(model.get("regions"), list) or not model["regions"]
+            or not all(isinstance(r, str) and re.fullmatch(r"[a-z0-9-]+", r) for r in model["regions"])
+            or type(model.get("supports_image_size")) is not bool
+            or model.get("batch_image_sizes") != ["1K"]
+            or not isinstance(model.get("aspect_ratios"), list)
+            or any(not isinstance(r, str) or not re.fullmatch(r"\d+:\d+", r) for r in model["aspect_ratios"])
+            or model.get("max_references") is not None and (type(model["max_references"]) is not int or model["max_references"] < 1)
+            or not isinstance(model.get("unsupported_parameters", []), list)
+            or any(p not in PARAMETER_NAMES.values() for p in model.get("unsupported_parameters", []))):
+            raise CatalogueError("模型目录条目无效")
+        official_url(model["source_url"])
+        seen.add(model["id"])
+        retirement = model.get("retirement_date")
+        if retirement and date.fromisoformat(retirement) <= datetime.now(timezone.utc).date():
+            continue
+        if location in model["regions"] and model.get("enabled", True):
+            result.append({**model, "source_url": official_url(model["source_url"])})
+    return result
 
 
 class CatalogueError(ValueError):
@@ -106,6 +140,21 @@ def batch_links(html, base=BATCH_URL):
                 links.append(link)
     if not links or len(links) > 100:
         raise CatalogueError("官方批量模型列表为空或超出安全上限")
+    return links
+
+
+def navigation_candidates(html, base=BATCH_URL):
+    """Navigation is discovery only. parse_card still checks image/batch support."""
+    links = []
+    for navigation in Document(html).root.walk("devsite-book-nav"):
+        for node in navigation.walk("a"):
+            href = urljoin(base, node.attrs.get("href", ""))
+            if re.search(r"/models/gemini/[^/]+$", urlsplit(href).path):
+                link = official_url(href)
+                if link not in links:
+                    links.append(link)
+    if not links or len(links) > 100:
+        raise CatalogueError("官方模型导航暂不可用")
     return links
 
 
@@ -261,11 +310,34 @@ class OfficialCatalogue:
         raise CatalogueError("官方目录重定向次数过多")
 
     def discover(self, settings):
+        self.directory_source = "official"
+        try:
+            return self._discover_official(settings)
+        except Exception:
+            # Developer-maintained data is an independent fallback, not another
+            # HTML parser. A transport/parse failure must preserve existing cache.
+            if self.get != self._get:
+                raise
+            with requests.get(MAINTAINED_URL, timeout=(3, 6), stream=True, allow_redirects=False) as response:
+                response.raise_for_status()
+                data = bytearray()
+                for chunk in response.iter_content(65536):
+                    data.extend(chunk)
+                    if len(data) > 1024 * 1024:
+                        raise CatalogueError("模型目录过大")
+            models = maintained_models(json.loads(data), settings.location)
+            self.directory_source = "maintained"
+            return models
+
+    def _discover_official(self, settings):
         deadline = time.monotonic() + TOTAL_TIMEOUT
         html = self.get(BATCH_URL, TOTAL_TIMEOUT)
         if html is None:
             raise CatalogueError("官方批量支持目录不可用")
-        links = batch_links(html)
+        try:
+            links = batch_links(html)
+        except CatalogueError:
+            links = navigation_candidates(html)
         def read(url):
             remaining = deadline - time.monotonic()
             if remaining <= 0:
@@ -329,6 +401,14 @@ class ModelCatalogue:
     def _fallback(self):
         state = {"models": [], "source": "unavailable", "refreshing": False,
                  "fetched_at": None, "message": "尚未获取官方模型目录；当前配置模型未经验证"}
+        if isinstance(self.source, OfficialCatalogue):
+            try:
+                # Editable in source builds; PyInstaller includes the same file.
+                value = read_json(Path(__file__).with_name("model-catalog.json"))
+                state.update(models=maintained_models(value, self.settings.location),
+                             source="builtin", message=None, version=value["version"])
+            except (OSError, ValueError, KeyError, TypeError):
+                pass
         try:
             cached = read_json(self.path)
             timestamp = datetime.fromisoformat(cached["fetched_at"])
@@ -386,7 +466,7 @@ class ModelCatalogue:
                 except OSError:
                     message = "官方模型目录已更新，但缓存写入失败"
                 with self._lock:
-                    self._state.update(models=models, source="official", fetched_at=fetched, message=message)
+                    self._state.update(models=models, source=getattr(self.source, "directory_source", "official"), fetched_at=fetched, message=message)
             except Exception:
                 # Never expose request details, proxy credentials or authentication errors.
                 with self._lock:
@@ -396,8 +476,7 @@ class ModelCatalogue:
                         self._state["source"] = "cache"
                     else:
                         self._state = self._fallback()
-                    self._state["message"] = ("同步失败（网络、权限或官方目录变化）；" +
-                        ("使用上次成功缓存" if self._state["source"] == "cache" else "当前配置模型未经验证"))
+                    self._state["message"] = None if self._state["source"] != "unavailable" else "模型目录暂不可用"
             finally:
                 with self._lock:
                     self._state["refreshing"] = False

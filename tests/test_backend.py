@@ -260,10 +260,15 @@ class BackendTests(unittest.TestCase):
         blocked = self.root / "not-a-folder"
         blocked.write_text("file")
         self.repo.set_output(bid, str(blocked))
-        with self.assertRaises(OSError):
-            self.studio.poll(bid)
+        self.assertEqual(self.studio.poll(bid)["phase"], "completed")
+        result = self.studio.results(bid)["tasks"][0]
+        self.assertTrue(Path(result["images"][0]["path"]).is_file())
+        self.assertIn("复制到输出目录失败", result["export_warnings"][0])
         self.repo.set_output(bid, str(self.root / "export"))
         self.assertEqual(self.studio.poll(bid)["phase"], "completed")
+        image = Path(self.studio.results(bid)["tasks"][0]["images"][0]["path"])
+        self.assertTrue(image.is_relative_to(self.repo.directory(bid)))
+        self.assertEqual(image.read_bytes(), (self.root / "export" / image.name).read_bytes())
         self.assertEqual(self.cloud.creates, 1)
 
     def test_empty_output_settles_before_marking_missing(self):

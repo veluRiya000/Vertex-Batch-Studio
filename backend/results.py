@@ -34,7 +34,8 @@ def rows(directory: Path, objects: dict):
 
 def extract(repo: Repository, batch: dict, manifest: dict, final: bool = False) -> dict:
     directory = repo.directory(batch["id"])
-    output = Path(batch["image_output_dir"]) if batch["image_output_dir"] else directory / "outputs/images"
+    # The project is the canonical store; a custom directory is only an export.
+    output = directory / "outputs/images"
     output.mkdir(parents=True, exist_ok=True)
     objects = batch["downloaded_objects"]
     groups, by_contents = defaultdict(list), defaultdict(set)
@@ -146,6 +147,16 @@ def extract(repo: Repository, batch: dict, manifest: dict, final: bool = False) 
                         atomic_bytes(target, data)
                     result["images"].append({"path": str(target.resolve()), "mime_type": mime,
                                               "sha256": digest, "size": len(data)})
+                    if batch["image_output_dir"]:
+                        exported = Path(batch["image_output_dir"]) / image_name
+                        try:
+                            if exported.resolve() != target.resolve():
+                                exported.parent.mkdir(parents=True, exist_ok=True)
+                                if not exported.is_file() or sha256_file(exported) != digest:
+                                    atomic_bytes(exported, data)
+                        except OSError as exc:
+                            result.setdefault("export_warnings", []).append(
+                                "图片已保存在项目中，但复制到输出目录失败：" + str(exc))
                 except (ValueError, OSError, SyntaxError, TypeError) as exc:
                     errors.append(f"图片解码或保存失败：{exc}")
         if errors:
@@ -174,6 +185,7 @@ def extract(repo: Repository, batch: dict, manifest: dict, final: bool = False) 
             grouped = {"task_id": task_id, "name": generations[0]["name"], "state": state,
                        "images": [image for value in generations for image in value["images"]],
                        "error": "；".join(errors) or None}
+            grouped["export_warnings"] = [warning for value in generations for warning in value.get("export_warnings", [])]
         grouped.update(total_requests=len(generations),
                        completed_requests=sum(value["state"] != "pending" for value in generations),
                        succeeded_requests=sum(value["state"] == "succeeded" for value in generations),

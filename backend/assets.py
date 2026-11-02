@@ -4,6 +4,8 @@ from __future__ import annotations
 from pathlib import Path
 from contextlib import ExitStack
 import shutil
+import re
+import uuid
 from PIL import Image
 from .files import beneath, filename, sha256_file, operation_lock, read_json, write_json
 from .repository import Repository
@@ -35,21 +37,141 @@ class Assets:
     def __init__(self, repo: Repository):
         self.repo = repo
 
+    def _stored_categories(self) -> list[dict]:
+        path = self.repo.settings.data_dir / "references/.categories.json"
+        if path.exists():
+            values = read_json(path)
+            if not isinstance(values, list) or any(not isinstance(v, dict) or
+                    not re.fullmatch(r"[a-z0-9_-]{1,60}", v.get("id", "")) or
+                    not isinstance(v.get("label"), str) for v in values):
+                raise ValueError("参考图分类配置损坏")
+            return values
+        return [{"id": "styles", "label": "风格"}, {"id": "characters", "label": "人设"},
+                {"id": "scenes", "label": "场景"}]
+
+    def _assignments(self) -> dict:
+        path = self.repo.settings.data_dir / 'references/.categories-by-path.json'
+        if not path.exists():
+            return {}
+        values = read_json(path)
+        if not isinstance(values, dict) or any(not isinstance(key, str) or not key.startswith('references/')
+                or '\\' in key or '..' in key.split('/') or not isinstance(value, str)
+                or not re.fullmatch(r'[a-z0-9_-]{1,60}', value) for key, value in values.items()):
+            raise ValueError('参考图分类记录损坏')
+        return values
+
+    def _visible_categories(self, values):
+        # Derive the automatic tab from actual remaining files, including old
+        # category folders. Never recreate an empty 'uncategorized' on restart.
+        regular = [value for value in values if value['id'] != 'uncategorized']
+        ids = {value['id'] for value in regular}
+        assignments = self._assignments()
+        root = self.repo.settings.data_dir / 'references'
+        for path in root.rglob('*'):
+            if not path.is_file() or path.suffix.lower() not in {'.png', '.jpg', '.jpeg', '.webp'}:
+                continue
+            try:
+                safe = beneath(root, path.relative_to(root).as_posix())
+            except ValueError:
+                continue
+            ref = safe.relative_to(self.repo.settings.data_dir.resolve()).as_posix()
+            if assignments.get(ref, ref.split('/')[1]) not in ids:
+                try:
+                    inspect_image(safe)
+                except ValueError:
+                    continue
+                return regular + [{'id':'uncategorized', 'label':'未分类'}]
+        return regular
+
+    def categories(self) -> list[dict]:
+        return self._visible_categories(self._stored_categories())
+
+    def _save_categories(self, values):
+        visible = self._visible_categories(values)
+        write_json(self.repo.settings.data_dir / 'references/.categories.json', visible)
+        return visible
+
+    def move(self, ref: str, category: str) -> dict:
+        with self.repo.reference_lock():
+            categories = self.categories()
+            if category not in {value['id'] for value in categories}:
+                raise ValueError('目标分类不存在')
+            if not ref.startswith('references/'):
+                raise ValueError('只能移动公共参考图库中的图片')
+            target = beneath(self.repo.settings.data_dir / 'references', ref[11:])
+            if target.relative_to(self.repo.settings.data_dir.resolve()).as_posix() != ref:
+                raise ValueError('参考图路径不规范')
+            inspect_image(target)
+            current = self.list()
+            if ref not in {item['path'] for item in current}:
+                raise KeyError('找不到参考图')
+            order = self._order()
+            target_order = [item['path'] for item in current if item['category_id'] == category and item['path'] != ref]
+            for key in order:
+                order[key] = [path for path in order[key] if path != ref]
+            order[category] = target_order + [ref]
+            assignments = self._assignments()
+            assignments[ref] = category
+            # Keep filenames and frozen/live task references stable. Only the
+            # library classification changes, so no prompt or GCS URI is broken.
+            write_json(self.repo.settings.data_dir / 'references/.categories-by-path.json', assignments)
+            write_json(self.repo.settings.data_dir / 'references/.order.json', order)
+            categories = self._save_categories(categories)
+            return {'references': self.list(), 'categories': categories}
+
+    def add_category(self, label: str) -> list[dict]:
+        label = label.strip()
+        if not label or len(label) > 30:
+            raise ValueError("分类名称应为1至30个字符")
+        if label == '未分类':
+            raise ValueError('“未分类”为自动分类，请使用其他名称')
+        with self.repo.reference_lock():
+            values = self.categories()
+            if len(values) >= 40:
+                raise ValueError("最多添加40个参考图分类")
+            if any(v["label"] == label for v in values):
+                raise ValueError("分类名称已存在")
+            ident = "group_" + uuid.uuid4().hex[:16]
+            (self.repo.settings.data_dir / "references" / ident).mkdir(parents=True)
+            values.append({"id": ident, "label": label})
+            return self._save_categories(values)
+
+    def delete_category(self, ident: str, move_to: str | None = None) -> list[dict]:
+        with self.repo.reference_lock():
+            values = self.categories()
+            if ident not in {v["id"] for v in values}:
+                if ident == 'uncategorized':
+                    return self._save_categories(values)
+                raise KeyError("分类不存在")
+            remaining = [v for v in values if v["id"] != ident]
+            members = [item for item in self.list() if item['category_id'] == ident]
+            if move_to and move_to not in {value['id'] for value in remaining}:
+                raise ValueError('请选择其他有效分类接收图片')
+            if ident == 'uncategorized' and members and not move_to:
+                raise ValueError('请先选择接收分类，再删除未分类')
+            if members:
+                assignments = self._assignments()
+                for item in members:
+                    assignments[item['path']] = move_to or 'uncategorized'
+                write_json(self.repo.settings.data_dir / 'references/.categories-by-path.json', assignments)
+            return self._save_categories(remaining)
+
     def import_file(self, source: str, category: str | None = None,
                     batch_id: str | None = None) -> dict:
         path = Path(source).expanduser().resolve()
         if bool(category) == bool(batch_id):
             raise ValueError("请选择公共参考图分类，或临时参考图所属批次")
-        if category and category not in {"characters", "scenes", "styles"}:
-            raise ValueError("分类应为 characters、scenes 或 styles")
         lock = self.repo.lock(batch_id) if batch_id else operation_lock(
             self.repo.settings.data_dir / ".locks/assets.lock")
         with lock:
+            if category and category not in {v["id"] for v in self.categories()}:
+                raise ValueError("参考图分类不存在")
             if batch_id:
                 self.repo.editable(batch_id)
                 directory = self.repo.directory(batch_id) / "custom_refs"
             else:
                 directory = self.repo.settings.data_dir / "references" / category
+            directory.mkdir(parents=True, exist_ok=True)
             info = inspect_image(path)
             stem = filename(path.stem)
             index = 1
@@ -57,7 +179,9 @@ class Assets:
                 suffix = "" if index == 1 else f"_{index:02d}"
                 target = directory / (stem + suffix + EXT[info["mime_type"]])
                 if target.exists():
-                    if sha256_file(target) == info["sha256"]:
+                    relative = target.relative_to(self.repo.settings.data_dir).as_posix()
+                    same_category = not category or self._assignments().get(relative, category) == category
+                    if same_category and sha256_file(target) == info["sha256"]:
                         break
                     index += 1
                     continue
@@ -71,6 +195,8 @@ class Assets:
             return {"path": target.relative_to(self.repo.settings.data_dir).as_posix(), **info}
 
     def list(self, batch_id: str | None = None) -> list[dict]:
+        category_ids = {v["id"] for v in self.categories()}
+        assignments = self._assignments()
         roots = [self.repo.settings.data_dir / "references"]
         if batch_id:
             roots.append(self.repo.directory(batch_id) / "custom_refs")
@@ -80,7 +206,10 @@ class Assets:
                 if path.is_file() and path.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}:
                     try:
                         safe = beneath(root, path.relative_to(root).as_posix())
-                        result.append({"path": path.relative_to(self.repo.settings.data_dir).as_posix(),
+                        relative = path.relative_to(self.repo.settings.data_dir)
+                        assigned = assignments.get(relative.as_posix(), relative.parts[1])
+                        result.append({"path": relative.as_posix(),
+                                       "category_id": assigned if assigned in category_ids else "uncategorized",
                                        **inspect_image(safe)})
                     except ValueError:
                         continue
@@ -88,8 +217,8 @@ class Assets:
         def position(item):
             path = item['path']
             parent = path.rsplit('/', 1)[0]
-            saved = order.get(parent.removeprefix('references/'), [])
-            return (0 if path.startswith('references/') else 1, parent,
+            saved = order.get(item.get('category_id', parent.removeprefix('references/')), [])
+            return (0 if path.startswith('references/') else 1, item.get('category_id', parent),
                     saved.index(path) if path in saved else len(saved), path)
         return sorted(result, key=position)
 
@@ -100,17 +229,17 @@ class Assets:
         try:
             value = read_json(path)
             return {key: paths for key, paths in value.items()
-                    if key in {'characters', 'scenes', 'styles'} and isinstance(paths, list)
+                    if re.fullmatch(r'[a-z0-9_-]{1,60}', key) and isinstance(paths, list)
                     and all(isinstance(p, str) for p in paths)} if isinstance(value, dict) else {}
         except ValueError:
             return {}
 
     def reorder(self, category: str, paths: list[str]) -> list[dict]:
-        if category not in {'characters', 'scenes', 'styles'}:
+        if category not in {v['id'] for v in self.categories()}:
             raise ValueError('参考图分类无效')
         with operation_lock(self.repo.settings.data_dir / '.locks/assets.lock'):
             existing = {item['path'] for item in self.list()
-                        if item['path'].startswith('references/' + category + '/')}
+                        if item.get('category_id') == category}
             if len(paths) != len(set(paths)) or set(paths) != existing:
                 raise ValueError('参考图库已变化，请刷新后再排序')
             order = self._order()
@@ -128,7 +257,7 @@ class Assets:
 
     def delete(self, ref: str) -> list[dict]:
         parts = ref.split("/")
-        if len(parts) < 3 or parts[0] != "references" or parts[1] not in {"styles", "characters", "scenes"}:
+        if len(parts) != 3 or parts[0] != "references" or not re.fullmatch(r"[a-z0-9_-]{1,60}", parts[1]):
             raise ValueError("只能删除公共参考图库中的图片")
         root = self.repo.settings.data_dir / "references"
         target = beneath(root, "/".join(parts[1:]))
@@ -153,10 +282,14 @@ class Assets:
                 if sha256_file(beneath(directory, snapshot["local_path"])) != snapshot["sha256"]:
                     raise ValueError("任务中的参考图快照损坏，不能删除原图")
             target.unlink()
+            assignments = self._assignments()
+            assignments.pop(ref, None)
+            write_json(root / '.categories-by-path.json', assignments)
             order = self._order()
             for category in order:
                 order[category] = [path for path in order[category] if path != ref]
             write_json(root / ".order.json", order)
+            self._save_categories(self.categories())
             return self.list()
 
     def snapshot(self, ref: str, batch_id: str) -> dict:

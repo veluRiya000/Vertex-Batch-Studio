@@ -29,6 +29,9 @@ pub async fn harness_view(app:AppHandle, studio:State<'_,Arc<Studio>>, state:Sta
         if let Some(view)=app.get_webview("harness") {view.hide().map_err(|e|e.to_string())?;}
         return Ok(());
     }
+    if studio.quitting.load(Ordering::SeqCst) {
+        return Err("工作室正在退出".into());
+    }
     if restore_only.unwrap_or(false) {
         if let Some(view)=app.get_webview("harness") {
             // Window resize/scale events already size even hidden views. Do
@@ -40,6 +43,9 @@ pub async fn harness_view(app:AppHandle, studio:State<'_,Arc<Studio>>, state:Sta
     }
     // Only first creation or an explicit start verifies the backend and origin.
     let _gate=state.gate.lock().await;
+    if studio.quitting.load(Ordering::SeqCst) {
+        return Err("工作室正在退出".into());
+    }
     // Startup may finish while hidden; final visibility follows the latest
     // mode/modal request instead of aborting first startup when React hides it.
     let result=studio.json(reqwest::Method::POST,"/harness/start",Some(json!({"offline":offline}))).await?;
@@ -54,6 +60,7 @@ pub async fn harness_view(app:AppHandle, studio:State<'_,Arc<Studio>>, state:Sta
         let origin=url.origin();
         let main=app.get_window("main").ok_or("窗口不可用")?;
         let size:tauri::LogicalSize<f64>=main.inner_size().map_err(|e|e.to_string())?.to_logical(main.scale_factor().map_err(|e|e.to_string())?);
+        #[allow(unused_mut)]
         let mut view=WebviewBuilder::new("harness",WebviewUrl::External(url))
             // DSH owns HTML5 file drops and validates/uploads through its composer.
             // WebView2's native handler otherwise swallows these events on Windows.
