@@ -2,27 +2,53 @@
 
 [简体中文](README.md) | **English**
 
-A Windows desktop workspace for **Google Cloud Vertex AI Batch**, combining **batch image generation** and a **Harness local agent** in a single application.
+A Windows desktop workspace for **Google Cloud Vertex AI Batch**, combining **batch image generation** and a **Harness local agent** in a single native application. *Note: In real-world Batch inference, reasoning-heavy models such as Gemini 4 Argon have longer queue and turnaround times, making them best suited for large, single-pass code or document workloads (for example, optimizing this app's frontend with Gemini 4 Argon took ~1h 15m).*
 
-[Download Installer](https://github.com/veluRiya000/Vertex-Batch-Studio/releases/tag/v0.3.1) · [Feature Source](https://github.com/veluRiya000/Vertex-Batch-Studio/tree/feature/harness-batch) · [Report an Issue](https://github.com/veluRiya000/Vertex-Batch-Studio/issues)
+[Download Installer (v0.3.2)](https://github.com/veluRiya000/Vertex-Batch-Studio/releases/tag/v0.3.2) · [Feature Source](https://github.com/veluRiya000/Vertex-Batch-Studio/tree/feature/harness-batch) · [Report an Issue](https://github.com/veluRiya000/Vertex-Batch-Studio/issues)
 
 > **New here? [Open the illustrated Google Cloud setup guide: Project ID, storage bucket, and JSON key](#google-cloud-setup-guide)**
 
-> **Release Notes (`v0.3.1`)**
-> A single installer (~**69.5 MB**) bundles batch image generation, Harness, the Python backend, and the Node.js runtime out of the box—no separate runtime installation required. Source code for the current feature set is on the `feature/harness-batch` branch.
+> **Release Notes (`v0.3.2`)**
+> A single installer (~**71.5 MB**) bundles batch image generation, Harness, the Python backend, and the Node.js runtime out of the box—no separate runtime installation required. Supports clean in-place upgrades and automatic background process cleanup via Windows Job Objects. Source code for the current feature set is on the `feature/harness-batch` branch.
 
 ---
 
 ## Two Modes
 
-Switch modes anytime from the top-left corner (Image Generation uses a blue theme; Harness uses a warm theme). Switching views does not interrupt background jobs.
+Switch modes anytime from the top-left corner (**Image Generation** uses a clean blue theme; **Harness** uses a warm studio theme). Switching views never interrupts background jobs. *Harness can read images as multimodal inputs, but does not generate images or ingest video files.*
 
 | Mode | Best For | Execution Flow |
 | --- | --- | --- |
-| **Image Generation** | Generating image batches, reusing character/style references, and organizing outputs | Queue multiple tasks and submit the batch manually |
-| **Harness Agent** | Processing local files, writing docs, editing code, and running commands | Start a task to run an automated `Model → Tools → Model` loop |
+| **Image Generation** | Generating image batches, organizing character/style references, dual-directory saving, and archiving | Queue multiple tasks and submit batches manually (supports concurrent multi-round submissions in the same project) |
+| **Harness Agent** | Processing local files, writing docs, editing code, and running PowerShell commands | Start a task to run an automated `Model → Tools → Model` Batch loop |
 
 > **About Harness**: Built on the session, tool, and approval mechanisms of [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness), with all model inference routed through Google Cloud Batch. No DeepSeek API key is required.
+
+---
+
+## Interface Showcase
+
+### 1. Batch Image Generation Workspace
+
+![Batch Image Generation Workspace](docs/images/ui/image-workspace.png)
+
+- **Left Sidebar (Projects & Shared Reference Library)**: The project list displays 6 items by default (expandable to show all) with one-click ascending/descending creation-time sorting. Below it, the shared reference library supports **custom categories** (right-click to create/delete categories or move cards between categories), list/grid switching, and drag-and-drop import.
+- **Center Stage (Conversation Stream & Composer)**: Inspect multi-round generation history, 4-up image grids, job progress, and raw payload actions. The bottom composer lets you attach references, configure aspect ratio/resolution/image count, and submit additional batch rounds without waiting for earlier rounds to finish.
+- **Right Sidebar (Generation Queue)**: Tasks receive stable creation-order badges (`01`, `02`, ...) that remain fixed even when toggling ascending/descending creation-time sort.
+
+### 2. Harness Local Agent Workspace
+
+![Harness Local Agent Workspace](docs/images/ui/harness-workspace.png)
+
+- **Integrated Native Workspace**: Switch to `Harness` from the top bar to manage local workspace folders, multi-turn agent threads, model selection, and permission policies (Read-Only, Auto-Edit, Full Autonomous, etc.) inside the same desktop window.
+- **Transparent Batch Execution**: Track active Batch job states, tool execution logs, file diffs, and estimated costs in real time.
+
+### 3. Cloud Configuration & Project Archive Management
+
+| Google Cloud Credentials & Connection Check | Project Archive & Direct Folder Access |
+| --- | --- |
+| ![Google Cloud Configuration Modal](docs/images/ui/settings-cloud.png) | ![Project Archive Modal](docs/images/ui/settings-archive.png) |
+| Configure your Project ID, GCS Bucket, and Service Account JSON key once for both modes, with quick console links and connection verification. | Archive any project not actively generating/transferring, open archived project folders directly in Explorer, restore projects, or delete them permanently. |
 
 ---
 
@@ -30,11 +56,12 @@ Switch modes anytime from the top-left corner (Image Generation uses a blue them
 
 ### 1. Batch Image Generation
 
-- **Models & Generation Parameters**: Dedicated image model catalog with configurable aspect ratio, resolution, image count (1–4 per task), and model-specific parameters.
+- **Automatic Model Discovery & Hot Updates**: Dedicated image model catalog with configurable aspect ratio, resolution, image count (1–4 per task), and model-specific parameters. Automatically probes available image models with a multi-stage fallback chain (`Google official docs → maintainer online catalog → local cache → bundled snapshot`), enabling model list updates without reinstalling the app.
 - **Multi-Image Tasks & Asset Reuse**: Requesting multiple images in a single task submits independent generation requests within the same cloud Batch job and groups the results into one conversation entry. Prompts, parameters, and GCS reference URLs are automatically reused across the batch without redundant uploads.
-- **Shared Reference Library**: Organize references by style, character, or scene. Switch between list and grid views, drag to reorder, preview full-size images, and add assets directly to your active prompt.
-- **Project & Result Management**: Create, rename, duplicate, retry, archive, and delete projects (supports collapsible long prompts and automatic draft preservation). Track batch progress, preview returned images, customize output directories, and retain raw payloads for re-downloading or re-decoding.
-- **Flexible Layout**: Freely resize the sidebar and reference library, or collapse the project list and generation queue.
+- **Shared Reference Library with Custom Categories**: Create and delete custom reference categories via right-click, and move any reference card with the right-click **"Move to category"** menu (cards from deleted categories automatically fall back to **Uncategorized**, which hides itself when empty). Switch between list and grid views, drag to reorder, preview full-size images, and add assets directly to your active prompt.
+- **Time-Sorted Projects & Numbered Queue**: Both the project list (showing 6 items by default with an expand toggle) and the generation queue support ascending/descending creation-time sorting with a highlighted direction badge. Queue items are assigned stable creation-order numbers (`01`, `02`, ...) that stay intact when re-sorted.
+- **Multi-Round Concurrent Submission & Dual-Directory Saving**: Continue queueing and submitting new rounds in the same project while previous batches are still running. Decoded images are saved to the project's internal folder first and then copied to your custom external output directory, with instant preview refresh when re-decoding raw payloads.
+- **Flexible Layout & Broadened Archiving**: Freely resize the sidebar and reference library, or collapse the project list and generation queue. Any project without an actively generating or transferring batch (`uploading`, `submitting`, `submission_unknown`, `monitoring`, `downloading`) can be archived, and archived project folders can be opened directly from **Settings → Archive**.
 
 > **Note**: The selected image count controls the number of cloud requests submitted, not a guaranteed number of returned images. Content filtering or failed requests may result in fewer images (if a single request returns multiple images, all are saved). Failed requests are never automatically resubmitted at extra cost.
 
@@ -59,7 +86,7 @@ Switch modes anytime from the top-left corner (Image Generation uses a blue them
 
 ### 3. Desktop Experience & Notifications
 
-- **Desktop Integration**: Light/dark themes, English/Chinese UI, system tray support, launch at login, and start minimized.
+- **Desktop Integration & Clean Process Lifecycle**: Light/dark themes, English/Chinese UI, system tray support, launch at login, and start minimized. Backend and Harness child processes are bound to a Windows Job Object so closing the app or running an in-place installer upgrade cleanly terminates all spawned processes without leaving orphan `node.exe` or Python services behind.
 - **Native Windows Notifications (Enabled by Default)**: Image and Harness queues are tracked independently. Get notified after each batch or when all queued tasks of the same type finish, with optional failure alerts.
 - **Custom Notification Sounds**: Includes 3 built-in alert sounds (with preview) plus support for importing custom WAV or MP3 files.
 - **Shared Cloud Configuration**: Both modes share the same Google Cloud connection settings, complete with quick-launch console links next to the Project, Bucket, and Credential fields.
@@ -70,8 +97,8 @@ Switch modes anytime from the top-left corner (Image Generation uses a blue them
 
 ### 1. Download & Install
 
-1. Visit the [0.3.1 Release page](https://github.com/veluRiya000/Vertex-Batch-Studio/releases/tag/v0.3.1) and download `VertexBatchStudio-Setup-0.3.1-x64.exe`.
-2. Close any running older version of the app, then run the installer.
+1. Visit the [v0.3.2 Release page](https://github.com/veluRiya000/Vertex-Batch-Studio/releases/tag/v0.3.2) and download `VertexBatchStudio-Setup-0.3.2-x64.exe`.
+2. Run the installer to perform a fresh install or an in-place upgrade (the installer automatically closes any running instance of the app before upgrading).
 3. Launch the application, configure Google Cloud, and select a mode.
 
 *System Requirements: Windows x64. No separate Python, Node.js, or Rust installation is needed. Uses system WebView2 (downloaded automatically during setup if missing). The installer is currently unsigned; SHA-256 checksums are provided on the release page.*
@@ -137,13 +164,15 @@ Create or select a bucket under **Cloud Storage → Buckets**, then copy its nam
 ```text
 Create Project → Enter Prompt & References → Select Model & Settings → Add Task
                                                                           ↓
-                                                            Submit Batch Manually
+                                                            Submit Tasks Manually
                                                                           ↓
-                                                            Wait → Preview & Save
+                                         Cloud Queue (additional rounds can be submitted anytime)
+                                                                          ↓
+                                           Dual-Directory Save → Preview & Re-Decode
 ```
 
-- **Batching Tasks**: Clicking **Add task** adds an entry to the current batch. A batch can hold multiple tasks, each expanding into the selected number of cloud requests upon submission (e.g., 2 tasks requesting 4 images each appear as 2 conversation items and submit 8 JSONL requests).
-- **Frozen Inputs & Archiving**: Task inputs lock once upload begins; create a new batch to make edits or run another generation. Right-click a project to rename or archive it. Archived projects can be managed or deleted from **Settings → Archive**.
+- **Batching & Multi-Round Submissions**: Clicking **Add task** adds an entry to the current draft batch. A batch can hold multiple tasks, each expanding into the selected number of cloud requests upon submission (e.g., 2 tasks requesting 4 images each appear as 2 conversation items and submit 8 JSONL requests). Once submitted, you can immediately queue and submit new batch rounds in the same project while earlier rounds are still running.
+- **Archiving & Folder Access**: Any project without an actively generating/transferring batch can be archived via right-click (including completed, draft, failed, paused, or unconfirmed batches). Archived projects can be opened directly in File Explorer, restored, or deleted from **Settings → Archive**.
 
 ### Harness Agent
 
@@ -166,11 +195,11 @@ The installed Windows app stores user data in a dedicated directory (retained by
 
 ```text
 %APPDATA%/VertexBatchStudio/
-├── settings.json             # Appearance, desktop behavior, and notification settings
+├── settings.json             # Appearance, desktop behavior, model cache, and notification settings
 ├── secrets/                  # Imported service account credentials
 ├── data/
-│   ├── references/           # Shared reference image library
-│   ├── batches/              # Image inputs, raw payloads, decoded images, and logs
+│   ├── references/           # Shared reference image library and custom category metadata
+│   ├── batches/              # Image inputs, raw payloads, internal decoded images, and logs
 │   ├── archive/              # Archived image projects
 │   ├── harness/              # Sessions, attachments, ledger, and raw model responses
 │   └── notifications/        # Custom alert sounds and notification history
@@ -190,7 +219,6 @@ The installed Windows app stores user data in a dedicated directory (retained by
 - **Local Run Limits**: When enabled, local budgets and request caps only constrain subsequent submissions without altering jobs already in flight. Disabling local limits does not expand file/command permissions or bypass cloud quotas.
 - **Long-Output Continuation (Argon)**: Argon attempts long-output continuation only when the cloud returns a valid continuation token. Missing tokens, quota limits, or errors stop generation while preserving raw results; million-token output is not guaranteed.
 - **Safety & Sandbox Scope**: Truncated or malformed tool arguments are rejected before execution. The Windows sandbox primarily restricts file writes—it is not a full virtual machine and does not isolate file reads, networking, or processes (nor do external MCP servers inherit sandbox isolation).
-- **Validation Status**: Basic offline and packaged startup flows have been verified, while broader cloud edge cases, failure recovery, and in-place upgrade paths remain under active testing.
 
 ---
 
@@ -261,9 +289,9 @@ Installer artifacts are written to `release/`.
 
 | Directory | Contents |
 | --- | --- |
-| `backend/` | FastAPI server, image batching, Harness Batch scheduler, cost tracking, and notifications |
+| `backend/` | FastAPI server, image batching, model catalog discovery, Harness Batch scheduler, cost tracking, and notifications |
 | `frontend/src/` | Web UI, mode switching, and shared settings |
-| `frontend/src-tauri/` | Tauri desktop windowing, tray integration, and native bridges |
+| `frontend/src-tauri/` | Tauri desktop windowing, tray integration, Job Object process management, and native bridges |
 | `harness/plugins/` | Batch model adapter, prompt policies, and Harness theme plugins |
 | `harness/upstream/` | Pinned DSH upstream submodule |
 | `packaging/` | Backend freezing and combined Windows installer scripts |
