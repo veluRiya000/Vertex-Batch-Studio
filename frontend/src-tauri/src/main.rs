@@ -150,7 +150,7 @@ fn allowed(method: &str, path: &str) -> bool {
                 "^/references/(file|categories)$".into(),
                 format!("^/batches/{id}(/tasks|/results|/images/{id}/[0-9]+)?$")]),
             ("POST", vec!["^/(batches|references/import|references/move|references/categories|cloud/check|models/refresh|models/selection|notifications/sound|notifications/test)$".into(),
-                format!("^/batches/{id}/(tasks|prepare|submit|poll|extract|cancel|retry|clone|archive|attach|import-jsonl|open-folder)$"),
+                format!("^/batches/{id}/(tasks|prepare|submit|recover|poll|extract|cancel|retry|clone|archive|attach|import-jsonl|open-folder)$"),
                 format!("^/workspaces/{id}/archive$")]),
             ("PUT", vec!["^/(preferences|cloud/configuration|references/order)$".into(),
                 format!("^/workspaces/{id}$"),
@@ -983,7 +983,7 @@ async fn stream_events(
                             let terminal = matches!(
                                 snapshot["batch"]["phase"].as_str(),
                                 Some(
-                                    "completed" | "completed_with_errors" | "failed" | "cancelled" | "submission_unconfirmed"
+                                    "completed" | "completed_with_errors" | "failed" | "cancelled"
                                 )
                             );
                             if channel.send(snapshot).is_err() || terminal {
@@ -1231,6 +1231,8 @@ mod tests {
         let id = "a".repeat(32);
         assert!(allowed("GET", &format!("/batches/{id}/results")));
         assert!(allowed("POST", "/models/refresh"));
+        assert!(allowed("POST", &format!("/batches/{id}/recover")));
+        assert!(!allowed("GET", &format!("/batches/{id}/recover")));
         assert!(allowed("POST", "/models/selection"));
         assert!(!allowed("GET", "/models/selection"));
         assert!(!allowed("POST", "/models/unknown"));

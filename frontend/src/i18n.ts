@@ -2,6 +2,16 @@ import { usePreferences } from "./preferences";
 
 // User prompts and project names are never translated.
 export const english: Record<string, string> = {
+  '返回':'Back', '秒':'s',
+  '提交待核对':'Submission needs checking', '核对失败':'Submission check failed',
+  '核对并重试':'Check and retry', '仅核对':'Check only', '重试核对':'Retry check',
+  '仍要重新提交':'Resubmit anyway', '确认重新提交':'Confirm resubmission',
+  '尚未确认原作业是否存在，重新提交可能产生重复任务和费用。':'The original job could not be verified. Resubmitting may create duplicate jobs and charges.',
+  '正在核对云端任务':'Checking cloud jobs', '正在检查参考图':'Checking references',
+  '正在上传参考图':'Uploading references', '正在上传提示词':'Uploading prompts',
+  '正在检查连接':'Checking connection', '正在创建云端作业':'Creating cloud job',
+  '操作已排队':'Operation queued', '正在刷新结果':'Refreshing results', '正在处理':'Processing',
+  '该轮已有操作正在处理，请稍候':'An operation is already in progress for this round.',
   "生成请求进度": "Generation request progress",
   "打开 Google Cloud 项目页面": "Open Google Cloud project page",
   "打开 Google Cloud 存储桶页面": "Open Google Cloud buckets page",

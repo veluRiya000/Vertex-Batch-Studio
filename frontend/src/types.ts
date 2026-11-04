@@ -4,6 +4,11 @@ export interface Batch {
   archived: boolean; job_name: string | null; cloud_state: string | null;
   last_error: string | null; image_output_dir: string | null;
   counts?: Record<string, number>; actual_output_uri?: string | null;
+  reconciliation_status?: 'found' | 'not_found' | 'failed' | 'multiple' | null;
+  last_checked_at?: string;
+  active_action?: string | null;
+  action_started_at?: string | null;
+  operation?: { stage: string; started_at: string; completed?: number | null; total?: number | null } | null;
 }
 export interface TaskInput {
   name: string; prompt: string; refs: string[]; temperature: number | null;

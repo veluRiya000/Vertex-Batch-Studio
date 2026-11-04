@@ -38,13 +38,14 @@ export function matchRatio(reference?: Reference): string {
 }
 export function phaseLabel(batch: Batch): string {
   return ({draft:'待提交',prepared:'待提交',uploading:'上传中',upload_failed:'上传失败',submitting:'提交中',
-    submission_unknown:'核对提交中',submission_unconfirmed:'提交未确认',submission_failed:'提交失败',monitoring:'生成中',completed:'已完成',
+    submission_unknown:'提交待核对',submission_unconfirmed:batch.reconciliation_status === 'failed' ? '核对失败' : '提交待核对',submission_failed:'提交失败',monitoring:'生成中',completed:'已完成',
     completed_with_errors:'部分失败',failed:'失败',cancelled:'已取消',paused:'已暂停',downloading:'下载结果中'} as Record<string,string>)[batch.phase] || batch.phase
 }
 export function statusClass(batch: Batch, state?: string): string {
   if (state === 'succeeded') return 'completed'
+  if (['submission_unknown','submission_unconfirmed'].includes(batch.phase)) return batch.reconciliation_status === 'failed' ? 'failed' : 'submission-pending'
   if (state === 'error' || state === 'missing' || ['failed','completed_with_errors','upload_failed','submission_failed'].includes(batch.phase)) return 'failed'
-  if (['draft','prepared','paused','cancelled','submission_unconfirmed'].includes(batch.phase)) return 'pending'
+  if (['draft','prepared','paused','cancelled'].includes(batch.phase)) return 'pending'
   if (batch.phase === 'completed') return 'completed'
   if (batch.phase === 'uploading') return 'uploading'
   return 'generating'

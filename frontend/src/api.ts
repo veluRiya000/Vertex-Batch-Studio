@@ -57,7 +57,7 @@ export function watchBatch(id: string, callback: (snapshot: Snapshot) => void): 
             if (data) {
               const snapshot: Snapshot = JSON.parse(data)
               callback(snapshot)
-              if (['completed','completed_with_errors','failed','cancelled','submission_unconfirmed'].includes(snapshot.batch.phase)) { controller.abort(); return }
+              if (['completed','completed_with_errors','failed','cancelled'].includes(snapshot.batch.phase)) { controller.abort(); return }
             }
           }
         }

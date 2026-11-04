@@ -48,6 +48,10 @@ class ReferenceMove(InputModel):
     category: str
 
 
+class SubmissionRecovery(InputModel):
+    confirm_duplicate_risk: bool = False
+
+
 def create_app(studio: Studio, token: str, on_shutdown=None,
                background: bool = True, instance_id: str | None = None,
                mode: str = "standalone") -> FastAPI:
@@ -320,7 +324,7 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
 
     @app.get("/batches")
     def batches():
-        return studio.repo.list()
+        return [studio.batch_status(value) for value in studio.repo.list()]
 
     @app.post("/batches", status_code=201)
     def create_batch(value: BatchCreate):
@@ -328,7 +332,7 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
 
     @app.get("/batches/{batch_id}")
     def batch(batch_id: str):
-        return studio.repo.get(batch_id)
+        return studio.batch_status(studio.repo.get(batch_id))
 
     @app.get("/batches/{batch_id}/tasks")
     def tasks(batch_id: str):
@@ -372,6 +376,12 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
     def poll(batch_id: str):
         studio.repo.get(batch_id)
         return {"queued": studio.enqueue(batch_id, "poll"), "batch_id": batch_id}
+
+    @app.post('/batches/{batch_id}/recover', status_code=202)
+    def recover_submission(batch_id: str, value: SubmissionRecovery):
+        studio.repo.get(batch_id)
+        action = 'recover_force' if value.confirm_duplicate_risk else 'recover'
+        return {'queued':studio.enqueue(batch_id, action), 'batch_id':batch_id}
 
     @app.post("/batches/{batch_id}/extract", status_code=202)
     def extract(batch_id: str):
@@ -430,6 +440,7 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
             heartbeat = time.monotonic()
             while not app.state.shutting_down and not await request.is_disconnected():
                 value = await asyncio.to_thread(studio.repo.get, batch_id)
+                value = studio.batch_status(value)
                 report = await asyncio.to_thread(studio.results, batch_id)
                 snapshot = {"batch": value, "results": report}
                 encoded = json.dumps(snapshot, ensure_ascii=False, separators=(",", ":"))
@@ -437,7 +448,7 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
                     yield f"id: {value['updated_at']}\nevent: snapshot\ndata: {encoded}\n\n"
                     previous = encoded
                     heartbeat = time.monotonic()
-                    if value["phase"] in {"completed", "completed_with_errors", "failed", "cancelled", "submission_unconfirmed"}:
+                    if value["phase"] in {"completed", "completed_with_errors", "failed", "cancelled"}:
                         break
                 elif time.monotonic() - heartbeat >= 15:
                     yield ": keepalive\n\n"

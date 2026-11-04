@@ -177,6 +177,19 @@
 .queue-sort-arrows svg.active { color:var(--accent); opacity:1; stroke-width:2.7; }
 .reference-menu-label { display:block; padding:7px 12px; font-size:12px; color:var(--muted); }
 .project-sort { min-width:32px; }
+.submission-actions { display:flex; flex-direction:column; gap:6px; max-width:100%; }
+.submission-buttons { display:flex; flex-wrap:wrap; gap:12px; }
+.submission-progress { display:flex; align-items:center; gap:6px; color:var(--muted); font-size:12px; }
+.submission-progress .spinning { animation:spin 1s linear infinite; }
+.submission-confirm { padding:12px 14px; border:1px solid #f0ce94; border-radius:12px; background:#fff8e9; color:#956019; }
+.submission-confirm p { margin:0 0 8px; font-size:13px; line-height:1.6; }
+.submission-confirm button + button { margin-left:16px; }
+.status-tag.submission-pending { color:#a76a09; background:#fff2ce; }
+.status-tag.submission-pending i, .status-dot.submission-pending, .queue-state.submission-pending i { background:#d99016; }
+.queue-state.submission-pending { color:#a76a09; }
+[data-theme="dark"] .submission-confirm { background:#30271b; border-color:#69512b; color:#f1c57d; }
+[data-theme="dark"] .status-tag.submission-pending { background:#352b19; color:#edc16c; }
+@media (prefers-reduced-motion:reduce) { .submission-progress .spinning { animation:none; } }
 .archive-folders { margin-top:8px; font-size:12px; }
 .archive-folders summary { cursor:pointer; color:var(--accent); }
 .archive-folders button { display:flex; max-width:100%; text-align:left; overflow-wrap:anywhere; padding:5px 0; }

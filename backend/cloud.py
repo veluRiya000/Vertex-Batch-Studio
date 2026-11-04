@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 import time
+import threading
+from concurrent.futures import Future, TimeoutError as FutureTimeout
 from .config import Settings
 from .files import sha256_file
 from .jsonl import split_gcs
@@ -82,6 +84,8 @@ class GoogleCloud:
                                   http_options=types.HttpOptions(api_version=api_version, timeout=60000,
                                       retry_options=types.HttpRetryOptions(attempts=1)))
         self.storage = storage.Client(project=settings.project, credentials=credentials)
+        self._lookup_lock = threading.Lock()
+        self._lookups = {}
 
     @staticmethod
     def job(value) -> Job:
@@ -100,7 +104,7 @@ class GoogleCloud:
         checksum = sha256_file(local)
         blob = self.storage.bucket(bucket).blob(name)
         try:
-            blob.reload(timeout=30, retry=Retry(deadline=45))
+            blob.reload(timeout=10, retry=Retry(deadline=15))
             if blob.size == local.stat().st_size and (blob.metadata or {}).get("sha256") == checksum:
                 return False
             generation = blob.generation
@@ -108,13 +112,13 @@ class GoogleCloud:
             generation = 0
         blob.metadata = {"sha256": checksum}
         blob.upload_from_filename(str(local), content_type=mime, checksum="crc32c",
-                                  if_generation_match=generation, timeout=60, retry=Retry(deadline=120))
+                                  if_generation_match=generation, timeout=30, retry=Retry(deadline=40))
         return True
 
     def validate_reference(self, bucket: str, name: str, mime: str) -> None:
         blob = self.storage.bucket(bucket).blob(name)
         from google.api_core.retry import Retry
-        blob.reload(timeout=30, retry=Retry(deadline=45))
+        blob.reload(timeout=10, retry=Retry(deadline=15))
         if blob.size > 30 * 1024 * 1024:
             raise ValueError("远程参考图超过 30 MB")
         if blob.content_type not in {mime, "application/octet-stream", None}:
@@ -134,7 +138,7 @@ class GoogleCloud:
             # A lost response may already represent a paid job. Let the durable
             # ledger reconcile it instead of allowing SDK transport retries.
             config=CreateBatchJobConfig(dest=output_prefix, display_name=display_name,
-                http_options=HttpOptions(retry_options=HttpRetryOptions(attempts=1)))))
+                http_options=HttpOptions(timeout=20000, retry_options=HttpRetryOptions(attempts=1)))))
 
     def prepare_submission(self):
         # Refresh before persisting the create intent. A failed OAuth refresh
@@ -144,11 +148,40 @@ class GoogleCloud:
             self.credentials.refresh(Request())
 
     def find_jobs(self, display_name: str, input_uri: str) -> list[Job]:
+        # A daemon performs only a read-only lookup, never repository writes or
+        # job creation. Bound the caller even if OAuth/DNS/the SDK gets stuck.
+        key = (display_name, input_uri)
+        with self._lookup_lock:
+            for old in list(self._lookups):
+                if old != key and self._lookups[old].done():
+                    del self._lookups[old]
+            future = self._lookups.get(key)
+            if future is None:
+                if len(self._lookups) >= 4:
+                    raise TimeoutError('云端核对繁忙，请稍后重试')
+                future = Future()
+                self._lookups[key] = future
+                def query():
+                    try:
+                        future.set_result(self._find_jobs(display_name, input_uri))
+                    except Exception as exc:
+                        future.set_exception(exc)
+                threading.Thread(target=query, daemon=True, name='vbs-job-lookup').start()
+        try:
+            return future.result(timeout=getattr(self, 'lookup_timeout', 10))
+        except FutureTimeout as exc:
+            raise TimeoutError('云端核对超过10秒，请重试核对；尚未确认原作业是否存在') from exc
+        finally:
+            with self._lookup_lock:
+                if future.done() and self._lookups.get(key) is future:
+                    del self._lookups[key]
+
+    def _find_jobs(self, display_name: str, input_uri: str) -> list[Job]:
         found = []
-        deadline = time.monotonic() + 70
+        deadline = time.monotonic() + 10
         for job in self.genai.batches.list(config={"page_size": 100,
                 "filter": 'display_name="' + display_name + '"',
-                "http_options": {"timeout": 20000, "retry_options": {"attempts": 1}}}):
+                "http_options": {"timeout": 8000, "retry_options": {"attempts": 1}}}):
             if time.monotonic() > deadline:
                 raise TimeoutError("核对提交超时，请稍后刷新")
             sources = getattr(getattr(job, "src", None), "gcs_uri", None) or []

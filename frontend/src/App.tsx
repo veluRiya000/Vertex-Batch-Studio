@@ -46,6 +46,7 @@ import { api, upload, watchBatch } from "./api";
 import { Media, Modal, Picker } from "./components";
 import { SettingsPanel } from "./SettingsPanel";
 import { ReferenceLibrary } from "./ReferenceLibrary";
+import { SubmissionActions } from "./SubmissionActions";
 import { LibraryPane } from "./LibraryPane";
 import { HarnessPane } from "./HarnessPane";
 import { ProjectMenu } from "./ProjectMenu";
@@ -345,11 +346,7 @@ function TaskCard({
         {result?.export_warnings?.map((warning, i) => <p className="task-error" key={i}>{warning}</p>)}
         {!editable(batch) && (
           <div className="result-actions">
-            {(batch.job_name || ["submitting", "submission_unknown", "submission_unconfirmed"].includes(batch.phase)) && (
-              <button className="text-button" onClick={() => action(batch, "poll")}>
-                <RefreshCw size={13} />{t("刷新结果")}
-              </button>
-            )}
+            <SubmissionActions batch={batch} action={action}/>
             {terminal(batch) && (
               <button
                 className="text-button"
@@ -364,14 +361,6 @@ function TaskCard({
                 onClick={() => action(batch, "retry")}
               >
                 {t("重试失败任务")}
-              </button>
-            )}
-            {["upload_failed", "submission_failed"].includes(batch.phase) && (
-              <button
-                className="text-button"
-                onClick={() => action(batch, "submit")}
-              >
-                {t("重新提交本轮")}
               </button>
             )}
           </div>
@@ -837,7 +826,18 @@ export default function App() {
   }
   async function batchAction(batch: Batch, action: string) {
     await run(async () => {
-      const result = await api<Batch>(`/batches/${batch.id}/${action}`, "POST");
+      const recovering=action === 'recover' || action === 'recover_force';
+      if (['poll','submit','recover','recover_force','extract'].includes(action)) {
+        setBatches(old=>old.map(item=>item.id === batch.id ? {...item,active_action:action,action_started_at:null} : item));
+      }
+      let result: Batch & {queued?:boolean};
+      try {
+        result = await api<Batch & {queued?:boolean}>(`/batches/${batch.id}/${recovering ? 'recover' : action}`, "POST",
+          recovering ? {confirm_duplicate_risk: action === 'recover_force'} : undefined);
+      } catch(e) {
+        setBatches(old=>old.map(item=>item.id === batch.id ? {...item,active_action:null} : item));
+        throw e;
+      }
       if (action === "clone" || action === "retry") {
         setBatches((old) => [...old, result]);
         setActiveId(result.workspace_id || activeId);
@@ -845,7 +845,7 @@ export default function App() {
       delete stamps.current[batch.id];
       await refresh();
       notify(
-        action === "retry"
+        result.queued === false ? t('该轮已有操作正在处理，请稍候') : action === "retry"
           ? t("失败任务已复制到新一轮，等待提交")
           : t("操作已安排"),
       );

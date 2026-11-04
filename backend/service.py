@@ -30,6 +30,7 @@ class Studio:
         self._worker = None
         self._executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="vbs")
         self._inflight = set()
+        self._actions = {}
         self._inflight_lock = threading.Lock()
         self.model_catalog = ModelCatalogue(settings, catalog_source)
 
@@ -139,7 +140,8 @@ class Studio:
             raise ValueError("当前项目、区域或桶名与批次快照不同；请恢复该批次的配置")
 
     def _attach(self, batch: dict, job) -> None:
-        batch.update(job_name=job.name, cloud_state=job.state, phase="monitoring", last_error=None)
+        batch.update(job_name=job.name, cloud_state=job.state, phase="monitoring", last_error=None,
+                     reconciliation_status='found', operation=None)
         if job.output_uri:
             batch["actual_output_uri"] = job.output_uri
         self.repo.save(batch)
@@ -147,20 +149,63 @@ class Studio:
 
     def _reconcile(self, batch: dict, manifest: dict) -> dict:
         batch.setdefault("submission_started_at", batch["updated_at"])
-        jobs = self.cloud.find_jobs("vbs-" + batch["id"], manifest["input_uri"])
+        self._progress(batch, 'checking')
+        try:
+            jobs = self.cloud.find_jobs("vbs-" + batch["id"], manifest["input_uri"])
+        except Exception as exc:
+            batch.update(phase='submission_unconfirmed', reconciliation_status='failed',
+                         last_checked_at=now(), operation=None,
+                         last_error='核对失败：' + (str(exc) or type(exc).__name__))
+            self.repo.save(batch)
+            self.log(batch['id'], 'reconciliation_failed', error=str(exc), error_type=type(exc).__name__)
+            return batch
         if len(jobs) == 1:
             self._attach(batch, jobs[0])
         else:
-            age = (datetime.fromisoformat(now()) - datetime.fromisoformat(
-                batch.get("submission_started_at") or batch["updated_at"])).total_seconds()
-            # Unknown is not proof of failure. Stop the endless activity indicator,
-            # but never issue another paid create without resolving the old intent.
-            batch.update(phase="submission_unconfirmed" if age >= 600 else "submission_unknown", last_error=(
-                ("未查到对应云端任务；已暂停自动核对，可刷新结果再次核对，不会重复提交" if age >= 600 else
-                 "尚未找到已提交任务；将继续核对，不会自动重复提交") if not jobs else
-                "找到多个对应的云端任务，请通过 attach 指定正确的任务编号"))
+            batch.update(phase='submission_unconfirmed', reconciliation_status='not_found' if not jobs else 'multiple',
+                         last_checked_at=now(), operation=None, last_error=(
+                '未找到云端任务，可重新提交本轮' if not jobs else
+                '找到多个对应的云端任务，请通过 attach 指定正确的任务编号'))
             self.repo.save(batch)
         return batch
+
+    def _progress(self, batch, stage, completed=None, total=None):
+        batch['operation'] = {'stage': stage, 'started_at': now(), 'completed': completed, 'total': total}
+        self.repo.save(batch)
+
+    def batch_status(self, batch):
+        with self._inflight_lock:
+            action = self._actions.get(batch['id'])
+            return {**batch, 'active_action': action['action'] if action else None,
+                    'action_started_at': action['started_at'] if action else None}
+
+    def recover(self, batch_id: str, *, force=False) -> dict:
+        with self.repo.lock(batch_id):
+            batch = self.repo.get(batch_id)
+            if batch['archived']:
+                raise ValueError('归档批次不能提交')
+            if batch['job_name']:
+                return batch
+            if batch['phase'] not in {'submitting', 'submission_unknown', 'submission_unconfirmed', 'upload_failed', 'submission_failed'}:
+                raise ValueError('当前状态不需要恢复提交')
+            manifest = self.manifest(batch_id)
+            self._check_context(manifest)
+            if batch['phase'] in {'submitting', 'submission_unknown', 'submission_unconfirmed'}:
+                if not (force and batch.get('reconciliation_status') == 'failed'):
+                    self._reconcile(batch, manifest)
+                if batch['job_name'] or batch.get('reconciliation_status') == 'multiple':
+                    return batch
+                if batch.get('reconciliation_status') != 'not_found' and not force:
+                    return batch
+                self.log(batch_id, 'resubmission_authorized', forced=force,
+                         previous_outcome=batch.get('reconciliation_status'))
+            batch.update(phase='submission_failed', last_error=None, operation=None)
+            self.repo.save(batch)
+        # The queue owns this batch until the entire recovery+submit completes.
+        return self.submit(batch_id)
+
+    def recover_force(self, batch_id):
+        return self.recover(batch_id, force=True)
 
     def submit(self, batch_id: str) -> dict:
         if self._stop.is_set():
@@ -203,49 +248,55 @@ class Studio:
             batch.update(phase="uploading", last_error=None)
             self.repo.save(batch)
             try:
+                self._progress(batch, 'validating')
                 for remote in manifest["remote_refs"]:
                     cloud.validate_reference(manifest["bucket"], remote["object_name"], remote["mime_type"])
-                for asset in manifest["assets"]:
+                for index, asset in enumerate(manifest["assets"]):
+                    self._progress(batch, 'uploading_refs', index, len(manifest['assets']))
                     local = beneath(directory, asset["local_path"])
                     if sha256_file(local) != asset["sha256"]:
                         raise ValueError("准备的参考图快照被修改，禁止上传")
                     changed = cloud.upload(manifest["bucket"], asset["object_name"], local, asset["mime_type"])
                     self.log(batch_id, "asset_uploaded" if changed else "asset_skipped", object=asset["object_name"])
                 bucket, object_name = split_gcs(manifest["input_uri"])
+                self._progress(batch, 'uploading_prompt')
                 cloud.upload(bucket, object_name, directory / "inputs/prompts.jsonl", "application/jsonl")
             except Exception as exc:
-                batch.update(phase="upload_failed", last_error=str(exc))
+                batch.update(phase="upload_failed", last_error=str(exc) or type(exc).__name__, operation=None)
                 self.repo.save(batch)
-                self.log(batch_id, "upload_failed", error=str(exc))
+                self.log(batch_id, "upload_failed", error=str(exc), error_type=type(exc).__name__)
                 raise
             if self._stop.is_set():
                 return batch
             try:
+                self._progress(batch, 'credentials')
                 if hasattr(cloud, "prepare_submission"):
                     cloud.prepare_submission()
             except Exception as exc:
-                batch.update(phase="submission_failed", last_error="提交前凭证检查失败：" + str(exc))
+                batch.update(phase="submission_failed", operation=None, last_error="提交前凭证检查失败：" + (str(exc) or type(exc).__name__))
                 self.repo.save(batch)
                 raise
             if self._stop.is_set():
                 return batch
             batch.update(phase="submitting", submission_started_at=now())
-            self.repo.save(batch)
+            self._progress(batch, 'creating')
             try:
                 job = cloud.create_job(manifest["model"], manifest["input_uri"],
                                        manifest["output_prefix"], "vbs-" + batch["id"])
-                self._attach(batch, job)
             except Exception as exc:
-                # Also covers a successful API call followed by a failed local save.
+                import httpx
                 code = getattr(exc, "code", None)
                 if callable(code):
                     code = code()
-                rejected = code in {400, 401, 403, 404, 422}
+                rejected = code in {400, 401, 403, 404, 422} or isinstance(exc, (httpx.ConnectError, httpx.ConnectTimeout))
                 batch.update(phase="submission_failed" if rejected else "submission_unknown",
-                             last_error=str(exc))
+                             last_error=str(exc) or type(exc).__name__, operation=None,
+                             reconciliation_status=None)
                 self.repo.save(batch)
-                self.log(batch_id, "submission_unknown", error=str(exc))
+                self.log(batch_id, batch['phase'], error=str(exc), error_type=type(exc).__name__,
+                         cause=repr(exc.__cause__) if exc.__cause__ else None)
                 raise
+            self._attach(batch, job)
             return batch
 
     def attach(self, batch_id: str, job_name: str) -> dict:
@@ -431,15 +482,18 @@ class Studio:
     def enqueue(self, batch_id: str, action: str = "poll") -> bool:
         if self._stop.is_set():
             return False
-        if action not in {"submit", "poll", "cancel", "extract_local"}:
+        if action not in {"submit", "poll", "cancel", "extract_local", "recover", "recover_force"}:
             raise ValueError("不支持的后台动作")
-        if action == "submit":
+        if action in {'submit', 'recover', 'recover_force'}:
             self.validate_submission(batch_id)
         with self._inflight_lock:
             if batch_id in self._inflight:
                 return False
             self._inflight.add(batch_id)
+            self._actions[batch_id] = {'action':action, 'started_at':None}
         def run():
+            with self._inflight_lock:
+                self._actions[batch_id]['started_at'] = now()
             try:
                 getattr(self, action)(batch_id)
             except BusyError:
@@ -450,14 +504,23 @@ class Studio:
                     with self.repo.lock(batch_id):
                         batch = self.repo.get(batch_id)
                         if batch["phase"] != "cancelled":
-                            batch["last_error"] = str(exc)
+                            batch["last_error"] = str(exc) or type(exc).__name__
                             self.repo.save(batch)
                 except (BusyError, KeyError):
                     pass
             finally:
                 with self._inflight_lock:
                     self._inflight.discard(batch_id)
-        self._executor.submit(run)
+                    self._actions.pop(batch_id, None)
+        try:
+            self._executor.submit(run)
+        except RuntimeError:
+            with self._inflight_lock:
+                self._inflight.discard(batch_id)
+                self._actions.pop(batch_id, None)
+            if not self._stop.is_set():
+                raise
+            return False
         return True
 
     def start(self) -> None:

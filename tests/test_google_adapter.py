@@ -1,6 +1,7 @@
 """Exercise the installed Google SDK's actual wire conversion, without network."""
 
 import json
+import threading
 import unittest
 import httpx
 from google import genai
@@ -26,6 +27,8 @@ class GoogleAdapterTests(unittest.TestCase):
             return httpx.Response(200, json=job)
 
         adapter = GoogleCloud.__new__(GoogleCloud)
+        adapter._lookup_lock=threading.Lock()
+        adapter._lookups={}
         adapter.genai = genai.Client(vertexai=True, project="demo", location="global",
                                      credentials=Credentials(token="offline-test-token"), http_options={
                                          "api_version": "v1", "client_args": {
