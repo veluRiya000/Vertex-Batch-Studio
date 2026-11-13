@@ -4,11 +4,11 @@
 
 A Windows desktop workspace for **Google Cloud Vertex AI Batch**, combining **batch image generation** and a **Harness local agent** in a single native application. *Note: In real-world Batch inference, reasoning-heavy models such as Gemini 4 Argon have longer queue and turnaround times, making them best suited for large, single-pass code or document workloads (for example, optimizing this app's frontend with Gemini 4 Argon took ~1h 15m).*
 
-[Download Installer (v0.3.3)](https://github.com/veluRiya000/Vertex-Batch-Studio/releases/tag/v0.3.3) · [Feature Source](https://github.com/veluRiya000/Vertex-Batch-Studio/tree/feature/harness-batch) · [Report an Issue](https://github.com/veluRiya000/Vertex-Batch-Studio/issues)
+[Download Installer (v0.3.4)](https://github.com/veluRiya000/Vertex-Batch-Studio/releases/tag/v0.3.4) · [Feature Source](https://github.com/veluRiya000/Vertex-Batch-Studio/tree/feature/harness-batch) · [Changelog](docs/changelog-v0.3.4.md#english) · [Report an Issue](https://github.com/veluRiya000/Vertex-Batch-Studio/issues)
 
 > **New here? [Open the illustrated Google Cloud setup guide: Project ID, storage bucket, and JSON key](#google-cloud-setup-guide)**
 
-> **Release Notes (`v0.3.3`)**
+> **Release Notes (`v0.3.4`)**
 > A single installer (~**69.5 MB**) bundles batch image generation, Harness, the Python backend, and the Node.js runtime out of the box—no separate runtime installation required. Supports clean in-place upgrades and automatic background process cleanup via Windows Job Objects. Source code for the current feature set is on the `feature/harness-batch` branch.
 
 ---
@@ -97,7 +97,7 @@ Switch modes anytime from the top-left corner (**Image Generation** uses a clean
 
 ### 1. Download & Install
 
-1. Visit the [v0.3.3 Release page](https://github.com/veluRiya000/Vertex-Batch-Studio/releases/tag/v0.3.3) and download `VertexBatchStudio-Setup-0.3.3-x64.exe`.
+1. Visit the [v0.3.4 Release page](https://github.com/veluRiya000/Vertex-Batch-Studio/releases/tag/v0.3.4) and download `VertexBatchStudio-Setup-0.3.4-x64.exe`.
 2. Run the installer to perform a fresh install or an in-place upgrade (the installer automatically closes any running instance of the app before upgrading).
 3. Launch the application, configure Google Cloud, and select a mode.
 

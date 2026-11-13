@@ -16,6 +16,7 @@ export interface TaskInput {
 }
 export interface Task extends TaskInput { id: string; created_at?: string | null }
 export interface Reference { path: string; category_id?: string; mime_type: string; dimensions: [number, number]; size: number; sha256: string }
+export interface ReferenceFolder { source: string; label: string; files: string[]; skipped: number }
 export interface ImageResult { path: string; mime_type: string; sha256: string; size: number }
 export interface TaskResult { export_warnings?: string[]; total_requests?: number; completed_requests?: number; succeeded_requests?: number; task_id: string; state: string; name: string; images: ImageResult[]; error: string | null }
 export interface Results { updated_at?: string; tasks: TaskResult[]; counts: Record<string, number>; final: boolean; row_errors: unknown[] }
@@ -47,7 +48,7 @@ declare global {
       image(path: string): Promise<string>;
       upload(name: string, bytes: ArrayBuffer, options: ImportOptions): Promise<Reference>;
       watch(batchId: string, callback: (snapshot: Snapshot) => void): () => void;
-      chooseDirectory(): Promise<string | null>;
+      chooseDirectory(title?: string): Promise<string | null>;
       openOutput(batchId: string): Promise<void>;
       window(action: 'minimize' | 'maximize' | 'hide' | 'quit'): void;
       setPreferences(value: Preferences): Promise<Preferences>;

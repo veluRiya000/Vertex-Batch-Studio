@@ -6,12 +6,14 @@ from contextlib import ExitStack
 import shutil
 import re
 import uuid
+from functools import lru_cache
 from PIL import Image
 from .files import beneath, filename, sha256_file, operation_lock, read_json, write_json
 from .repository import Repository
 
 MIME = {"PNG": "image/png", "JPEG": "image/jpeg", "WEBP": "image/webp"}
 EXT = {"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp"}
+IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp"}
 
 
 def inspect_image(path: Path) -> dict:
@@ -31,6 +33,18 @@ def inspect_image(path: Path) -> dict:
         raise ValueError("第一版支持 PNG、JPEG、WebP")
     return {"mime_type": mime, "size": size, "sha256": sha256_file(path),
             "dimensions": dimensions}
+
+
+@lru_cache(maxsize=4096)
+def _listing_image_info(path: Path, size: int, modified_ns: int, changed_ns: int) -> dict:
+    # Cache only library display metadata. Submission and deletion safety checks
+    # continue to inspect and hash their files independently.
+    return inspect_image(path)
+
+
+def _inspect_for_listing(path: Path) -> dict:
+    stat = path.stat()
+    return _listing_image_info(path, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)
 
 
 class Assets:
@@ -77,7 +91,7 @@ class Assets:
             ref = safe.relative_to(self.repo.settings.data_dir.resolve()).as_posix()
             if assignments.get(ref, ref.split('/')[1]) not in ids:
                 try:
-                    inspect_image(safe)
+                    _inspect_for_listing(safe)
                 except ValueError:
                     continue
                 return regular + [{'id':'uncategorized', 'label':'未分类'}]
@@ -172,27 +186,78 @@ class Assets:
             else:
                 directory = self.repo.settings.data_dir / "references" / category
             directory.mkdir(parents=True, exist_ok=True)
-            info = inspect_image(path)
-            stem = filename(path.stem)
-            index = 1
-            while True:
-                suffix = "" if index == 1 else f"_{index:02d}"
-                target = directory / (stem + suffix + EXT[info["mime_type"]])
-                if target.exists():
-                    relative = target.relative_to(self.repo.settings.data_dir).as_posix()
-                    same_category = not category or self._assignments().get(relative, category) == category
-                    if same_category and sha256_file(target) == info["sha256"]:
-                        break
-                    index += 1
-                    continue
-                # Reserve the name atomically rather than overwriting an existing import.
-                with path.open("rb") as src, target.open("xb") as dst:
-                    shutil.copyfileobj(src, dst)
-                if sha256_file(target) != info["sha256"]:
-                    target.unlink()
-                    raise ValueError("导入过程中原图发生变化，请重试")
-                break
-            return {"path": target.relative_to(self.repo.settings.data_dir).as_posix(), **info}
+            return self._copy_image(path, directory, category)
+
+    def scan_folder(self, source: str) -> dict:
+        """Read names only; choosing or cancelling a folder never writes data."""
+        directory = Path(source).expanduser().resolve()
+        if not directory.is_dir():
+            raise ValueError("参考图文件夹不存在")
+        files, skipped = [], 0
+        for path in directory.iterdir():
+            if path.is_file() and not path.is_symlink():
+                if path.suffix.lower() in IMAGE_SUFFIXES:
+                    files.append(path.name)
+                else:
+                    skipped += 1
+        return {"source": str(directory), "label": directory.name,
+                "files": sorted(files, key=str.casefold), "skipped": skipped}
+
+    def import_folder_files(self, source: str, category: str, files: list[str]) -> dict:
+        # Small chunks let the interface show progress without serializing image
+        # bytes through the WebView, or reloading/hash-checking the entire library.
+        if not 1 <= len(files) <= 8 or len(files) != len(set(files)):
+            raise ValueError("每次应导入 1 至 8 张不同图片")
+        directory = Path(source).expanduser().resolve()
+        if not directory.is_dir():
+            raise ValueError("参考图文件夹不存在")
+        for name in files:
+            if not name or "/" in name or "\\" in name or ":" in name or Path(name).suffix.lower() not in IMAGE_SUFFIXES:
+                raise ValueError("参考图文件名无效")
+        with self.repo.reference_lock():
+            if category == "uncategorized" or category not in {v["id"] for v in self._stored_categories()}:
+                raise ValueError("参考图分类不存在")
+            destination = self.repo.settings.data_dir / "references" / category
+            destination.mkdir(parents=True, exist_ok=True)
+            imported, failed = [], []
+            for name in files:
+                try:
+                    path = beneath(directory, name)
+                    if path.parent != directory or (directory / name).is_symlink():
+                        raise ValueError("只能导入所选文件夹内的图片")
+                    imported.append({**self._copy_image(path, destination, category), "category_id": category})
+                except (ValueError, OSError) as exc:
+                    failed.append({"name": name, "error": str(exc)})
+            return {"references": imported, "failed": failed}
+
+    def _copy_image(self, path: Path, directory: Path, category: str | None) -> dict:
+        info = inspect_image(path)
+        stem = filename(path.stem)
+        index = 1
+        while True:
+            suffix = "" if index == 1 else f"_{index:02d}"
+            target = directory / (stem + suffix + EXT[info["mime_type"]])
+            if target.exists():
+                relative = target.relative_to(self.repo.settings.data_dir).as_posix()
+                same_category = not category or self._assignments().get(relative, category) == category
+                if same_category and sha256_file(target) == info["sha256"]:
+                    break
+                index += 1
+                continue
+            # Reserve the name atomically rather than overwriting an existing import.
+            with target.open("xb") as dst:
+                try:
+                    with path.open("rb") as src:
+                        shutil.copyfileobj(src, dst)
+                except BaseException:
+                    dst.close()
+                    target.unlink(missing_ok=True)
+                    raise
+            if sha256_file(target) != info["sha256"]:
+                target.unlink()
+                raise ValueError("导入过程中原图发生变化，请重试")
+            break
+        return {"path": target.relative_to(self.repo.settings.data_dir).as_posix(), **info}
 
     def list(self, batch_id: str | None = None) -> list[dict]:
         category_ids = {v["id"] for v in self.categories()}
@@ -210,8 +275,8 @@ class Assets:
                         assigned = assignments.get(relative.as_posix(), relative.parts[1])
                         result.append({"path": relative.as_posix(),
                                        "category_id": assigned if assigned in category_ids else "uncategorized",
-                                       **inspect_image(safe)})
-                    except ValueError:
+                                       **_inspect_for_listing(safe)})
+                    except (ValueError, OSError):
                         continue
         order = self._order()
         def position(item):

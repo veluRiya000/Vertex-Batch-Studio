@@ -4,16 +4,18 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   GripVertical,
+  FolderOpen,
   ImagePlus,
   Images,
   LayoutGrid,
   List,
   Plus,
   Trash2,
+  X,
 } from "lucide-react";
 import { Media, Modal } from "./components";
 import { useTranslation } from "./i18n";
-import type { Reference } from "./types";
+import type { Reference, ReferenceFolder } from "./types";
 
 // 界面组件 ReferenceLibrary：参考图库的窗格/列表、点击预览、加号添加、拖动排序和删除。
 export function ReferenceLibrary({
@@ -30,6 +32,7 @@ export function ReferenceLibrary({
   busy,
   categories = [{ id: "styles", label: "风格" }, { id: "characters", label: "人设" }, { id: "scenes", label: "场景" }],
   addCategory,
+  chooseFolder,
   deleteCategory,
   moveCategory,
   categoryCounts,
@@ -46,7 +49,8 @@ export function ReferenceLibrary({
   error: (message: string) => void;
   busy: boolean;
   categories?: { id: string; label: string }[];
-  addCategory?: (label: string) => Promise<void>;
+  addCategory?: (label: string, folder?: ReferenceFolder, progress?: (completed: number) => void) => Promise<void>;
+  chooseFolder?: () => Promise<ReferenceFolder | null>;
   deleteCategory?: (id: string) => Promise<void>;
   moveCategory?: (ref: Reference, destination: string) => Promise<void>;
   categoryCounts?: Record<string, number>;
@@ -58,6 +62,36 @@ export function ReferenceLibrary({
   const [categoryName, setCategoryName] = useState("");
   const [categoryBusy, setCategoryBusy] = useState(false);
   const [categoryError, setCategoryError] = useState("");
+  const [folder, setFolder] = useState<ReferenceFolder>();
+  const [folderPicking, setFolderPicking] = useState(false);
+  const [importedCount, setImportedCount] = useState(0);
+  const folderSelection = useRef(0);
+  function openAddCategory() {
+    folderSelection.current++;
+    setFolder(undefined); setFolderPicking(false); setImportedCount(0);
+    setCategoryName(""); setCategoryError(""); setCategoryDialog("add");
+  }
+  function closeCategoryDialog() {
+    if (categoryBusy) return;
+    folderSelection.current++;
+    setFolder(undefined); setFolderPicking(false); setCategoryDialog(undefined);
+  }
+  async function selectFolder() {
+    if (!chooseFolder || folderPicking || categoryBusy) return;
+    const selection = ++folderSelection.current;
+    setFolderPicking(true); setCategoryError("");
+    try {
+      const value = await chooseFolder();
+      if (selection === folderSelection.current && value) {
+        setFolder(value); setCategoryName(value.label);
+      }
+    } catch (e) {
+      if (selection === folderSelection.current)
+        setCategoryError(e instanceof Error ? e.message : t("无法读取文件夹"));
+    } finally {
+      if (selection === folderSelection.current) setFolderPicking(false);
+    }
+  }
   const [referenceMenu, setReferenceMenu] = useState<{ ref: Reference; x: number; y: number }>();
   const [movingCategory, setMovingCategory] = useState(false);
   const [categoryMenu, setCategoryMenu] = useState<{ id: string; x: number; y: number }>();
@@ -155,7 +189,7 @@ export function ReferenceLibrary({
   function chooseImport() {
     if (category === "uncategorized") return;
     if (!categories.length && addCategory) {
-      setCategoryName(""); setCategoryError(""); setCategoryDialog("add");
+      openAddCategory();
     } else chooseFiles();
   }
   return (
@@ -227,7 +261,7 @@ export function ReferenceLibrary({
           </span>
         ))}
         {addCategory && <button className="category-create" aria-label={t("添加参考图分类")} title={t("添加参考图分类")}
-          disabled={saving || busy} onClick={() => { setCategoryDialog("add"); setCategoryName(""); setCategoryError(""); }}><Plus size={15} /></button>}
+          disabled={saving || busy} onClick={openAddCategory}><Plus size={15} /></button>}
       </div>
       <div
         ref={browser}
@@ -267,7 +301,8 @@ export function ReferenceLibrary({
               source.current = ref.path;
               suppressClick.current = true;
               setDragging(ref.path);
-              event.dataTransfer.effectAllowed = "move";
+              event.dataTransfer.effectAllowed = "copyMove";
+              event.dataTransfer.setData("application/x-vbs-reference", JSON.stringify(ref));
               event.dataTransfer.setData(
                 "application/x-vbs-library-sort",
                 ref.path,
@@ -395,19 +430,34 @@ export function ReferenceLibrary({
         {categories.length < 2 && <span className="reference-menu-label">{t("请先添加其他分类")}</span>}
       </div>, document.body)}
       {categoryDialog && <Modal title={t(categoryDialog === "add" ? "添加参考图分类" : "删除分类")}
-        close={() => { if (!categoryBusy) setCategoryDialog(undefined); }}>
+        close={closeCategoryDialog}>
         <form onSubmit={async event => {
-          event.preventDefault(); if (categoryBusy) return;
+          event.preventDefault(); if (categoryBusy || folderPicking) return;
           setCategoryBusy(true); setCategoryError("");
           try {
-            if (categoryDialog === "add") await addCategory?.(categoryName);
+            if (categoryDialog === "add") await addCategory?.(categoryName, folder, setImportedCount);
             else await deleteCategory?.(categoryDialog);
             setCategoryDialog(undefined);
           } catch (e) { setCategoryError(e instanceof Error ? e.message : t("操作未完成")); }
           finally { setCategoryBusy(false); }
         }}>
-          {categoryDialog === "add" ? <label className="form-label">{t("分类名称")}<input autoFocus maxLength={30} value={categoryName}
-            onChange={event => setCategoryName(event.target.value)} /></label>
+          {categoryDialog === "add" ? <>
+            <label className="form-label">{t("分类名称")}<input autoFocus maxLength={30} value={categoryName}
+              disabled={categoryBusy} onChange={event => setCategoryName(event.target.value)} /></label>
+            {chooseFolder && <div className="reference-folder-import">
+              <button type="button" className="secondary-button" disabled={categoryBusy || folderPicking}
+                onClick={() => void selectFolder()}><FolderOpen size={15} />{t(folderPicking ? "正在读取文件夹" : "导入文件夹")}</button>
+              {folder && <div className="reference-folder-selection">
+                <span title={folder.source}>{folder.source}</span>
+                <button type="button" className="icon-button" aria-label={t("移除所选文件夹")} disabled={categoryBusy}
+                  onClick={() => { folderSelection.current++; setFolder(undefined); }}><X size={14} /></button>
+                <small>{folder.files.length} {t("张图片")} · {t("仅当前文件夹")}</small>
+              </div>}
+              {categoryBusy && folder && <p className="reference-import-progress" role="status">
+                {t("正在导入")} {importedCount} / {folder.files.length}
+              </p>}
+            </div>}
+          </>
             : <p>{closingCount === 0
               ? t("删除空分类") + `「${closingLabel}」？`
               : closingCount !== undefined
@@ -415,8 +465,8 @@ export function ReferenceLibrary({
                 : t("删除此分类？图片文件和任务引用会保留。")}</p>}
           {categoryError && <p className="settings-error" role="alert">{categoryError}</p>}
           <div className="archive-confirm-actions"><button className="secondary-button" type="button" disabled={categoryBusy}
-            onClick={() => setCategoryDialog(undefined)}>{t("取消")}</button>
-            <button className="primary-button" disabled={categoryBusy || categoryDialog === "add" && !categoryName.trim()}>{t(categoryDialog === "add" ? "添加" : "确认删除")}</button></div>
+            onClick={closeCategoryDialog}>{t("取消")}</button>
+            <button className="primary-button" disabled={categoryBusy || folderPicking || categoryDialog === "add" && (!categoryName.trim() || !!folder && !folder.files.length)}>{t(categoryDialog === "add" ? "添加" : "确认删除")}</button></div>
         </form>
       </Modal>}
       {deleting && <Modal title={t("删除参考图")} close={() => { if (!deleteBusy) setDeleting(undefined) }}>

@@ -43,6 +43,8 @@ import {
   X,
 } from "lucide-react";
 import { api, upload, watchBatch } from "./api";
+import { version as appVersion } from "../package.json";
+import { displayError } from "./error-display";
 import { Media, Modal, Picker } from "./components";
 import { SettingsPanel } from "./SettingsPanel";
 import { ReferenceLibrary } from "./ReferenceLibrary";
@@ -168,10 +170,19 @@ export function ModelMark() {
   );
 }
 
+// Return a previous prompt to the composer: a downward-open bracket and arrow.
+function ReuseIcon({ size = 13 }: { size?: number }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M4 9V4h16v5M12 8v12M8 16l4 4 4-4" />
+  </svg>;
+}
+
 // 界面组件 TaskCard：生图主界面、顶栏、项目侧栏、对话消息、参数栏、结果预览与生成队列。
 function TaskCard({
   entry,
   edit,
+  copy,
   remove,
   preview,
   action,
@@ -180,6 +191,7 @@ function TaskCard({
 }: {
   entry: Entry;
   edit: (entry: Entry) => void;
+  copy: (entry: Entry) => void;
   remove: (entry: Entry) => void;
   preview: (value: Preview) => void;
   action: (batch: Batch, action: string) => void;
@@ -234,8 +246,12 @@ function TaskCard({
             {t("· 期望")} {task.image_count || 1}
             {t("张")}
           </span>
-          <button className="text-button" onClick={() => edit(entry)}>
+          <button className="text-button" onClick={() => copy(entry)}>
             <Copy size={13} />
+            {t("复制")}
+          </button>
+          <button className="text-button" onClick={() => edit(entry)}>
+            <ReuseIcon />
             {editable(batch) ? t("编辑") : t("再次使用")}
           </button>
           {editable(batch) && (
@@ -320,7 +336,7 @@ function TaskCard({
                 {window.studio ? t("打开输出文件夹") : t("复制输出路径")}
               </button>
               <button className="text-button" onClick={() => edit(entry)}>
-                <RefreshCw size={13} />
+                <ReuseIcon />
                 {t("再次使用")}
               </button>
             </div>
@@ -335,14 +351,14 @@ function TaskCard({
               <Images size={18} />
             )}
             <span>
-              {result?.error ||
+              {result?.error ? t(displayError(result.error)) :
                 (editable(batch)
                   ? t("任务已保存，提交批次后开始生成")
                   : taskLabel(entry))}
             </span>
           </div>
         )}
-        {batch.last_error && <p className="task-error">{batch.last_error}</p>}
+        {batch.last_error && <p className="task-error">{t(displayError(batch.last_error))}</p>}
         {result?.export_warnings?.map((warning, i) => <p className="task-error" key={i}>{warning}</p>)}
         {!editable(batch) && (
           <div className="result-actions">
@@ -713,12 +729,13 @@ export default function App() {
         throw new Error(t("一个任务最多使用 14 张参考图"));
       const batch = global ? undefined : await ensureDraft();
       const added: Reference[] = [];
-      for (const file of files)
-        added.push(
-          await upload(file, global ? { category } : { batch_id: batch!.id }),
-        );
-      if (global) setReferences(await api<Reference[]>("/references"));
-      else
+      for (const file of files) {
+        const ref = await upload(file, global ? { category } : { batch_id: batch!.id });
+        added.push(ref);
+        if (global) setReferences(old => old.some(item => item.path === ref.path)
+          ? old : [...old, { ...ref, category_id: category }]);
+      }
+      if (!global)
         setSelected((old) =>
           [...old, ...added].filter(
             (ref, i, all) =>
@@ -1023,9 +1040,35 @@ export default function App() {
               categories={categories}
               categoryCounts={Object.fromEntries(categories.map(item => [item.id,
                 references.filter(ref => (ref.category_id || ref.path.split("/")[1]) === item.id).length]))}
-              addCategory={async label => {
+              chooseFolder={async () => {
+                if (!window.studio) throw new Error(t("请在桌面程序中选择文件夹"));
+                const source = await window.studio.chooseDirectory(t("选择参考图文件夹"));
+                if (!source) return null;
+                return api<import("./types").ReferenceFolder>("/references/folder/scan", "POST", { source });
+              }}
+              addCategory={async (label, folder, progress) => {
                 const value = await api<{ id: string; label: string }[]>("/references/categories", "POST", { label });
-                setCategories(value); setCategory(value.find(item => item.label === label.trim())?.id || value[0]?.id || "");
+                const id = value.find(item => item.label === label.trim())?.id;
+                setCategories(value); setCategory(id || value[0]?.id || "");
+                if (!folder || !id) return;
+                let imported = 0;
+                const failed: { name: string; error: string }[] = [];
+                for (let offset = 0; offset < folder.files.length; offset += 8) {
+                  const result = await api<{ references: Reference[]; failed: { name: string; error: string }[] }>(
+                    "/references/folder/import", "POST", {
+                      source: folder.source, category: id, files: folder.files.slice(offset, offset + 8),
+                    }, 120000);
+                  imported += result.references.length;
+                  failed.push(...result.failed);
+                  setReferences(old => {
+                    const paths = new Set(old.map(item => item.path));
+                    return [...old, ...result.references.filter(item => !paths.has(item.path))];
+                  });
+                  progress?.(Math.min(offset + 8, folder.files.length));
+                }
+                notify(t("已导入") + " " + imported + " " + t("张图片") +
+                  (failed.length ? " · " + t("未导入") + " " + failed.length + ": " +
+                    failed.slice(0, 3).map(item => item.name).join("、") : ""), failed.length > 0);
               }}
               deleteCategory={async id => {
                 const hasImages = references.some(ref => (ref.category_id || ref.path.split("/")[1]) === id);
@@ -1048,9 +1091,10 @@ export default function App() {
               remove={async (ref) => {
                 const value = await api<Reference[]>("/references?" + new URLSearchParams({ path: ref.path }), "DELETE");
                 setReferences(value);
-                const remaining = await api<{ id: string; label: string }[]>("/references/categories");
-                setCategories(remaining);
-                setCategory(old => remaining.some(item => item.id === old) ? old : remaining[0]?.id || "");
+                if (category === "uncategorized" && !value.some(item => item.category_id === "uncategorized")) {
+                  setCategories(old => old.filter(item => item.id !== "uncategorized"));
+                  setCategory(categories.find(item => item.id !== "uncategorized")?.id || "");
+                }
                 setSelected((old) => old.filter((item) => item.path !== ref.path));
               }}
               preview={(items, index) =>
@@ -1306,6 +1350,10 @@ export default function App() {
               entry={entry}
               revision={results[entry.batch.id]?.updated_at}
               edit={(entry) => void reuse(entry)}
+              copy={(entry) => void run(async () => {
+                await navigator.clipboard.writeText(entry.task.prompt);
+                notify(t("提示词已复制"));
+              })}
               remove={(entry) =>
                 void run(async () => {
                   await api(
@@ -1393,9 +1441,11 @@ export default function App() {
                 Array.from(event.dataTransfer.types).includes(
                   "application/x-vbs-library-sort",
                 )
-              )
+                && !Array.from(event.dataTransfer.types).includes("application/x-vbs-reference"))
                 return;
               event.preventDefault();
+              if (Array.from(event.dataTransfer.types).includes("application/x-vbs-reference"))
+                event.dataTransfer.dropEffect = "copy";
               setDragging(true);
             }}
             onDragLeave={(event) => {
@@ -1405,7 +1455,8 @@ export default function App() {
             onDrop={(event) => {
               event.preventDefault();
               setDragging(false);
-              if (event.dataTransfer.getData("application/x-vbs-library-sort"))
+              if (event.dataTransfer.getData("application/x-vbs-library-sort") &&
+                  !event.dataTransfer.getData("application/x-vbs-reference"))
                 return;
               const raw = event.dataTransfer.getData(
                   "application/x-vbs-reference",
@@ -1813,8 +1864,9 @@ export default function App() {
         <Modal title={t("关于")} close={() => setModal(null)}>
           <div className="settings-summary">
             <Logo large />
-            <div>
+            <div className="about-brand">
               <strong>Vertex Batch Studio</strong>
+              <small className="about-version">v{appVersion}</small>
             </div>
           </div>
           <dl className="settings-list">
@@ -1981,7 +2033,7 @@ export default function App() {
           role={notice.error ? "alert" : "status"}
         >
           {notice.error ? <X size={16} /> : <Check size={16} />}
-          <span>{notice.message}</span>
+          <span>{notice.error ? t(displayError(notice.message)) : notice.message}</span>
           <button
             aria-label={t("关闭提示")}
             onClick={() => setNotice(undefined)}

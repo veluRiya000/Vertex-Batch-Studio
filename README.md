@@ -4,11 +4,11 @@
 
 面向 **Google Cloud Vertex AI Batch** 的 Windows 桌面工作台，将**批量生图**与 **Harness 本地 Agent** 集成在同一个原生桌面应用中，该 Harness 经过 Batch API 调用深度适配。*注意：经过实测，批量推理下，Gemini 4 Argon 等推理模型速度较慢、等待时间较长，仅适合一次性大批量处理代码或长文档任务（例如本应用前端页面由 Gemini 4 Argon 优化，耗时 1h15min）。*
 
-[下载安装包 (v0.3.3)](https://github.com/veluRiya000/Vertex-Batch-Studio/releases/tag/v0.3.3) · [功能源码](https://github.com/veluRiya000/Vertex-Batch-Studio/tree/feature/harness-batch) · [问题反馈](https://github.com/veluRiya000/Vertex-Batch-Studio/issues)
+[下载安装包 (v0.3.4)](https://github.com/veluRiya000/Vertex-Batch-Studio/releases/tag/v0.3.4) · [功能源码](https://github.com/veluRiya000/Vertex-Batch-Studio/tree/feature/harness-batch) · [更新日志](docs/changelog-v0.3.4.md) · [问题反馈](https://github.com/veluRiya000/Vertex-Batch-Studio/issues)
 
 > **首次使用？[点击查看 Google Cloud 图文配置教程：项目 ID、存储桶、JSON 密钥](#google-cloud-配置图解)**
 
-> **版本说明（v0.3.3）**
+> **版本说明（v0.3.4）**
 > 单个安装包（约 **69.5 MB**）已内置批量生图模块、Harness、Python 后端及 Node.js 运行时，开箱即用，无需额外部署环境。支持覆盖升级自动关闭旧进程，并在退出时通过 Windows Job Object 自动回收后台服务。当前最新功能源码位于 `feature/harness-batch` 分支。
 
 ---
@@ -95,7 +95,7 @@
 
 ### 1. 下载与安装
 
-1. 前往 [v0.3.3 Release 页面](https://github.com/veluRiya000/Vertex-Batch-Studio/releases/tag/v0.3.3) 下载 `VertexBatchStudio-Setup-0.3.3-x64.exe`。
+1. 前往 [v0.3.4 Release 页面](https://github.com/veluRiya000/Vertex-Batch-Studio/releases/tag/v0.3.4) 下载 `VertexBatchStudio-Setup-0.3.4-x64.exe`。
 2. 运行安装程序完成安装或覆盖升级（安装向导会自动检测并关闭正在运行的旧版进程）。
 3. 启动应用，进入设置，完成 Google Cloud 配置后即可选择模式开始使用。
 

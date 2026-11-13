@@ -2,6 +2,14 @@ import { usePreferences } from "./preferences";
 
 // User prompts and project names are never translated.
 export const english: Record<string, string> = {
+  "网络连接中断，请检查网络或代理后重试": "Network connection interrupted. Check your network or proxy and try again.",
+  "复制": "Copy", "提示词已复制": "Prompt copied",
+  "导入文件夹": "Import folder", "正在读取文件夹": "Reading folder",
+  "无法读取文件夹": "Unable to read folder", "移除所选文件夹": "Remove selected folder",
+  "仅当前文件夹": "Current folder only", "正在导入": "Importing",
+  "已导入": "Imported", "未导入": "Skipped",
+  "选择参考图文件夹": "Select a reference image folder",
+  "请在桌面程序中选择文件夹": "Choose a folder in the desktop app",
   '返回':'Back', '秒':'s',
   '提交待核对':'Submission needs checking', '核对失败':'Submission check failed',
   '核对并重试':'Check and retry', '仅核对':'Check only', '重试核对':'Retry check',

@@ -77,6 +77,45 @@ beforeEach(() => {
   });
 });
 afterEach(cleanup);
+it("批次的 EOF 显示为网络连接中断，保留原始错误与恢复按钮", async () => {
+  const raw = "[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)";
+  batch.phase = "submission_failed";
+  batch.last_error = raw;
+  tasks = [{
+    id: "b".repeat(32), name: "网络异常测试", prompt: "灯笼", refs: [],
+    temperature: null, aspect_ratio: "16:9", image_size: "1K",
+    image_count: 1, generation_config: {},
+  }];
+  render(<App />);
+  await screen.findByText("网络连接中断，请检查网络或代理后重试");
+  expect(screen.queryByText(raw)).toBeNull();
+  expect(batch.last_error).toBe(raw);
+  expect(screen.getByRole("button", { name: "重新提交本轮" })).toBeTruthy();
+});
+it("复制完整提示词且保留输入草稿，再次使用仍能回填提示词", async () => {
+  const user = userEvent.setup();
+  const clipboard = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
+  const prompt = "第一段提示词\n\n第二段提示词";
+  tasks = [{
+    id: "b".repeat(32), name: "复制测试", prompt, refs: [],
+    temperature: null, aspect_ratio: "16:9", image_size: "1K",
+    image_count: 1, generation_config: {},
+  }];
+  batch.phase = "completed";
+  const base = vi.mocked(api).getMockImplementation()!;
+  vi.mocked(api).mockImplementation(async (path, method, body) =>
+    path.startsWith("/references?") ? [] as never : base(path, method, body));
+  render(<App />);
+  const copy = await screen.findByRole("button", { name: /^复制$/ });
+  const composer = screen.getByRole("textbox", { name: "提示词" });
+  await user.type(composer, "保留草稿");
+  await user.click(copy);
+  await waitFor(() => expect(clipboard).toHaveBeenCalledWith(prompt));
+  expect((composer as HTMLTextAreaElement).value).toBe("保留草稿");
+  await user.click(screen.getByRole("button", { name: /^再次使用$/ }));
+  await waitFor(() => expect((composer as HTMLTextAreaElement).value).toBe(prompt));
+  clipboard.mockRestore();
+});
 it("2.1 禁用温度，新任务不保存温度，切回原模型恢复温度选择", async () => {
   const base = vi.mocked(api).getMockImplementation()!;
   const normal = "gemini-3.1-flash-image", nano = "gemini-nano-banana-2.1";

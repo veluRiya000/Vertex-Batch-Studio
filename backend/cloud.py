@@ -9,6 +9,7 @@ from concurrent.futures import Future, TimeoutError as FutureTimeout
 from .config import Settings
 from .files import sha256_file
 from .jsonl import split_gcs
+from .cloud_errors import close_cloud_client
 
 TERMINAL = {"JOB_STATE_SUCCEEDED", "JOB_STATE_FAILED", "JOB_STATE_CANCELLED",
             "JOB_STATE_EXPIRED", "JOB_STATE_PARTIALLY_SUCCEEDED"}
@@ -86,6 +87,8 @@ class GoogleCloud:
         self.storage = storage.Client(project=settings.project, credentials=credentials)
         self._lookup_lock = threading.Lock()
         self._lookups = {}
+        self._closing = False
+        self._closed = False
 
     @staticmethod
     def job(value) -> Job:
@@ -207,8 +210,26 @@ class GoogleCloud:
         blob.download_to_filename(str(target), checksum="auto", timeout=120)
 
     def close(self) -> None:
-        self.genai.close()
-        self.storage.close()
+        # find_jobs() bounds its caller while its read-only worker can outlive
+        # that wait. Do not close transports underneath this background lookup.
+        with self._lookup_lock:
+            if self._closed:
+                return
+            pending = [future for future in self._lookups.values() if not future.done()]
+            if pending:
+                if self._closing:
+                    return
+                self._closing = True
+            else:
+                self._closed = True
+        if pending:
+            for future in pending:
+                future.add_done_callback(lambda _: close_cloud_client(self))
+            return
+        try:
+            self.genai.close()
+        finally:
+            self.storage.close()
 
     def check_connection(self, bucket: str) -> dict:
         """Read-only diagnostics; does not upload objects or create a prediction job."""

@@ -1,11 +1,13 @@
 """Workflow coordinator. Cloud calls are injectable for meaningful offline tests."""
 
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from pathlib import Path
 from datetime import datetime
 import hashlib
 import json
 import threading
+import logging
 from .assets import Assets
 from .cloud import Cloud, GoogleCloud, TERMINAL
 from .config import Settings
@@ -15,6 +17,7 @@ from .models import TaskInput
 from .model_catalog import ModelCatalogue, restore_selection
 from .model_parameters import restricted_manifest_parameters
 from .repository import Repository, now
+from .cloud_errors import is_transport_error, log_cloud_failure, close_cloud_client, redact_cloud_error
 from .results import extract
 
 
@@ -25,7 +28,10 @@ class Studio:
         self.repo = Repository(settings)
         self.assets = Assets(self.repo)
         self._cloud = cloud
+        self._managed_cloud = cloud is None
         self._cloud_lock = threading.Lock()
+        self._cloud_users = {}
+        self._retired_clouds = {}
         self._stop = threading.Event()
         self._worker = None
         self._executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="vbs")
@@ -41,7 +47,92 @@ class Studio:
                 self._cloud = GoogleCloud(self.settings)
             return self._cloud
 
+    @property
+    def cloud_scope(self):
+        settings = self.settings
+        return (settings.project, settings.bucket, settings.credentials_file, settings.location)
+
+    def _retire_cloud_locked(self, client):
+        key = id(client)
+        if self._cloud_users.get(key, 0):
+            self._retired_clouds[key] = client
+            return None
+        return client
+
+    def reset_cloud(self, expected, *, force=False):
+        """Detach only the failed generation; never close an in-use transport."""
+        with self._cloud_lock:
+            if self._cloud is not expected or expected is None or (not force and not self._managed_cloud):
+                return False
+            self._cloud = None
+            ready = self._retire_cloud_locked(expected)
+        if ready is not None:
+            close_cloud_client(ready)
+        return True
+
+    def replace_cloud_settings(self, settings):
+        with self._cloud_lock:
+            old, self._cloud = self._cloud, None
+            self.settings = self.repo.settings = settings
+            self._managed_cloud = True
+            ready = self._retire_cloud_locked(old) if old is not None else None
+        if ready is not None:
+            close_cloud_client(ready)
+
+    @contextmanager
+    def cloud_session(self, operation, scope=None):
+        with self._cloud_lock:
+            if scope is not None and scope != self.cloud_scope:
+                raise ValueError("云端连接配置已变更，请重新检查")
+            if self._cloud is None:
+                self._cloud = GoogleCloud(self.settings)
+            client = self._cloud
+            key = id(client)
+            self._cloud_users[key] = self._cloud_users.get(key, 0) + 1
+        try:
+            yield client
+        except Exception as exc:
+            if is_transport_error(exc):
+                self.reset_cloud(client)
+                log_cloud_failure(logging.getLogger("vertex_backend.cloud"), operation, exc)
+            raise
+        finally:
+            with self._cloud_lock:
+                count = self._cloud_users[key] - 1
+                if count:
+                    self._cloud_users[key] = count
+                    ready = None
+                else:
+                    del self._cloud_users[key]
+                    ready = self._retired_clouds.pop(key, None)
+            if ready is not None:
+                close_cloud_client(ready)
+
+    def cloud_call(self, method, *args, **kwargs):
+        with self.cloud_session(method) as client:
+            return getattr(client, method)(*args, **kwargs)
+
+    def check_connection(self, scope, probe):
+        with self.cloud_session("cloud_check", scope) as client:
+            probe["client"] = client
+            try:
+                if probe.get("expired"):
+                    raise TimeoutError("连接检查已超时")
+                return client.check_connection(scope[1])
+            finally:
+                if probe.get("expired"):
+                    self.reset_cloud(client)
+
+    def expire_cloud_probe(self, probe):
+        probe["expired"] = True
+        client = probe.get("client")
+        if client is not None:
+            self.reset_cloud(client)
+
     def log(self, batch_id: str, event: str, **details) -> None:
+        for key in ("error", "cause"):
+            if details.get(key) is not None:
+                details[key] = redact_cloud_error(details[key])
         path = self.repo.directory(batch_id) / "logs/events.jsonl"
         with path.open("a", encoding="utf-8") as f:
             f.write(json.dumps({"time": now(), "event": event, **details}, ensure_ascii=False) + "\n")
@@ -151,7 +242,7 @@ class Studio:
         batch.setdefault("submission_started_at", batch["updated_at"])
         self._progress(batch, 'checking')
         try:
-            jobs = self.cloud.find_jobs("vbs-" + batch["id"], manifest["input_uri"])
+            jobs = self.cloud_call("find_jobs", "vbs-" + batch["id"], manifest["input_uri"])
         except Exception as exc:
             batch.update(phase='submission_unconfirmed', reconciliation_status='failed',
                          last_checked_at=now(), operation=None,
@@ -250,17 +341,17 @@ class Studio:
             try:
                 self._progress(batch, 'validating')
                 for remote in manifest["remote_refs"]:
-                    cloud.validate_reference(manifest["bucket"], remote["object_name"], remote["mime_type"])
+                    self.cloud_call("validate_reference", manifest["bucket"], remote["object_name"], remote["mime_type"])
                 for index, asset in enumerate(manifest["assets"]):
                     self._progress(batch, 'uploading_refs', index, len(manifest['assets']))
                     local = beneath(directory, asset["local_path"])
                     if sha256_file(local) != asset["sha256"]:
                         raise ValueError("准备的参考图快照被修改，禁止上传")
-                    changed = cloud.upload(manifest["bucket"], asset["object_name"], local, asset["mime_type"])
+                    changed = self.cloud_call("upload", manifest["bucket"], asset["object_name"], local, asset["mime_type"])
                     self.log(batch_id, "asset_uploaded" if changed else "asset_skipped", object=asset["object_name"])
                 bucket, object_name = split_gcs(manifest["input_uri"])
                 self._progress(batch, 'uploading_prompt')
-                cloud.upload(bucket, object_name, directory / "inputs/prompts.jsonl", "application/jsonl")
+                self.cloud_call("upload", bucket, object_name, directory / "inputs/prompts.jsonl", "application/jsonl")
             except Exception as exc:
                 batch.update(phase="upload_failed", last_error=str(exc) or type(exc).__name__, operation=None)
                 self.repo.save(batch)
@@ -271,7 +362,7 @@ class Studio:
             try:
                 self._progress(batch, 'credentials')
                 if hasattr(cloud, "prepare_submission"):
-                    cloud.prepare_submission()
+                    self.cloud_call("prepare_submission")
             except Exception as exc:
                 batch.update(phase="submission_failed", operation=None, last_error="提交前凭证检查失败：" + (str(exc) or type(exc).__name__))
                 self.repo.save(batch)
@@ -281,7 +372,7 @@ class Studio:
             batch.update(phase="submitting", submission_started_at=now())
             self._progress(batch, 'creating')
             try:
-                job = cloud.create_job(manifest["model"], manifest["input_uri"],
+                job = self.cloud_call("create_job", manifest["model"], manifest["input_uri"],
                                        manifest["output_prefix"], "vbs-" + batch["id"])
             except Exception as exc:
                 import httpx
@@ -304,7 +395,7 @@ class Studio:
             batch = self.repo.get(batch_id)
             manifest = self.manifest(batch_id)
             self._check_context(manifest)
-            matching = self.cloud.find_jobs("vbs-" + batch_id, manifest["input_uri"])
+            matching = self.cloud_call("find_jobs", "vbs-" + batch_id, manifest["input_uri"])
             if job_name not in {j.name for j in matching}:
                 raise ValueError("该云端任务的提交名称或输入地址与本批次不同")
             self._attach(batch, next(j for j in matching if j.name == job_name))
@@ -318,7 +409,7 @@ class Studio:
         directory = self.repo.directory(batch["id"])
         existing = batch["downloaded_objects"]
         current = {}
-        for obj in self.cloud.list_outputs(uri):
+        for obj in self.cloud_call("list_outputs", uri):
             previous = existing.get(obj.name)
             relative = "outputs/raw/" + hashlib.sha256(obj.name.encode()).hexdigest() + ".jsonl"
             target = beneath(directory, relative)
@@ -327,7 +418,7 @@ class Studio:
             if not cached:
                 temp = target.with_suffix(".download")
                 try:
-                    self.cloud.download(bucket, obj, temp)
+                    self.cloud_call("download", bucket, obj, temp)
                     if temp.stat().st_size != obj.size:
                         raise ValueError("下载大小与云端对象大小不同")
                     temp.replace(target)
@@ -357,7 +448,7 @@ class Studio:
                     if batch["phase"] in {"submitting", "submission_unknown", "submission_unconfirmed"}:
                         return self._reconcile(batch, manifest)
                     raise ValueError("该批次尚未提交")
-                job = self.cloud.get_job(batch["job_name"])
+                job = self.cloud_call("get_job", batch["job_name"])
                 terminal = job.state in TERMINAL
                 batch.update(cloud_state=job.state, cloud_error=job.error,
                              phase="downloading" if terminal else "monitoring", last_error=None)
@@ -436,7 +527,7 @@ class Studio:
                 return batch
             self._check_context(self.manifest(batch_id))
             if batch["cloud_state"] not in TERMINAL:
-                self.cloud.cancel_job(batch["job_name"])
+                self.cloud_call("cancel_job", batch["job_name"])
                 batch["cancel_requested"] = True
                 self.repo.save(batch)
             return batch
@@ -551,5 +642,4 @@ class Studio:
         self._executor.shutdown(wait=wait, cancel_futures=True)
         # Active operations still need their client to persist the last receipt.
         # Desktop shutdown has a bounded owned-process fallback for stuck I/O.
-        if (wait or not self._inflight) and self._cloud and hasattr(self._cloud, "close"):
-            self._cloud.close()
+        self.reset_cloud(self._cloud, force=True)

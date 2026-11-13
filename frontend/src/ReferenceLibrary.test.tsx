@@ -9,7 +9,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ReferenceLibrary } from "./ReferenceLibrary";
-import type { Reference } from "./types";
+import type { Reference, ReferenceFolder } from "./types";
 vi.mock("./api", () => ({ imageUrl: async (path: string) => path }));
 const refs = ["a", "b", "c"].map((name) => ({
   path: `references/characters/${name}.png`,
@@ -53,6 +53,40 @@ beforeEach(() => {
   remove.mockResolvedValue(undefined);
 });
 afterEach(cleanup);
+it("选择文件夹自动命名，取消不创建分类，重新打开不保留选择", async () => {
+  const user = userEvent.setup(), create = vi.fn();
+  const folder: ReferenceFolder = { source: "D:/参考图/人物", label: "人物", files: ["a.png"], skipped: 1 };
+  render(<ReferenceLibrary references={[]} category="characters" setCategory={() => {}}
+    importFiles={() => {}} chooseFiles={() => {}} add={add} preview={preview} reorder={reorder}
+    error={error} busy={false} addCategory={create} chooseFolder={async () => folder} />);
+  await user.click(screen.getByRole("button", { name: "添加参考图分类" }));
+  await user.click(screen.getByRole("button", { name: "导入文件夹" }));
+  await waitFor(() => expect((screen.getByRole("textbox", { name: "分类名称" }) as HTMLInputElement).value).toBe("人物"));
+  expect(screen.getByText(folder.source)).toBeTruthy();
+  expect(create).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "取消" }));
+  await user.click(screen.getByRole("button", { name: "添加参考图分类" }));
+  expect(screen.queryByText(folder.source)).toBeNull();
+  expect((screen.getByRole("textbox", { name: "分类名称" }) as HTMLInputElement).value).toBe("");
+  await user.click(screen.getByRole("button", { name: "导入文件夹" }));
+  await user.click(screen.getByRole("button", { name: /^添加$/ }));
+  await waitFor(() => expect(create).toHaveBeenCalledWith("人物", folder, expect.any(Function)));
+});
+
+it("取消弹窗后忽略尚未返回的文件夹读取结果", async () => {
+  let finish!: (value: ReferenceFolder) => void;
+  const pending = new Promise<ReferenceFolder>(resolve => { finish = resolve; });
+  const user = userEvent.setup();
+  render(<ReferenceLibrary references={[]} category="characters" setCategory={() => {}}
+    importFiles={() => {}} chooseFiles={() => {}} add={add} preview={preview} reorder={reorder}
+    error={error} busy={false} addCategory={vi.fn()} chooseFolder={() => pending} />);
+  await user.click(screen.getByRole("button", { name: "添加参考图分类" }));
+  await user.click(screen.getByRole("button", { name: "导入文件夹" }));
+  await user.click(screen.getByRole("button", { name: "取消" }));
+  finish({ source: "D:/late", label: "late", files: ["a.png"], skipped: 0 });
+  await user.click(screen.getByRole("button", { name: "添加参考图分类" }));
+  expect((screen.getByRole("textbox", { name: "分类名称" }) as HTMLInputElement).value).toBe("");
+});
 it("两种模式都有删除按钮，取消不删除，错误保留图片，确认成功后移除", async () => {
   const user = userEvent.setup();
   render(<Fixture />);

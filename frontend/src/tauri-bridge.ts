@@ -68,7 +68,7 @@ if (isTauri()) {
     upload: (name, bytes, options) => invoke<Reference>('studio_upload', {
       name, bytes: Array.from(new Uint8Array(bytes)), options,
     }),
-    chooseDirectory: () => invoke<string | null>('choose_directory'),
+    chooseDirectory: title => invoke<string | null>('choose_directory', { title }),
     openOutput: id => invoke('open_output', { id }),
     setPreferences: value => invoke<Preferences>('set_preferences', { value }),
     window: action => { void invoke('window_action', { action }).catch(console.error) },

@@ -20,6 +20,7 @@ from .jsonl import import_jsonl
 from .models import (BatchCreate, ReferenceImport, TasksReplace, TaskInput,
                      JsonlImport, OutputDirectory, InputModel, WorkspaceRename)
 from .service import Studio
+from .cloud_errors import is_transport_error, log_cloud_failure
 from .preferences import Preferences, load_preferences, save_preferences
 from .connection import CloudConfiguration, configure_cloud
 from .model_catalog import select_model
@@ -46,6 +47,15 @@ class ReferenceCategory(InputModel):
 class ReferenceMove(InputModel):
     path: str
     category: str
+
+
+class ReferenceFolder(InputModel):
+    source: str
+
+
+class ReferenceFolderFiles(ReferenceFolder):
+    category: str
+    files: list[str]
 
 
 class SubmissionRecovery(InputModel):
@@ -161,6 +171,14 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
     def add_reference_category(value: ReferenceCategory):
         return studio.assets.add_category(value.label)
 
+    @app.post("/references/folder/scan")
+    def scan_reference_folder(value: ReferenceFolder):
+        return studio.assets.scan_folder(value.source)
+
+    @app.post("/references/folder/import")
+    def import_reference_folder(value: ReferenceFolderFiles):
+        return studio.assets.import_folder_files(value.source, value.category, value.files)
+
     @app.delete("/references/categories/{category}")
     def delete_reference_category(category: str, move_to: str | None = None):
         return studio.assets.delete_category(category, move_to)
@@ -271,16 +289,26 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
         try:
             # Share a single probe. Shield prevents HTTP timeout/cancellation
             # from making the next caller spawn another still-running thread.
-            scope = (studio.settings.project, studio.settings.bucket, studio.settings.credentials_file)
+            scope = studio.cloud_scope
             probe = getattr(app.state, "cloud_probe", None)
             if probe is None or probe[0] != scope or probe[1].done():
-                task = asyncio.create_task(asyncio.to_thread(lambda: studio.cloud.check_connection(studio.settings.bucket)))
+                holder = {}
+                task = asyncio.create_task(asyncio.to_thread(studio.check_connection, scope, holder))
                 task.add_done_callback(lambda done: done.exception() if not done.cancelled() else None)
-                app.state.cloud_probe = probe = (scope, task)
-            details = await asyncio.wait_for(asyncio.shield(probe[1]), timeout=30)
-        except asyncio.TimeoutError:
+                app.state.cloud_probe = probe = (scope, task, holder)
+            details = await asyncio.wait_for(asyncio.shield(probe[1]), timeout=getattr(app.state, "cloud_check_timeout", 30))
+        except asyncio.TimeoutError as exc:
+            # The shielded worker may still be using the old client. Retire that
+            # generation and let its lease close it after the real I/O finishes.
+            await asyncio.to_thread(studio.expire_cloud_probe, probe[2])
+            if getattr(app.state, "cloud_probe", None) is probe:
+                app.state.cloud_probe = None
+            log_cloud_failure(logger, "cloud_check_timeout", exc)
             raise ValueError("连接检查超时，请检查网络后重试") from None
-        except Exception:
+        except Exception as exc:
+            log_cloud_failure(logger, "cloud_check_failed", exc)
+            if is_transport_error(exc):
+                raise ValueError("网络连接中断，请检查网络或代理后重试") from None
             raise ValueError("连接检查失败，请检查项目、桶、凭证及其访问权限") from None
         return {"ok": True, "details": details}
 

@@ -6,6 +6,9 @@
 .project-context-menu button:hover:not(:disabled) { background: var(--selected); color: var(--accent); }
 /* STYLE-00053 用途：设置中的归档页面。关联：ArchivePanel.tsx。 */
 .archive-panel { min-width: 0; }
+/* About: display the build version beside the application name. */
+.about-brand { display:flex; align-items:baseline; flex-wrap:wrap; gap:6px 10px; min-width:0; }
+.about-version { color:var(--muted); font-size:12px; font-weight:400; font-variant-numeric:tabular-nums; }
 /* STYLE-00054 用途：已归档项目列表。关联：ArchivePanel.tsx。 */
 .archived-projects { display: flex; flex-direction: column; gap: 10px; max-height: 340px; overflow-y: auto; }
 /* STYLE-00055 用途：已归档项目卡片。关联：ArchivePanel.tsx。 */
@@ -157,7 +160,8 @@
 .reference-card { align-self:start; flex-shrink:0; }
 .library-import-more { display:flex; min-height:58px; align-items:center; justify-content:center; flex-direction:column; gap:5px; border:1px dashed var(--line); border-radius:10px; color:var(--muted); font-size:11px; }
 .reference-browser.list-mode .reference-photo { flex:none; width:36px; max-height:36px; }
-.reference-browser.list-mode .reference-name { min-height:0; }
+.reference-browser.list-mode .reference-card { align-self:stretch; width:100%; max-width:100%; }
+.reference-browser.list-mode .reference-name { min-height:0; min-width:0; flex:1 1 0; }
 .reference-browser.compact-refs .reference-photo { max-height:0; opacity:0; }
 .reference-browser.compact-refs .reference-preview { flex-direction:column; align-items:stretch; gap:0; padding:30px 0 0; min-height:58px; }
 .reference-browser.compact-refs .reference-grip { display:none; }
@@ -167,6 +171,13 @@
 .reference-browser.compact-refs .reference-delete { left:4px; right:auto; }
 .reference-browser.compact-refs .reference-card { min-height:60px; }
 .reference-browser.compact-refs .library-empty { min-height:60px; }
+
+/* Folder selection is a draft until Add; progress uses the active theme. */
+.reference-folder-import { margin-top:16px; }
+.reference-folder-selection { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:4px 8px; margin-top:12px; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:var(--selected); }
+.reference-folder-selection > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }
+.reference-folder-selection small { grid-column:1 / -1; color:var(--muted); font-size:12px; }
+.reference-import-progress { color:var(--muted); font-size:12px; margin:12px 0 0; }
 .project-title-row { display:flex; align-items:center; min-width:0; }
 .project-title-row > .project-title { flex:1; min-width:0; }
 .project-options { flex:none; width:27px; }

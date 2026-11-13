@@ -58,14 +58,7 @@ def configure_cloud(studio, value: CloudConfiguration):
         atomic_bytes(env_path, ("\n".join(output) + "\n").encode("utf-8"))
         # Keep the data directory and unrelated settings exactly as the current process uses them.
         new_settings = replace(settings, project=value.project, bucket=value.bucket, credentials_file=new_key)
-        with studio._cloud_lock:
-            if studio._cloud and hasattr(studio._cloud, "close"):
-                try:
-                    studio._cloud.close()
-                except Exception:
-                    pass  # A stale client's shutdown must not undo the saved configuration.
-            studio._cloud = None
-            studio.settings = studio.repo.settings = new_settings
+        studio.replace_cloud_settings(new_settings)
         from .model_catalog import ModelCatalogue
         source = studio.model_catalog.source
         studio.model_catalog.close()

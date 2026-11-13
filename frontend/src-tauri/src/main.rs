@@ -150,6 +150,7 @@ fn allowed(method: &str, path: &str) -> bool {
                 "^/references/(file|categories)$".into(),
                 format!("^/batches/{id}(/tasks|/results|/images/{id}/[0-9]+)?$")]),
             ("POST", vec!["^/(batches|references/import|references/move|references/categories|cloud/check|models/refresh|models/selection|notifications/sound|notifications/test)$".into(),
+                "^/references/folder/(scan|import)$".into(),
                 format!("^/batches/{id}/(tasks|prepare|submit|recover|poll|extract|cancel|retry|clone|archive|attach|import-jsonl|open-folder)$"),
                 format!("^/workspaces/{id}/archive$")]),
             ("PUT", vec!["^/(preferences|cloud/configuration|references/order)$".into(),
@@ -693,11 +694,11 @@ async fn studio_upload(
 }
 
 #[tauri::command]
-async fn choose_directory(app: AppHandle) -> Result<Option<String>> {
+async fn choose_directory(app: AppHandle, title: Option<String>) -> Result<Option<String>> {
     tauri::async_runtime::spawn_blocking(move || {
         app.dialog()
             .file()
-            .set_title("选择图片保存文件夹")
+            .set_title(title.unwrap_or_else(|| "选择图片保存文件夹".into()))
             .blocking_pick_folder()
             .map(|p| {
                 p.into_path()
@@ -1237,6 +1238,13 @@ mod tests {
         assert!(!allowed("GET", "/models/selection"));
         assert!(!allowed("POST", "/models/unknown"));
         assert!(allowed("GET", "/references/file?path=styles%2Fa.png"));
+        for route in ["/references/folder/scan", "/references/folder/import"] {
+            assert!(allowed("POST", route));
+            assert!(!allowed("GET", route));
+            assert!(!allowed("DELETE", route));
+        }
+        assert!(!allowed("POST", "/references/folder/unknown"));
+        assert!(!allowed("POST", "/references/folder/import/extra"));
         assert!(allowed("POST", &format!("/workspaces/{id}/archive")));
         assert!(allowed("DELETE", &format!("/workspaces/{id}")));
         assert!(allowed("PUT", &format!("/workspaces/{id}")));
