@@ -84,7 +84,7 @@
 /* STYLE-00035 用途：弹窗标题及关闭按钮栏；设置页小分区标题；左上角品牌名称和标志（Harness 模式）。关联：components.tsx、SettingsPanel.tsx、App.tsx。 */
 [data-studio-mode="harness"] :is(.modal-heading h2,.settings-subheading,.brand,.brand strong) {color:var(--harness-text);}
 /* STYLE-00036 用途：新建、重命名或配置输入框标签；左上角品牌名称和标志；顶栏新建项目、视图、设置或关于入口（Harness 模式）。关联：App.tsx、SettingsPanel.tsx、components.tsx。 */
-[data-studio-mode="harness"] :is(.form-label,.config-details dd,.brand strong span,.top-actions button,.text-button:not(.danger),.icon-button,.settings-navigation button,.picker-trigger,.picker-trigger>svg) {color:var(--muted);}
+[data-studio-mode="harness"] :is(.form-label,.config-details dd,.brand strong span,.top-actions :is(button,.top-cloud-link),.text-button:not(.danger),.icon-button,.settings-navigation button,.picker-trigger,.picker-trigger>svg) {color:var(--muted);}
 /* STYLE-00037 用途：新建、重命名或配置输入框标签（Harness 模式）。关联：App.tsx、SettingsPanel.tsx。 */
 [data-studio-mode="harness"] .form-label input,
 [data-studio-mode="harness"] .credential-row {background:var(--harness-input);color:var(--harness-text);border-color:var(--line);}
@@ -93,7 +93,7 @@
 /* STYLE-00039 用途：次级操作按钮（Harness 模式）。关联：App.tsx、SettingsPanel.tsx。 */
 [data-studio-mode="harness"] .secondary-button {background:var(--harness-surface);color:var(--accent);border-color:var(--line);}
 /* STYLE-00040 用途：次级操作按钮；设置弹窗左侧分类导航（Harness 模式、鼠标悬停、禁用状态、选中状态）。关联：App.tsx、SettingsPanel.tsx、components.tsx。 */
-[data-studio-mode="harness"] :is(.secondary-button:hover:not(:disabled),.settings-navigation button.selected,.settings-navigation button:hover,.top-actions button:hover,.window-buttons button:hover,.icon-button:hover,.picker-trigger:hover,.picker-trigger[aria-expanded="true"],.picker-menu button:hover,.picker-menu button[aria-selected="true"]) {background:var(--selected);color:var(--accent);}
+[data-studio-mode="harness"] :is(.secondary-button:hover:not(:disabled),.settings-navigation button.selected,.settings-navigation button:hover,.top-actions :is(button,.top-cloud-link):hover,.window-buttons button:hover,.icon-button:hover,.picker-trigger:hover,.picker-trigger[aria-expanded="true"],.picker-menu button:hover,.picker-menu button[aria-selected="true"]) {background:var(--selected);color:var(--accent);}
 /* STYLE-00041 用途：主要操作按钮；destructive 表示破坏性操作（Harness 模式）。关联：App.tsx、SettingsPanel.tsx、ArchivePanel.tsx。 */
 [data-studio-mode="harness"] .primary-button:not(.destructive) {background:var(--harness-primary);color:var(--harness-primary-text);box-shadow:0 2px 8px rgba(223, 123, 18, 0.22);}
 /* STYLE-00042 用途：主要操作按钮；destructive 表示破坏性操作（Harness 模式、鼠标悬停、禁用状态）。关联：App.tsx、SettingsPanel.tsx、ArchivePanel.tsx。 */

@@ -38,11 +38,12 @@ export interface Preferences {
   auto_start: boolean; start_minimized: boolean; sidebar_width: number;
 }
 export interface Workspace { id: string; name: string; batches: Batch[]; archived: boolean }
+export type CloudPage = 'project' | 'storage' | 'credentials' | 'billing_reports' | 'billing_credits';
 export type ImportOptions = { category?: string; batch_id?: string }
 declare global {
   interface Window {
     studio?: {
-      openCloudPage?(page: 'project' | 'storage' | 'credentials', project: string): Promise<void>;
+      openCloudPage?(page: CloudPage, project: string): Promise<void>;
       harnessView?(visible: boolean, offline: boolean, restoreOnly?: boolean): Promise<void>;
       api(method: string, path: string, body?: unknown): Promise<unknown>;
       image(path: string): Promise<string>;

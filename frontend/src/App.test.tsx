@@ -394,6 +394,23 @@ it("拖动侧栏边缘连续改变宽度并保存任意中间值", async () => {
   fireEvent.pointerUp(separator, { clientX: 24 });
   expect(screen.getByRole("button", { name: "展开侧栏" })).toBeTruthy();
 });
+it("账单报告和赠金链接在两种模式下都跟在关于右边", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  const checkTitlebar = () => {
+    const about = screen.getByRole("button", { name: "关于" });
+    const reports = screen.getByRole("link", { name: "账单报告" });
+    const credits = screen.getByRole("link", { name: "赠金" });
+    expect(about.nextElementSibling).toBe(reports);
+    expect(reports.nextElementSibling).toBe(credits);
+    expect(reports.getAttribute("href")).toBe("https://console.cloud.google.com/billing/reports");
+    expect(credits.getAttribute("href")).toBe("https://console.cloud.google.com/billing/credits");
+  };
+  checkTitlebar();
+  await user.click(screen.getByRole("button", { name: "Harness" }));
+  checkTitlebar();
+});
+
 it("关于只提供查看和检查连接，设置是独立窗口", async () => {
   const user = userEvent.setup();
   render(<App />);

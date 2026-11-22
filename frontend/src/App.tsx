@@ -47,6 +47,7 @@ import { version as appVersion } from "../package.json";
 import { displayError } from "./error-display";
 import { Media, Modal, Picker } from "./components";
 import { SettingsPanel } from "./SettingsPanel";
+import { CloudConsoleLink } from "./CloudConsoleLink";
 import { ReferenceLibrary } from "./ReferenceLibrary";
 import { SubmissionActions } from "./SubmissionActions";
 import { LibraryPane } from "./LibraryPane";
@@ -974,6 +975,18 @@ export default function App() {
             <Info size={14} aria-hidden />
             {t("关于")}
           </button>
+          <CloudConsoleLink
+            page="billing_reports"
+            label={t("账单报告")}
+            showLabel
+            onError={(message) => notify(message, true)}
+          />
+          <CloudConsoleLink
+            page="billing_credits"
+            label={t("赠金")}
+            showLabel
+            onError={(message) => notify(message, true)}
+          />
         </div>
         <div className="titlebar-space" />
         <button className={"connection " + (cloudConnection.state === "online" ? "online" : "offline")}

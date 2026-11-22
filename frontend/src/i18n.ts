@@ -85,6 +85,8 @@ export const english: Record<string, string> = {
   创作空间: "Workspace",
   项目已归档: "Project archived",
   关于: "About",
+  账单报告: "Billing reports",
+  赠金: "Credits",
   工作室设置: "Studio settings",
   设置: "Settings",
   常规: "General",
