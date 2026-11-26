@@ -129,7 +129,7 @@
 /* STYLE-00108 用途：打开 Google Cloud 对应页面的小箭头（键盘或输入焦点）。关联：CloudConsoleLink.tsx。 */
 .cloud-console-link:focus-visible {outline:2px solid var(--accent);outline-offset:2px;}
 
-/* Completion reminder controls: share the active Studio palette, including Harness amber. */
+/* Completion reminder controls. */
 .notification-settings { min-width: 0; }
 .notification-options { transition: opacity 180ms ease; }
 .notification-options-muted { opacity: .58; }

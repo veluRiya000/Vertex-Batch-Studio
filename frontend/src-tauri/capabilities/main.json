@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main-window",
-  "description": "Only the bundled main studio webview has native permissions; Harness has none.",
+  "description": "Only the bundled studio webview has native permissions.",
   "webviews": [
     "main"
   ],
@@ -20,7 +20,6 @@
     "allow-renderer-ready",
     "allow-smoke-mode",
     "allow-renderer-failed",
-    "allow-harness-view",
     "allow-open-cloud-page"
   ]
 }

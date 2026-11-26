@@ -9,7 +9,7 @@ class NotificationPreferences(InputModel):
     enabled: bool = True
     mode: Literal["all", "each"] = "all"
     image_batches: bool = True
-    harness_tasks: bool = True
+    harness_tasks: bool = True  # Keep older settings readable and round-trippable.
     include_failures: bool = True
     sound_enabled: bool = True
     sound: Literal["soft", "chime", "double", "custom"] = "soft"

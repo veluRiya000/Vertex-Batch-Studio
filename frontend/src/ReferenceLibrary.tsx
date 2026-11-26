@@ -370,9 +370,9 @@ export function ReferenceLibrary({
                   aria-hidden
                 />
               )}
-              <span className="reference-photo"><Media
+              <span className="reference-photo"><Media thumbnail={320}
                 path={
-                  "/references/file?" + new URLSearchParams({ path: ref.path })
+                  "/references/file?" + new URLSearchParams({ path: ref.path, v: ref.sha256 })
                 }
                 alt={name(ref)}
               /></span>

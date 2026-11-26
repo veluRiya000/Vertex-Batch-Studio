@@ -4,7 +4,6 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import './styles.css'
 import './management.css'
-import './harness.css'
 import './custom-overrides.css'
 import { PreferencesProvider } from './preferences'
 function StudioRoot() {

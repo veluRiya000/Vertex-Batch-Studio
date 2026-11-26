@@ -4,7 +4,7 @@ import base64
 import unittest
 from unittest.mock import patch
 from fastapi.testclient import TestClient
-from backend.notifications import CompletionTracker, SoundLibrary, completion_snapshot, windows_media_uri, windows_local_path
+from backend.notifications import CompletionTracker, SoundLibrary, windows_media_uri, windows_local_path
 from backend.preferences import NotificationPreferences, Preferences
 from backend.config import Settings
 from backend.service import Studio
@@ -67,9 +67,9 @@ class CompletionTests(unittest.TestCase):
         self.assertEqual(self.tracker.poll({'a':item('success'),'b':item('failed')},self.prefs),[])
         self.prefs.enabled=True
         self.assertEqual(self.tracker.poll({'a':item('success'),'b':item('failed')},self.prefs),[])
-        self.prefs.include_failures=False;self.prefs.harness_tasks=False
-        self.tracker.poll({'fail':item(),'cancel':item(),'agent':item(kind='harness')},self.prefs)
-        self.assertEqual(self.tracker.poll({'fail':item('failed'),'cancel':item('cancelled'),'agent':item('success',kind='harness')},self.prefs),[])
+        self.prefs.include_failures=False
+        self.tracker.poll({'fail':item(),'cancel':item()},self.prefs)
+        self.assertEqual(self.tracker.poll({'fail':item('failed'),'cancel':item('cancelled')},self.prefs),[])
 
     def test_fast_completion_and_deleted_batch_do_not_stall(self):
         self.prefs.mode='all'
@@ -97,83 +97,15 @@ class CompletionTests(unittest.TestCase):
         with self.assertRaises(ValueError):sounds.import_sound('x.mp3','!'*20)
         with self.assertRaises(ValueError):NotificationPreferences(custom_sound_id='../bad.wav')
 
-    def test_harness_snapshot_waits_for_whole_run_not_model_step(self):
-        from backend.harness_batch import HarnessBatch
-        from backend.harness_models import HarnessRun
-        from backend.harness_batch import canonical
-        studio=Studio(Settings(self.root,self.root/'data'),FakeCloud())
-        harness=HarnessBatch(studio)
-        try:
-            harness.create_run(HarnessRun(run_id='a'*64,session_id='s',workspace=str(self.root)))
-            with harness.connection() as db:
-                db.execute('INSERT INTO requests(id,run_id,data) VALUES (?,?,?)',('b'*64,'a'*64,canonical(dict(request_id='b'*64,run_id='a'*64,phase='completed',created_at='2026-10-15'))))
-            key='harness:'+'a'*64
-            self.assertEqual(completion_snapshot(studio,harness)[key]['status'],'active')
-            harness.finish_run('a'*64)
-            self.assertEqual(completion_snapshot(studio,harness)[key]['status'],'success')
-        finally:harness.close();studio.close()
-
-    def test_image_queue_finishes_independently_of_running_harness(self):
-        self.prefs.mode='all'
-        self.tracker.poll({'image':item(),'agent':item(kind='harness')},self.prefs)
-        final={'image':item('success'),'agent':item(kind='harness')}
-        self.assertEqual(self.tracker.poll(final,self.prefs),[[final['image']]])
-        self.assertEqual(set(self.tracker.state['pending']),{'agent'})
-        self.assertEqual(self.tracker.poll(final,self.prefs),[])
-        final['agent']=item('success',kind='harness')
-        self.assertEqual(self.tracker.poll(final,self.prefs),[[final['agent']]])
-
     def test_mixed_persisted_cohort_migrates_without_replaying_history(self):
         self.prefs.mode='all'
         original={'image':item(),'agent':item(kind='harness'),'old':item('success')}
         self.tracker.poll(original,self.prefs)
-        final={**original,'image':item('success'),'agent':item('paused',kind='harness')}
+        final={'image':item('success'),'old':item('success')}
         restarted=CompletionTracker(self.path)
         self.assertEqual(restarted.poll(final,self.prefs),[[final['image']]])
         self.assertEqual(restarted.state['pending'],{})
         self.assertEqual(CompletionTracker(self.path).poll(final,self.prefs),[])
-
-    def test_pause_alone_never_emits_completion(self):
-        for mode in ['all','each']:
-            self.prefs.mode=mode
-            self.tracker.poll({'agent':item(kind='harness')},self.prefs)
-            final={'agent':item('paused',kind='harness')}
-            self.assertEqual(self.tracker.poll(final,self.prefs),[])
-            self.assertEqual(self.tracker.state['pending'],{})
-
-    def test_simultaneous_queues_emit_separate_notifications_and_failures_respect_switch(self):
-        self.prefs.mode='all';self.prefs.include_failures=False
-        self.tracker.poll({'i':item(),'h':item(kind='harness'),'f':item()},self.prefs)
-        result=self.tracker.poll({'i':item('success'),'h':item('success',kind='harness'),'f':item('failed')},self.prefs)
-        self.assertEqual([[i['kind'] for i in group] for group in result],[['image'],['harness']])
-        self.assertEqual(self.tracker.state['pending'],{})
-
-    def test_paused_harness_snapshot_requires_real_inflight_cloud_work(self):
-        from backend.harness_batch import HarnessBatch, canonical
-        from backend.harness_models import HarnessRun
-        studio=Studio(Settings(self.root,self.root/'data'),FakeCloud())
-        harness=HarnessBatch(studio)
-        run_id='a'*64;key='harness:'+run_id
-        try:
-            harness.create_run(HarnessRun(run_id=run_id,session_id='s',workspace=str(self.root)))
-            harness.set_run_phase(run_id,'paused')
-            def check(receipts, expected):
-                with harness.connection() as db:
-                    db.execute('DELETE FROM requests')
-                    for n,receipt in enumerate(receipts):
-                        ident=f'{n:064x}'
-                        value=dict(request_id=ident,run_id=run_id,created_at='2026-10-15',**receipt)
-                        db.execute('INSERT INTO requests(id,run_id,data) VALUES (?,?,?)',(ident,run_id,canonical(value)))
-                self.assertEqual(completion_snapshot(studio,harness)[key]['status'],expected)
-            check([], 'paused')
-            check([dict(phase='completed')], 'paused')
-            check([dict(phase='budget_paused')], 'paused')
-            check([dict(phase='failed')], 'failed')
-            check([dict(phase='completed',truncated=True)], 'failed')
-            check([dict(phase='cancelled')], 'cancelled')
-            check([dict(phase='monitoring'),dict(phase='completed')], 'active')
-            check([dict(phase='submission_uncertain')], 'active')
-        finally:harness.close();studio.close()
 
     def test_image_completion_reaches_native_dispatch_queue(self):
         import queue
@@ -181,11 +113,11 @@ class CompletionTests(unittest.TestCase):
         from backend.notifications import NotificationCenter
         center=object.__new__(NotificationCenter)
         center.studio=SimpleNamespace(settings=SimpleNamespace(root=self.root))
-        center.harness=object();center.tracker=self.tracker;center.work=queue.Queue()
+        center.tracker=self.tracker;center.work=queue.Queue()
         self.prefs.mode='all'
         with patch('backend.notifications.load_preferences',return_value=SimpleNamespace(notifications=self.prefs)):
-            with patch('backend.notifications.completion_snapshot',return_value={'i':item(),'h':item(kind='harness')}):center.tick()
-            with patch('backend.notifications.completion_snapshot',return_value={'i':item('success'),'h':item(kind='harness')}):center.tick()
+            with patch('backend.notifications.completion_snapshot',return_value={'i':item()}):center.tick()
+            with patch('backend.notifications.completion_snapshot',return_value={'i':item('success')}):center.tick()
         title,body,prefs=center.work.get_nowait()
         self.assertIn('生图',title)
         self.assertIn('1',body)
@@ -194,9 +126,9 @@ class CompletionTests(unittest.TestCase):
     def test_old_preferences_defaults_and_owner_only_notification_routes(self):
         self.assertTrue(Preferences().notifications.enabled)
         self.assertFalse(Preferences.model_validate({"notifications":{"enabled":False}}).notifications.enabled)
+        self.assertFalse(Preferences.model_validate({"notifications":{"harness_tasks":False}}).notifications.harness_tasks)
         studio=Studio(Settings(self.root,self.root/'data'),FakeCloud())
-        with patch('backend.api.secrets.token_urlsafe',return_value='scoped'):
-            app=create_app(studio,'owner',background=False)
+        app=create_app(studio,'owner',background=False)
         with TestClient(app) as client:
             owner={'X-VBS-Token':'owner'};scoped={'X-VBS-Harness-Token':'scoped'}
             self.assertEqual(client.get('/notifications/status',headers=owner).status_code,200)
@@ -207,8 +139,6 @@ class CompletionTests(unittest.TestCase):
             self.assertEqual(client.put('/preferences',headers=owner,json=prefs).status_code,200)
             self.assertTrue(client.get('/preferences',headers=owner).json()['notifications']['enabled'])
             self.assertEqual(client.post('/notifications/sound',headers=owner,json={'name':'bad.wav','content_base64':'%%'}).status_code,400)
-            self.assertEqual(client.post('/harness/ui/notification-settings',headers=scoped).status_code,200)
-            self.assertEqual(client.get('/harness/status',headers=owner).json()['ui_request_tab'],'notifications')
 
 
 if __name__=='__main__':unittest.main()

@@ -9,6 +9,7 @@ import re
 import warnings
 import shutil
 from contextlib import ExitStack
+from functools import lru_cache
 from .config import Settings
 from .files import read_json, write_json, project_name, operation_lock, beneath
 from .models import Task, TaskInput
@@ -23,10 +24,21 @@ def now() -> str:
     return datetime.now(BEIJING).isoformat()
 
 
+@lru_cache(maxsize=2048)
+def _stored_batch_id(path: Path, size: int, modified: int, changed: int) -> str:
+    return read_json(path)["id"]
+
+
+@lru_cache(maxsize=128)
+def _stored_task_refs(path: Path, size: int, modified: int, changed: int) -> frozenset[str]:
+    return frozenset(ref for task in read_json(path) for ref in Task.model_validate(task).refs)
+
+
 class Repository:
     def __init__(self, settings: Settings):
         self.settings = settings
         settings.initialize()
+        self._locations: dict[str, Path] = {}
 
     @staticmethod
     def normalize(batch: dict, directory: Path) -> dict:
@@ -88,14 +100,26 @@ class Repository:
     def directory(self, batch_id: str) -> Path:
         if not re.fullmatch(r"[a-f0-9]{32}", batch_id):
             raise KeyError("不存在的批次 ID")
+        cached = self._locations.get(batch_id)
+        if cached is not None:
+            try:
+                metadata = cached / "batch.json"
+                stat = metadata.stat()
+                if _stored_batch_id(metadata, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns) == batch_id:
+                    return cached
+            except (OSError, ValueError, KeyError, AttributeError):
+                pass
+            self._locations.pop(batch_id, None)
         for section in ("batches", "archive"):
             for path in (self.settings.data_dir / section).iterdir():
                 metadata = path / "batch.json"
                 if path.is_dir() and metadata.is_file():
                     try:
-                        if read_json(metadata).get("id") == batch_id:
+                        stat = metadata.stat()
+                        if _stored_batch_id(metadata, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns) == batch_id:
+                            self._locations[batch_id] = path
                             return path
-                    except (ValueError, OSError, AttributeError):
+                    except (ValueError, OSError, AttributeError, KeyError):
                         continue
         raise KeyError("找不到批次")
 
@@ -117,7 +141,9 @@ class Repository:
         for section in ("batches", "archive"):
             for path in (self.settings.data_dir / section).glob("*/batch.json"):
                 try:
-                    batches.append(self.normalize(read_json(path), path.parent))
+                    batch = self.normalize(read_json(path), path.parent)
+                    self._locations[batch["id"]] = path.parent
+                    batches.append(batch)
                 except (ValueError, OSError, AttributeError) as exc:
                     warnings.warn(f"批次信息无法读取：{path.parent.name} ({exc})", stacklevel=2)
         return sorted(batches, key=lambda b: b["created_at"], reverse=True)
@@ -125,6 +151,14 @@ class Repository:
     def tasks(self, batch_id: str) -> list[Task]:
         path = self.directory(batch_id) / "inputs/tasks.json"
         return [Task.model_validate(t) for t in read_json(path)] if path.exists() else []
+
+    def has_task_reference(self, directory: Path, reference: str) -> bool:
+        path = directory / "inputs/tasks.json"
+        try:
+            stat = path.stat()
+            return reference in _stored_task_refs(path, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)
+        except FileNotFoundError:
+            return False
 
     def editable(self, batch_id: str) -> dict:
         batch = self.get(batch_id)

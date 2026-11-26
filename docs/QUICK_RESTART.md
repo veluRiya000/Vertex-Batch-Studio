@@ -9,12 +9,9 @@ production copy. If a development update has been staged as
 restart verifies and applies it before opening the window. `-CheckOnly` does not
 apply pending updates.
 
-The script checks active image/Harness requests and available browser draft state.
-It gracefully stops this profile's Harness and Python backend, closes only the
-matching preview executable, and opens a fresh window. Harness mode and offline
-mode are restored when the preview's local debug connection is available. Sessions,
-credentials, uploaded attachments, output files and the persona setting stay in
-the existing data directory. No Batch submit or cancel endpoint is called.
+The script checks active image batches and available browser draft state. It stops
+this profile's backend, closes the matching preview executable, and opens a new
+window. It never calls the cloud submit or cancel endpoints.
 
 ```powershell
 .\Restart-Studio.ps1 -CheckOnly
@@ -24,7 +21,7 @@ the existing data directory. No Batch submit or cancel endpoint is called.
 
 `-CheckOnly` inspects without restarting. Normal restart refuses active requests
 or detected unsaved input. `-Force` explicitly skips those checks; unsent input
-can be lost and local Agent work stops. Cloud jobs are not cancelled by restart.
+can be lost. Cloud jobs are not cancelled by restart.
 For a different preview data profile, pass `-DataDirectory` with its absolute path.
 
 The CMD launcher uses an execution-policy bypass for this single PowerShell

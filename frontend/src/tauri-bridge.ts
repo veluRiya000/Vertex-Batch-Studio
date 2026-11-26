@@ -15,6 +15,8 @@ export async function notifyRendererReady(): Promise<void> {
     const reference = await bridge.upload(`验收参考图-${batch.id}.png`, png, { category: 'styles' })
     const image = await bridge.image('/references/file?' + new URLSearchParams({ path: reference.path }))
     if (!image.startsWith('data:image/png;base64,')) throw new Error('Image bridge failed')
+    const thumbnail = await bridge.image('/references/file?' + new URLSearchParams({ path: reference.path, thumbnail: '160' }))
+    if (!thumbnail.startsWith('data:image/webp;base64,')) throw new Error('Thumbnail bridge failed')
     const task = await bridge.api('POST', `/batches/${batch.id}/tasks`, {
       name: '桌面离线任务', prompt: '夏日祭灯笼', refs: [reference.path], image_count: 3,
     }) as Task
@@ -62,7 +64,6 @@ export function reportRendererFailure(error: unknown): void {
 if (isTauri()) {
   window.studio = {
     openCloudPage: (page, project) => invoke("open_cloud_page", { page, project }),
-    harnessView: (visible, offline, restoreOnly = false) => invoke("harness_view", { visible, offline, restoreOnly }),
     api: (method, path, body) => invoke('studio_api', { method, path, body: body ?? null }),
     image: path => invoke<string>('studio_image', { path }),
     upload: (name, bytes, options) => invoke<Reference>('studio_upload', {

@@ -26,7 +26,6 @@ use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
-mod harness;
 mod cloud_pages;
 mod winjob;
 
@@ -50,7 +49,7 @@ struct NotificationPreferences {
     enabled: bool,
     mode: String,
     image_batches: bool,
-    harness_tasks: bool,
+    harness_tasks: bool, // Compatibility with notification settings from 0.3.4.
     include_failures: bool,
     sound_enabled: bool,
     sound: String,
@@ -133,7 +132,6 @@ fn valid_id(id: &str) -> bool {
 
 // Match the same operations as the former desktop bridge, without arbitrary URLs.
 fn allowed(method: &str, path: &str) -> bool {
-    if matches!((method, path), ("GET", "/harness/status") | ("POST", "/harness/start") | ("POST", "/harness/stop")) { return true; }
     if path.len() > 4096
         || !path.starts_with('/')
         || path.starts_with("//")
@@ -611,9 +609,6 @@ async fn studio_api(
     if !allowed(&method, &path) {
         return Err("不支持的工作室操作".into());
     }
-    if studio.quitting.load(Ordering::SeqCst) && method == "POST" && path == "/harness/start" {
-        return Err("工作室正在退出".into());
-    }
     studio
         .json(
             Method::from_bytes(method.as_bytes()).map_err(|e| e.to_string())?,
@@ -841,9 +836,6 @@ fn begin_exit(app: &AppHandle, code: i32, reason: &str) {
     studio.log("exit_requested", json!({ "reason": reason, "code": code }));
     // Exit feedback belongs on the UI thread, before any network
     // or worker cleanup. The close-to-tray path never enters here.
-    if let Some(view) = app.get_webview("harness") {
-        let _ = view.close();
-    }
     for window in app.windows().values() {
         let _ = window.hide();
     }
@@ -1006,7 +998,6 @@ fn main() {
     let smoke = std::env::args().any(|a| a == "--smoke-test");
     let test_mode = smoke || std::env::args().any(|a| a == "--ui-test");
     let builder = tauri::Builder::default()
-        .manage(harness::HarnessView::default())
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             show_window(app)
         }))
@@ -1024,7 +1015,6 @@ fn main() {
         )
         .invoke_handler(tauri::generate_handler![
             studio_api,
-            harness::harness_view,
             cloud_pages::open_cloud_page,
             studio_image,
             studio_upload,
@@ -1142,9 +1132,6 @@ fn main() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if matches!(event, WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. }) {
-                harness::resize(window.app_handle());
-            }
             if let WindowEvent::CloseRequested { api, .. } = event {
                 let studio = window.state::<Arc<Studio>>();
                 if !studio.quitting.load(Ordering::SeqCst) {

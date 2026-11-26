@@ -1,4 +1,4 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param(
     [switch]$CheckOnly,
     [switch]$Force,
@@ -103,37 +103,22 @@ try {
         $healthy = Test-StudioHealth
     }
     if ($windows.Count -and -not $healthy -and -not $Force) { throw '无法确认当前后台状态，未执行重启。请等待窗口就绪，或使用 -Force。' }
-    $reopenHarness = $false
-    $offline = $false
     $active = 0
     if ($healthy) {
         $config = Invoke-StudioApi 'GET' '/config'
         if ((Normalize-StudioPath $config.root) -ne (Normalize-StudioPath $dataRoot)) { throw '后台属于其他数据目录，未执行重启。' }
-        $harness = Invoke-StudioApi 'GET' '/harness/status'
-        $reopenHarness = [bool]$harness.running
-        $offline = [bool]$harness.offline
-        $requests = @(Invoke-StudioApi 'GET' '/harness/requests')
-        $active += @($requests | Where-Object { $_.phase -notin @('completed','failed','cancelled','budget_paused') }).Count
         $batches = @(Invoke-StudioApi 'GET' '/batches')
         $active += @($batches | Where-Object { $_.phase -notin @('draft','prepared','completed','completed_with_errors','failed','cancelled','upload_failed','submission_failed') }).Count
     }
     $draft = $false
-    $mainPage = $null
-    foreach ($page in @(Get-DebugPages)) {
-        if ($page.url -like 'http://tauri.localhost/*') { $mainPage = $page }
-        if ($page.url -like 'http://tauri.localhost/*' -or $page.url -like 'http://127.0.0.1:*') {
-            $state = Invoke-DebugExpression $page @'
-({draft:[...document.querySelectorAll('[data-composer-input][contenteditable="true"]')].some(e=>(e.innerText||'').trim().length>0)||(location.hostname==='tauri.localhost'&&[...document.querySelectorAll('textarea')].some(e=>e.value.trim().length>0))||[...document.querySelectorAll('.vbs-persona-actions button')].some(e=>e.textContent==='保存'&&!e.disabled),mode:document.documentElement.dataset.studioMode||(document.querySelector('.studio-shell')?.classList.contains('harness-mode')?'harness':null)})
-'@
-            if ($state.draft) { $draft = $true }
-            if ($page -eq $mainPage -and $state.mode) { $reopenHarness = $state.mode -eq 'harness' }
-        }
+    foreach ($page in @(Get-DebugPages | Where-Object { $_.url -like 'http://tauri.localhost/*' })) {
+        $state = Invoke-DebugExpression $page '({draft:[...document.querySelectorAll("textarea")].some(e=>e.value.trim().length>0)})'
+        if ($state.draft) { $draft = $true }
     }
     if ($CheckOnly) { Write-Host "检查完成：测试窗口 $($windows.Count) 个，未结束任务 $active 个，未保存输入 $draft。没有执行重启。"; return }
     if (($active -gt 0 -or $draft) -and -not $Force) { throw '有未结束的任务或未保存输入。请先处理；确实要重启可运行 Restart-Studio.ps1 -Force。' }
     Write-Host '正在重启测试版。会话和凭证保留，未发送内容可能丢失。'
     if ($healthy) {
-        [void](Invoke-StudioApi 'POST' '/harness/stop')
         [void](Invoke-StudioApi 'POST' '/shutdown')
     }
     foreach ($window in $windows) { Stop-Process -Id $window.Id -ErrorAction SilentlyContinue }
@@ -174,19 +159,6 @@ try {
         Start-Sleep -Milliseconds 250
     } while ([DateTime]::UtcNow -lt $deadline)
     if (-not $ready) { throw '窗口已启动，但后台尚未就绪，请查看运行日志。' }
-    if ($reopenHarness) {
-        $restored = $false
-        do {
-            $mainPage = @(Get-DebugPages | Where-Object { $_.url -like 'http://tauri.localhost/*' }) | Select-Object -First 1
-            if ($mainPage) {
-                $flag = if ($offline) { 'true' } else { 'false' }
-                $restored = Invoke-DebugExpression $mainPage "(async()=>{const button=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Harness');if(!window.studio?.harnessView||!button)return false;button.click();await window.studio.harnessView(true,$flag);return true;})()"
-            }
-            if ($restored) { break }
-            Start-Sleep -Milliseconds 250
-        } while ([DateTime]::UtcNow -lt $deadline)
-        if (-not $restored) { Write-Host '窗口已重开，请点击 Harness 打开页面。' }
-    }
     Write-Host '重启完成。没有提交新的 Batch 任务。'
 } catch {
     Write-Host ('重启未完成：' + $_.Exception.Message) -ForegroundColor Red

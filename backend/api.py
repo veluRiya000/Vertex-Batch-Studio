@@ -11,11 +11,12 @@ import time
 import tempfile
 from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
+from fastapi.responses import JSONResponse, StreamingResponse, FileResponse, Response
 from . import __version__
 from .files import BusyError
-from .files import filename, read_json, beneath, sha256_file
-from .assets import inspect_image
+from .files import filename, read_json, beneath
+from .assets import _inspect_for_listing
+from .thumbnails import Thumbnails
 from .jsonl import import_jsonl
 from .models import (BatchCreate, ReferenceImport, TasksReplace, TaskInput,
                      JsonlImport, OutputDirectory, InputModel, WorkspaceRename)
@@ -68,30 +69,21 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
     if not token:
         raise ValueError("本地 API 必须设置访问令牌")
 
-    from .harness_batch import HarnessBatch
-    from .harness_runtime import HarnessRuntime
-    from .harness_api import mount_harness
     from .lifecycle import log_lifecycle_event
-    harness = HarnessBatch(studio)
-    harness_runtime = HarnessRuntime(studio.settings, instance_id=instance_id)
-    harness_token = secrets.token_urlsafe(32)
     from .notifications import NotificationCenter
-    notifications = NotificationCenter(studio, harness)
+    notifications = NotificationCenter(studio)
 
     @asynccontextmanager
     async def lifespan(app):
         if background:
             notifications.start()
             studio.start()
-            harness.start()
         try:
             yield
         finally:
             shutdown_started = time.monotonic()
             app.state.shutting_down = True
             studio.request_stop()
-            harness.request_stop()
-            harness_runtime.request_stop()
             log_lifecycle_event(
                 studio.settings.root,
                 "lifespan_shutdown_start",
@@ -99,14 +91,12 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
                 mode=mode,
             )
             # Independent shutdowns share one grace period; never wait for a
-            # remote inference or network retry before asking Node to flush logs.
+            # remote inference or a network retry.
             results = await asyncio.gather(
                 asyncio.to_thread(notifications.close),
-                asyncio.to_thread(harness_runtime.close),
-                asyncio.to_thread(harness.close, wait=False),
                 asyncio.to_thread(studio.close, wait=False), return_exceptions=True)
             errors = {}
-            for name, res in zip(["notifications", "harness_runtime", "harness", "studio"], results):
+            for name, res in zip(["notifications", "studio"], results):
                 if isinstance(res, BaseException):
                     errors[name] = f"{type(res).__name__}: {res}"
                     logger.error("Error shutting down %s: %s", name, res, exc_info=res)
@@ -116,24 +106,24 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
                 instance_id=instance_id,
                 mode=mode,
                 elapsed_ms=round((time.monotonic() - shutdown_started) * 1000, 1),
-                harness_close=results[1] if isinstance(results[1], dict) else None,
                 errors=errors,
             )
 
     app = FastAPI(title="VertexBatchStudio", version=__version__, lifespan=lifespan)
     app.state.shutting_down = False
+    thumbnails = Thumbnails(studio.settings.data_dir / ".thumbnail-cache")
+
+    def serve_image(path: Path, mime: str, thumbnail: int | None, source_key: str | None = None):
+        if thumbnail is not None:
+            return Response(thumbnails.get(path, thumbnail, source_key), media_type="image/webp")
+        return FileResponse(path, media_type=mime)
 
     @app.middleware("http")
     async def authenticate(request: Request, call_next):
         if request.client and request.client.host not in {"127.0.0.1", "::1", "testclient"}:
             return JSONResponse({"detail": "只接受本机连接"}, status_code=403)
         given = request.headers.get("X-VBS-Token", "")
-        import re
-        scoped = request.headers.get("X-VBS-Harness-Token", "")
-        provider_route = re.fullmatch(r"/harness/(?:requests(?:/[a-f0-9]{64}(?:/(?:cancel|resume|events))?)?|runs(?:/[a-f0-9]{64}/(?:pause|resume|finish))?)", request.url.path)
-        ui_route = request.method == "POST" and request.url.path in {"/harness/ui/cloud-settings", "/harness/ui/notification-settings"}
-        scoped_valid = bool(provider_route or ui_route) and secrets.compare_digest(scoped, harness_token)
-        if not secrets.compare_digest(given, token) and not scoped_valid:
+        if not secrets.compare_digest(given, token):
             return JSONResponse({"detail": "本地访问令牌无效"}, status_code=401)
         if app.state.shutting_down and request.url.path != "/shutdown":
             return JSONResponse({"detail": "工作室正在退出"}, status_code=503)
@@ -267,8 +257,6 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
 
     @app.put("/cloud/configuration")
     async def cloud_configuration(request: Request):
-        if any(row["phase"] not in {"completed", "cancelled", "failed", "budget_paused"} for row in harness.list()):
-            raise ValueError("Harness 云端请求仍在进行，请完成或确认取消后再修改云端配置")
         payload = bytearray()
         async for chunk in request.stream():
             payload.extend(chunk)
@@ -333,21 +321,22 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
         return studio.assets.import_file(value.source, value.category, value.batch_id)
 
     @app.get("/references/file")
-    def reference_file(path: str, batch_id: str | None = None):
+    def reference_file(path: str, batch_id: str | None = None, thumbnail: int | None = None):
         # Only verified managed images, never an arbitrary file from the disk.
         if batch_id:
             directory = studio.repo.directory(batch_id)
             manifest = directory / "inputs/manifest.json"
-            if manifest.is_file() and any(path in task.refs for task in studio.repo.tasks(batch_id)):
+            if manifest.is_file() and studio.repo.has_task_reference(directory, path):
                 for asset in read_json(manifest).get("assets", []):
                     if asset["source_path"] == path and asset["local_path"].startswith("inputs/assets/"):
                         snapshot = beneath(directory / "inputs/assets", asset["local_path"][14:])
-                        if sha256_file(snapshot) != asset["sha256"]:
+                        info = _inspect_for_listing(snapshot)
+                        if info["sha256"] != asset["sha256"]:
                             raise ValueError("参考图快照损坏")
-                        return FileResponse(snapshot, media_type=inspect_image(snapshot)["mime_type"])
+                        return serve_image(snapshot, info["mime_type"], thumbnail, info["sha256"])
         for item in studio.assets.list(batch_id):
             if item["path"] == path:
-                return FileResponse(studio.settings.data_dir / path, media_type=item["mime_type"])
+                return serve_image(studio.settings.data_dir / path, item["mime_type"], thumbnail, item["sha256"])
         raise KeyError("找不到参考图")
 
     @app.get("/batches")
@@ -453,11 +442,11 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
         return studio.results(batch_id)
 
     @app.get("/batches/{batch_id}/images/{task_id}/{image_index}")
-    def image(batch_id: str, task_id: str, image_index: int):
+    def image(batch_id: str, task_id: str, image_index: int, thumbnail: int | None = None):
         for task in studio.results(batch_id)["tasks"]:
             if task["task_id"] == task_id and 0 <= image_index < len(task["images"]):
                 value = task["images"][image_index]
-                return FileResponse(value["path"], media_type=value["mime_type"])
+                return serve_image(Path(value["path"]), value["mime_type"], thumbnail)
         raise KeyError("找不到输出图片")
 
     @app.get("/batches/{batch_id}/events")
@@ -490,19 +479,14 @@ def create_app(studio: Studio, token: str, on_shutdown=None,
     async def shutdown():
         app.state.shutting_down = True
         studio.request_stop()
-        harness.request_stop()
-        harness_runtime.request_stop()
         log_lifecycle_event(
             studio.settings.root,
             "shutdown_requested",
             instance_id=instance_id,
             mode=mode,
-            harness_running=bool(harness_runtime.child and harness_runtime.child.poll() is None),
-            harness_pid=harness_runtime.child.pid if harness_runtime.child else None,
         )
         if on_shutdown:
             on_shutdown()
         return {"status": "stopping"}
 
-    mount_harness(app, harness, harness_runtime, harness_token)
     return app

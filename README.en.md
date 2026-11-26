@@ -2,27 +2,13 @@
 
 [简体中文](README.md) | **English**
 
-A Windows desktop workspace for **Google Cloud Vertex AI Batch**, combining **batch image generation** and a **Harness local agent** in a single native application. *Note: In real-world Batch inference, reasoning-heavy models such as Gemini 4 Argon have longer queue and turnaround times, making them best suited for large, single-pass code or document workloads (for example, optimizing this app's frontend with Gemini 4 Argon took ~1h 15m).*
+A Windows desktop workspace for **Google Cloud Vertex AI Batch image generation**. Queue prompts and reference images, monitor jobs, and keep decoded outputs with your project.
 
-[Download Installer (v0.3.4)](https://github.com/veluRiya000/Vertex-Batch-Studio/releases/tag/v0.3.4) · [Feature Source](https://github.com/veluRiya000/Vertex-Batch-Studio/tree/feature/harness-batch) · [Changelog](docs/changelog-v0.3.4.md#english) · [Report an Issue](https://github.com/veluRiya000/Vertex-Batch-Studio/issues)
+[Download Installer (v0.3.5)](https://github.com/veluRiya000/Vertex-Batch-Studio/releases/tag/v0.3.5) · [Changelog](docs/changelog-v0.3.5.md#english) · [Report an Issue](https://github.com/veluRiya000/Vertex-Batch-Studio/issues)
 
 > **New here? [Open the illustrated Google Cloud setup guide: Project ID, storage bucket, and JSON key](#google-cloud-setup-guide)**
 
-> **Release Notes (`v0.3.4`)**
-> A single installer (~**69.5 MB**) bundles batch image generation, Harness, the Python backend, and the Node.js runtime out of the box—no separate runtime installation required. Supports clean in-place upgrades and automatic background process cleanup via Windows Job Objects. Source code for the current feature set is on the `feature/harness-batch` branch.
-
----
-
-## Two Modes
-
-Switch modes anytime from the top-left corner (**Image Generation** uses a clean blue theme; **Harness** uses a warm studio theme). Switching views never interrupts background jobs. *Harness can read images as multimodal inputs, but does not generate images or ingest video files.*
-
-| Mode | Best For | Execution Flow |
-| --- | --- | --- |
-| **Image Generation** | Generating image batches, organizing character/style references, dual-directory saving, and archiving | Queue multiple tasks and submit batches manually (supports concurrent multi-round submissions in the same project) |
-| **Harness Agent** | Processing local files, writing docs, editing code, and running PowerShell commands | Start a task to run an automated `Model → Tools → Model` Batch loop |
-
-> **About Harness**: Built on the session, tool, and approval mechanisms of [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness), with all model inference routed through Google Cloud Batch. No DeepSeek API key is required.
+The previous build that includes Harness is preserved on the [feature/harness-batch branch](https://github.com/veluRiya000/Vertex-Batch-Studio/tree/feature/harness-batch) and in the [v0.3.4 release](https://github.com/veluRiya000/Vertex-Batch-Studio/releases/tag/v0.3.4).
 
 ---
 
@@ -36,14 +22,7 @@ Switch modes anytime from the top-left corner (**Image Generation** uses a clean
 - **Center Stage (Conversation Stream & Composer)**: Inspect multi-round generation history, 4-up image grids, job progress, and raw payload actions. The bottom composer lets you attach references, configure aspect ratio/resolution/image count, and submit additional batch rounds without waiting for earlier rounds to finish.
 - **Right Sidebar (Generation Queue)**: Tasks receive stable creation-order badges (`01`, `02`, ...) that remain fixed even when toggling ascending/descending creation-time sort.
 
-### 2. Harness Local Agent Workspace
-
-![Harness Local Agent Workspace](docs/images/ui/harness-workspace.png)
-
-- **Integrated Native Workspace**: Switch to `Harness` from the top bar to manage local workspace folders, multi-turn agent threads, model selection, and permission policies (Read-Only, Auto-Edit, Full Autonomous, etc.) inside the same desktop window.
-- **Transparent Batch Execution**: Track active Batch job states, tool execution logs, file diffs, and estimated costs in real time.
-
-### 3. Cloud Configuration & Project Archive Management
+### 2. Cloud Configuration & Project Archive Management
 
 | Google Cloud Credentials & Connection Check | Project Archive & Direct Folder Access |
 | --- | --- |
@@ -65,31 +44,14 @@ Switch modes anytime from the top-left corner (**Image Generation** uses a clean
 
 > **Note**: The selected image count controls the number of cloud requests submitted, not a guaranteed number of returned images. Content filtering or failed requests may result in fewer images (if a single request returns multiple images, all are saved). Failed requests are never automatically resubmitted at extra cost.
 
-### 2. Harness Agent
+- **Long project histories**: Open the latest 20 task cards first, scroll back to older tasks, or jump to any task from the queue. Previews load near the viewport; click to open the original.
 
-- **Workspaces & Persistent Sessions**: Bind a local workspace directory and retain conversation context, attachments, tool outputs, and file change history.
-- **File & Shell Tools**: Read, search, create, and edit local files, execute PowerShell commands, and inspect deliverables.
-- **Permissions & Safety Approvals**: Leverages DSH permission modes, the Windows sandbox, and user approvals for out-of-scope actions. Built-in file version checks prevent overwriting files modified externally.
-- **Attachments & Text Preloading**: Drag and drop images and text files into the composer. Size-limited text attachments are preloaded automatically to save extra Batch rounds spent reading uploaded files (video inputs are currently unsupported and skipped).
-- **Custom Persona & Extensions**: Customize the role prompt in Settings, and manually configure Skills and MCP servers (external MCP services are not connected by default).
-- **Batch Activity & Local Limits**: Monitor execution steps, queue time, active jobs, token usage, estimated costs, and reserved amounts. Optional local limits allow setting budgets, request caps, and custom output allowances (disabled by default).
+### 2. Desktop Experience & Notifications
 
-**Built-in Harness Models:**
-
-| Display Name | API Model ID |
-| --- | --- |
-| Gemini 4 Argon | `gemini-4-argon` |
-| Gemini 3.8 Flash | `gemini-3.8-flash` |
-| Gemini 3.1 Pro Preview | `gemini-3.1-pro-preview` |
-
-*Note: Actual availability depends on Google Cloud model support, project permissions, and region. Harness and Image Generation maintain separate model selections.*
-
-### 3. Desktop Experience & Notifications
-
-- **Desktop Integration & Clean Process Lifecycle**: Light/dark themes, English/Chinese UI, system tray support, launch at login, and start minimized. Backend and Harness child processes are bound to a Windows Job Object so closing the app or running an in-place installer upgrade cleanly terminates all spawned processes without leaving orphan `node.exe` or Python services behind.
-- **Native Windows Notifications (Enabled by Default)**: Image and Harness queues are tracked independently. Get notified after each batch or when all queued tasks of the same type finish, with optional failure alerts.
+- **Desktop Integration & Clean Process Lifecycle**: Light/dark themes, English/Chinese UI, system tray support, launch at login, and start minimized. The backend process is bound to a Windows Job Object so closing the app or running an in-place installer upgrade cleanly terminates all spawned processes without leaving orphan Python services behind.
+- **Native Windows Notifications (Enabled by Default)**: Get notified after each batch or when all queued batches finish, with optional failure alerts.
 - **Custom Notification Sounds**: Includes 3 built-in alert sounds (with preview) plus support for importing custom WAV or MP3 files.
-- **Shared Cloud Configuration**: Both modes share the same Google Cloud connection settings, complete with quick-launch console links next to the Project, Bucket, and Credential fields.
+- **Shared Cloud Configuration**: Google Cloud connection settings are managed in one place, complete with quick-launch console links next to the Project, Bucket, and Credential fields.
 
 ---
 
@@ -97,9 +59,9 @@ Switch modes anytime from the top-left corner (**Image Generation** uses a clean
 
 ### 1. Download & Install
 
-1. Visit the [v0.3.4 Release page](https://github.com/veluRiya000/Vertex-Batch-Studio/releases/tag/v0.3.4) and download `VertexBatchStudio-Setup-0.3.4-x64.exe`.
+1. Visit the [v0.3.5 Release page](https://github.com/veluRiya000/Vertex-Batch-Studio/releases/tag/v0.3.5) and download `VertexBatchStudio-Setup-0.3.5-x64.exe`.
 2. Run the installer to perform a fresh install or an in-place upgrade (the installer automatically closes any running instance of the app before upgrading).
-3. Launch the application, configure Google Cloud, and select a mode.
+3. Launch the application, and configure Google Cloud.
 
 *System Requirements: Windows x64. No separate Python, Node.js, or Rust installation is needed. Uses system WebView2 (downloaded automatically during setup if missing). The installer is currently unsigned; SHA-256 checksums are provided on the release page.*
 
@@ -124,13 +86,11 @@ Open the Google Cloud console dashboard for your project and copy the value next
 
 ![Google Cloud project dashboard showing where to copy the project ID](docs/images/google-cloud/project-id.png)
 
-
 ### Storage bucket: where to find its name
 
 Create or select a bucket under **Cloud Storage → Buckets**, then copy its name into the app's **Bucket** field. The highlighted rows show bucket names; use the actual name from your own project.
 
 ![Cloud Storage bucket list with bucket names highlighted](docs/images/google-cloud/storage-bucket.png)
-
 
 ### Service account JSON key: how to create and download it
 
@@ -154,7 +114,6 @@ Create or select a bucket under **Cloud Storage → Buckets**, then copy its nam
 
    ![Choosing JSON and creating the downloadable service account key](docs/images/google-cloud/service-account-key-05.png)
 
-
 ---
 
 ## Workflows
@@ -174,21 +133,6 @@ Create Project → Enter Prompt & References → Select Model & Settings → Add
 - **Batching & Multi-Round Submissions**: Clicking **Add task** adds an entry to the current draft batch. A batch can hold multiple tasks, each expanding into the selected number of cloud requests upon submission (e.g., 2 tasks requesting 4 images each appear as 2 conversation items and submit 8 JSONL requests). Once submitted, you can immediately queue and submit new batch rounds in the same project while earlier rounds are still running.
 - **Archiving & Folder Access**: Any project without an actively generating/transferring batch can be archived via right-click (including completed, draft, failed, paused, or unconfirmed batches). Archived projects can be opened directly in File Explorer, restored, or deleted from **Settings → Archive**.
 
-### Harness Agent
-
-```text
-Switch to Harness → Select Workspace → Add Task & Attachments → Choose Model & Permissions → Start
-                                                                                               ↓
-                                                                      Batch Result → Local Tools / Approval
-                                                                                               ↓
-                                                                          Next Round (if needed) → Delivery
-```
-
-- **Asynchronous Batch Execution**: All model calls run through Google Cloud Batch without falling back to real-time streaming APIs. Status indicators, tool logs, and file diffs update live, while model responses arrive once the active Batch job completes.
-- **Prompting Tip**: Because dependent tool steps require sequential Batch rounds, state your goal, input files, target output path, and acceptance criteria upfront in a single prompt whenever possible.
-
----
-
 ## Data Storage & Recovery
 
 The installed Windows app stores user data in a dedicated directory (retained by default upon uninstallation):
@@ -201,24 +145,20 @@ The installed Windows app stores user data in a dedicated directory (retained by
 │   ├── references/           # Shared reference image library and custom category metadata
 │   ├── batches/              # Image inputs, raw payloads, internal decoded images, and logs
 │   ├── archive/              # Archived image projects
-│   ├── harness/              # Sessions, attachments, ledger, and raw model responses
 │   └── notifications/        # Custom alert sounds and notification history
 └── .runtime/                 # Local runtime and connection state
 ```
 
 - **Minimize to Tray**: Background polling and completion notifications continue running normally.
 - **Exit or Shut Down**: Local tools and download monitors stop, while jobs already submitted to Google Cloud continue running remotely.
-- **Restart Recovery**: On relaunch, Image Generation automatically resumes job polling, downloading, and decoding. Harness reconciles submitted requests, though seamless recovery of an interrupted multi-step agent turn is not guaranteed (avoid blindly re-running tasks with side effects).
+- **Restart Recovery**: On relaunch, Image Generation automatically resumes job polling, downloading, and decoding.
 - **Archiving & Deletion**: Archiving or deleting projects only removes local files and does not delete objects in Google Cloud Storage.
 
 ---
 
-## Costs, Limits & Boundaries
+## Costs
 
-- **Cost Estimates vs. Billing**: The UI separates **estimated usage costs** from **pre-submission reservations**. Reservations are local tracking estimates, not actual charges. Final charges, free trial credits, and discounts are determined by Google Cloud Billing.
-- **Local Run Limits**: When enabled, local budgets and request caps only constrain subsequent submissions without altering jobs already in flight. Disabling local limits does not expand file/command permissions or bypass cloud quotas.
-- **Long-Output Continuation (Argon)**: Argon attempts long-output continuation only when the cloud returns a valid continuation token. Missing tokens, quota limits, or errors stop generation while preserving raw results; million-token output is not guaranteed.
-- **Safety & Sandbox Scope**: Truncated or malformed tool arguments are rejected before execution. The Windows sandbox primarily restricts file writes—it is not a full virtual machine and does not isolate file reads, networking, or processes (nor do external MCP servers inherit sandbox isolation).
+- The title bar opens Google Cloud Billing Reports and Credits in your browser. Google Cloud Billing shows final charges, credits, and discounts.
 
 ---
 
@@ -227,16 +167,14 @@ The installed Windows app stores user data in a dedicated directory (retained by
 ### 1. Clone the Repository
 
 ```powershell
-git clone --branch feature/harness-batch --recurse-submodules https://github.com/veluRiya000/Vertex-Batch-Studio.git
+git clone https://github.com/veluRiya000/Vertex-Batch-Studio.git
 cd Vertex-Batch-Studio
 ```
-
-> For an existing clone, run `git submodule update --init --recursive` to fetch the pinned DSH submodule (GitHub source ZIP downloads do not include submodules).
 
 ### 2. Environment & Dependencies
 
 - **Python 3.12** (dependencies locked via `requirements.lock.txt`)
-- **Node.js & npm** (the Harness component builder pins **Node.js 24.18.0**)
+- **Node.js 22.12+ and npm**
 - **Rust toolchain**, Visual Studio C++ Build Tools, and Windows SDK (required for desktop compilation)
 
 ```powershell
@@ -273,11 +211,11 @@ To run the image backend and web frontend in two terminals:
 npm.cmd run dev
 ```
 
-For desktop development, run `npm.cmd run desktop` inside `frontend/`. Before using Harness from source, follow the [Harness Component Build Guide](https://github.com/veluRiya000/Vertex-Batch-Studio/blob/feature/harness-batch/docs/HARNESS_COMPONENT.md) to compile the pinned upstream and assemble `harness/component/`.
+For desktop development, run `npm.cmd run desktop` inside `frontend/`.
 
 ### 4. Build the Windows Installer
 
-Once `harness/component/` is built, run from the repository root:
+Run from the repository root:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File packaging/build-windows.ps1 -Python .venv/Scripts/python.exe
@@ -289,11 +227,9 @@ Installer artifacts are written to `release/`.
 
 | Directory | Contents |
 | --- | --- |
-| `backend/` | FastAPI server, image batching, model catalog discovery, Harness Batch scheduler, cost tracking, and notifications |
-| `frontend/src/` | Web UI, mode switching, and shared settings |
+| `backend/` | FastAPI server, image batching, model catalog discovery, and notifications |
+| `frontend/src/` | Web UI, workspace, and settings |
 | `frontend/src-tauri/` | Tauri desktop windowing, tray integration, Job Object process management, and native bridges |
-| `harness/plugins/` | Batch model adapter, prompt policies, and Harness theme plugins |
-| `harness/upstream/` | Pinned DSH upstream submodule |
 | `packaging/` | Backend freezing and combined Windows installer scripts |
 | `tests/`, `docs/` | Automated backend tests and technical documentation |
 
@@ -312,12 +248,9 @@ The backend CLI also remains available via `python -m backend --help`.
 
 ## Documentation
 
-- [Local API & Image Workflows](https://github.com/veluRiya000/Vertex-Batch-Studio/blob/feature/harness-batch/docs/API.md)
-- [Harness Features & Permissions](https://github.com/veluRiya000/Vertex-Batch-Studio/blob/feature/harness-batch/docs/HARNESS_FEATURES.md)
-- [Model Entries](https://github.com/veluRiya000/Vertex-Batch-Studio/blob/feature/harness-batch/docs/HARNESS_MODELS.md)
-- [Long-Output Continuation](https://github.com/veluRiya000/Vertex-Batch-Studio/blob/feature/harness-batch/docs/HARNESS_CONTINUATION.md)
-- [Completion Notifications](https://github.com/veluRiya000/Vertex-Batch-Studio/blob/feature/harness-batch/docs/COMPLETION_NOTIFICATIONS.md)
-- [Windows Packaging](https://github.com/veluRiya000/Vertex-Batch-Studio/blob/feature/harness-batch/packaging/README.md)
+- [Local API & Image Workflows](docs/API.md)
+- [Completion Notifications](docs/COMPLETION_NOTIFICATIONS.md)
+- [Windows Packaging](packaging/README.md)
 
 *(Note: Some linked technical documents are currently available in Chinese only.)*
 
@@ -325,6 +258,6 @@ The backend CLI also remains available via `python -m backend --help`.
 
 ## Feedback & Licensing
 
-- **Issues & PRs**: When reporting an issue, please include the app version, active mode, reproduction steps, and sanitized logs (**never upload service account keys, access tokens, or unredacted private sessions**). Pull requests should target the active development branch.
-- **License**: This repository does not currently include a project-wide `LICENSE` file; usage and redistribution are subject to the maintainer's terms. The `harness/upstream` submodule is pinned to `d743267388641bc76f17c45ce8b4c231aed1d32c` under the MIT License (which does not automatically extend to the rest of this repository). Bundled runtime packages retain their respective third-party and Node.js license notices.
+- **Issues & PRs**: When reporting an issue, please include the app version, reproduction steps, and sanitized logs (**never upload service account keys, access tokens, or unredacted private sessions**). Pull requests should target the active development branch.
+- **License**: This repository does not currently include a project-wide `LICENSE` file; usage and redistribution are subject to the maintainer's terms.
 - **Disclaimer**: Google Cloud, Vertex AI, and Gemini are trademarks or products of their respective owners. This project is not affiliated with or endorsed by Google.

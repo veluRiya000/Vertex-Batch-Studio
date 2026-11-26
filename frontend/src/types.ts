@@ -44,7 +44,6 @@ declare global {
   interface Window {
     studio?: {
       openCloudPage?(page: CloudPage, project: string): Promise<void>;
-      harnessView?(visible: boolean, offline: boolean, restoreOnly?: boolean): Promise<void>;
       api(method: string, path: string, body?: unknown): Promise<unknown>;
       image(path: string): Promise<string>;
       upload(name: string, bytes: ArrayBuffer, options: ImportOptions): Promise<Reference>;

@@ -198,8 +198,8 @@ class SoundLibrary:
         return path
 
 
-def completion_snapshot(studio, harness):
-    """Whole image jobs / Agent runs only; an individual model step is never a task."""
+def completion_snapshot(studio):
+    """Report the status of each image batch."""
     items = {}
     for batch in studio.repo.list():
         phase = batch["phase"]
@@ -210,34 +210,14 @@ def completion_snapshot(studio, harness):
                   "idle" if phase in {"draft", "prepared"} else "active")
         items["image:" + batch["id"]] = dict(status=status, kind="image", name=batch["project_name"],
                                              warning=phase == "completed_with_errors")
-    with harness.connection() as db:
-        runs = [json.loads(row[0]) for row in db.execute("SELECT data FROM runs")]
-    for run in runs:
-        status = "success" if run["phase"] == "completed" else "active"
-        if run["phase"] == "paused":
-            with harness.connection() as db:
-                receipts = [json.loads(row[0]) for row in db.execute(
-                    "SELECT data FROM requests WHERE run_id=? ORDER BY rowid", (run["run_id"],))]
-            # Pausing the Agent does not cancel an accepted cloud job. Only real
-            # in-flight receipts keep this queue active, never a historical pause.
-            if any(receipt["phase"] not in {"completed", "failed", "cancelled", "budget_paused"}
-                   for receipt in receipts):
-                status = "active"
-            elif receipts and (receipts[-1]["phase"] == "failed" or receipts[-1].get("truncated")):
-                status = "failed"
-            elif receipts and receipts[-1]["phase"] == "cancelled":
-                status = "cancelled"
-            else:
-                status = "paused"
-        items["harness:" + run["run_id"]] = dict(status=status, kind="harness", name=Path(run["workspace"]).name)
     return items
 
 
 class CompletionTracker:
     """Persist observations before dispatch: refresh/restart cannot replay the same reminder.
 
-    Each mode has its own cohort, growing while submitted work remains. Drafts
-    and locally paused runs do not block it; unresolved cloud jobs do.
+    The cohort grows while submitted work remains. Drafts and paused batches
+    do not block it; unresolved cloud jobs do.
     Disabling reminders consumes events.
     """
     TERMINAL = {"success", "failed", "cancelled"}
@@ -265,8 +245,7 @@ class CompletionTracker:
         events = []
         for key, item in items.items():
             old = previous.get(key)
-            selected = prefs.image_batches if item["kind"] == "image" else prefs.harness_tasks
-            if not prefs.enabled or not selected:
+            if not prefs.enabled or not prefs.image_batches:
                 continue
             if item["status"] in {"idle", "paused"}:
                 pending.pop(key, None)
@@ -286,17 +265,12 @@ class CompletionTracker:
         for key in list(pending):
             if key not in items:
                 del pending[key]
-        # Independent queues: even an active Agent must not suppress image
-        # reminders. Grouping also migrates persisted mixed cohorts in place.
-        for kind in ("image", "harness"):
-            cohort = {key: item for key, item in pending.items() if item["kind"] == kind}
-            if cohort and all(item["status"] in self.TERMINAL for item in cohort.values()):
-                ready = [item for item in cohort.values() if item["status"] == "success" or
-                         item["status"] == "failed" and prefs.include_failures]
-                if prefs.mode == "all" and ready:
-                    events.append(ready)
-                for key in cohort:
-                    del pending[key]
+        if pending and all(item["status"] in self.TERMINAL for item in pending.values()):
+            ready = [item for item in pending.values() if item["status"] == "success" or
+                     item["status"] == "failed" and prefs.include_failures]
+            if prefs.mode == "all" and ready:
+                events.append(ready)
+            pending.clear()
         state["seen"] = items
         state["config"] = config
         if state != getattr(self, "_saved", None):
@@ -307,8 +281,8 @@ class CompletionTracker:
 
 
 class NotificationCenter:
-    def __init__(self, studio, harness, sender=None):
-        self.studio, self.harness = studio, harness
+    def __init__(self, studio, sender=None):
+        self.studio = studio
         self.folder = studio.settings.data_dir / "notifications"
         self.sounds = SoundLibrary(self.folder)
         icon = self.folder / "app-icon.png"
@@ -339,17 +313,14 @@ class NotificationCenter:
 
     def tick(self):
         prefs = load_preferences(self.studio.settings.root).notifications
-        for event in self.tracker.poll(completion_snapshot(self.studio, self.harness), prefs):
+        for event in self.tracker.poll(completion_snapshot(self.studio), prefs):
             failed = sum(i["status"] == "failed" or i.get("warning", False) for i in event)
             if prefs.mode == "all":
-                if event[0]["kind"] == "image":
-                    title = "生图批次已全部处理完成" if failed else "生图批次已全部完成"
-                else:
-                    title = "Harness 本轮运行已结束"
+                title = "生图批次已全部处理完成" if failed else "生图批次已全部完成"
                 body = f"已完成 {len(event) - failed} 项" + (f"，{failed} 项失败或部分失败。请打开工作室查看。" if failed else "，可以回来查看结果了。")
             else:
                 item = event[0]
-                title = ("Harness 任务" if item["kind"] == "harness" else "生图批次") + ("处理失败" if failed else "已完成")
+                title = "生图批次" + ("处理失败" if failed else "已完成")
                 body = item["name"] + (" · 请查看错误详情" if failed else " · 结果已就绪")
             try:
                 self.work.put_nowait((title, body, prefs))

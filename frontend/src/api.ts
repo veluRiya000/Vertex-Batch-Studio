@@ -1,6 +1,6 @@
 import type { ImportOptions, Reference, Snapshot } from './types'
 
-export async function api<T>(path: string, method = 'GET', body?: unknown, timeoutMs = path.startsWith('/harness/') ? 120000 : 25000): Promise<T> {
+export async function api<T>(path: string, method = 'GET', body?: unknown, timeoutMs = 25000): Promise<T> {
   const controller = new AbortController()
   let timer: ReturnType<typeof setTimeout> | undefined
   const timeout = new Promise<never>((_, reject) => {

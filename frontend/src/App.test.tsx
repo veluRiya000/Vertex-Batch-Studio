@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
   fireEvent,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -394,8 +395,7 @@ it("拖动侧栏边缘连续改变宽度并保存任意中间值", async () => {
   fireEvent.pointerUp(separator, { clientX: 24 });
   expect(screen.getByRole("button", { name: "展开侧栏" })).toBeTruthy();
 });
-it("账单报告和赠金链接在两种模式下都跟在关于右边", async () => {
-  const user = userEvent.setup();
+it("账单报告和赠金链接跟在关于右边", () => {
   render(<App />);
   const checkTitlebar = () => {
     const about = screen.getByRole("button", { name: "关于" });
@@ -406,8 +406,6 @@ it("账单报告和赠金链接在两种模式下都跟在关于右边", async (
     expect(reports.getAttribute("href")).toBe("https://console.cloud.google.com/billing/reports");
     expect(credits.getAttribute("href")).toBe("https://console.cloud.google.com/billing/credits");
   };
-  checkTitlebar();
-  await user.click(screen.getByRole("button", { name: "Harness" }));
   checkTitlebar();
 });
 
@@ -535,25 +533,6 @@ it("窄窗口打开队列后可从队列内部关闭", async () => {
 });
 
 
-it('Harness Cloud entry and shell palette follow mode, closing returns to the same mode',async()=>{
-  const user=userEvent.setup();
-  render(<App/>);
-  await screen.findByRole('button',{name:'测试项目'});
-  expect(document.documentElement.dataset.studioMode).toBe('images');
-  await user.click(screen.getByRole('button',{name:'Harness'}));
-  expect(document.documentElement.dataset.studioMode).toBe('harness');
-  fireEvent(window,new Event('vbs:open-cloud-settings'));
-  await screen.findByRole('textbox',{name:'项目 ID'});
-  expect(screen.queryByRole('switch',{name:'深色主题'})).toBeNull();
-  await user.click(screen.getByRole('button',{name:'关闭弹窗'}));
-  expect(document.documentElement.dataset.studioMode).toBe('harness');
-  await user.click(document.querySelector('.top-actions button') as HTMLButtonElement);
-  expect(screen.getByRole('switch',{name:'深色主题'})).toBeTruthy();
-  await user.click(screen.getByRole('button',{name:'关闭弹窗'}));
-  await user.click(screen.getByRole('button',{name:'生图'}));
-  expect(document.documentElement.dataset.studioMode).toBe('images');
-  expect(screen.getByRole('textbox',{name:'提示词'})).toBeTruthy();
-});
 
 it("未建项目时输入的提示词与参考图在创建项目后保留，只有点击加入任务才保存", async () => {
   const base = vi.mocked(api).getMockImplementation()!;
@@ -728,4 +707,31 @@ it("所有分类删除后保持空列表，导入入口提示添加分类", asyn
   await user.click(screen.getByRole('button',{name:'导入参考图'}));
   expect(screen.getByRole('dialog',{name:'添加参考图分类'})).toBeTruthy();
   expect(vi.mocked(api).mock.calls.some(([path,method])=>path.includes('/references/upload')&&method==='POST')).toBe(false);
+});
+
+it("长项目只挂载最近二十条，并可加载或定位旧任务", async () => {
+  batch.phase = "completed";
+  tasks = Array.from({ length: 120 }, (_, i) => ({
+    id: (i + 1).toString(16).padStart(32, "0"), name: "历史任务 " + (i + 1),
+    prompt: "内容 " + (i + 1), refs: [], aspect_ratio: "16:9", image_size: "1K",
+    image_count: 1, generation_config: {}, temperature: null,
+  }));
+  const user = userEvent.setup();
+  render(<App />);
+  const conversation = document.querySelector(".conversation") as HTMLElement;
+  const queue = screen.getByRole("complementary", { name: "生成队列" });
+  await within(conversation).findByText("历史任务 120");
+  expect(within(conversation).queryByText("历史任务 100")).toBeNull();
+  expect(conversation.querySelectorAll(".task-card")).toHaveLength(20);
+
+  await user.click(within(conversation).getByRole("button", { name: "加载更早的任务" }));
+  expect(within(conversation).getByText("历史任务 100")).toBeTruthy();
+  expect(within(conversation).queryByText("历史任务 120")).toBeNull();
+  await user.click(within(queue).getByText("历史任务 1", { exact: true }));
+  expect(within(conversation).getByText("历史任务 1")).toBeTruthy();
+  expect(conversation.querySelectorAll(".task-card")).toHaveLength(20);
+
+  await user.click(within(conversation).getByRole("button", { name: "回到最新" }));
+  expect(within(conversation).getByText("历史任务 120")).toBeTruthy();
+  expect(within(conversation).queryByText("历史任务 1")).toBeNull();
 });

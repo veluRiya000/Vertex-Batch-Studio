@@ -73,7 +73,6 @@ export function NotificationSettings() {
           {value.mode === mode && <Check size={15}/>}</button>)}
       </div>
       {toggle(text("生图批次", "Image batches"),value.image_batches,"image_batches",!value.enabled)}
-      {toggle(text("Harness 任务", "Harness tasks"),value.harness_tasks,"harness_tasks",!value.enabled)}
       {toggle(text("失败时也提醒", "Also notify on failure"),value.include_failures,"include_failures",!value.enabled)}
       <div className="settings-divider"/>
       {toggle(text("提醒声音", "Play a sound"),value.sound_enabled,"sound_enabled",!value.enabled)}

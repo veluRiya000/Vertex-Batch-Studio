@@ -51,9 +51,9 @@ import { CloudConsoleLink } from "./CloudConsoleLink";
 import { ReferenceLibrary } from "./ReferenceLibrary";
 import { SubmissionActions } from "./SubmissionActions";
 import { LibraryPane } from "./LibraryPane";
-import { HarnessPane } from "./HarnessPane";
 import { ProjectMenu } from "./ProjectMenu";
 import { CollapsiblePrompt } from "./CollapsiblePrompt";
+import { useConversationWindow } from "./conversation-window";
 import { usePreferences } from "./preferences";
 import { useCloudConnection } from "./cloud-connection";
 import { useTranslation } from "./i18n";
@@ -61,6 +61,7 @@ import {
   archivable,
   editable,
   groupBatches,
+  generatingPhases,
   landscape,
   matchRatio,
   phaseLabel,
@@ -87,10 +88,11 @@ type Preview = {
   localPaths?: string[];
 };
 const filename = (path: string) => path.split(/[\\/]/).at(-1) || path;
-const referencePath = (ref: Reference, batchId?: string) =>
+const referencePath = (ref: Pick<Reference, "path"> & Partial<Pick<Reference, "sha256">>, batchId?: string) =>
   "/references/file?" +
   new URLSearchParams({
     path: ref.path,
+    ...(ref.sha256 ? { v: ref.sha256 } : {}),
     ...(batchId ? { batch_id: batchId } : {}),
   });
 const taskLabel = (entry: Entry) =>
@@ -224,7 +226,7 @@ function TaskCard({
                 title={path}
                 onClick={() =>
                   preview({
-                    paths: [referencePath({ path } as Reference, batch.id)],
+                    paths: [referencePath({ path }, batch.id)],
                     names: [filename(path)],
                     index: 0,
                     localPath: path,
@@ -232,7 +234,8 @@ function TaskCard({
                 }
               >
                 <Media
-                  path={referencePath({ path } as Reference, batch.id)}
+                  path={referencePath({ path }, batch.id)}
+                  thumbnail={160}
                   alt={filename(path)}
                 />
                 <span>{i + 1}</span>
@@ -295,6 +298,7 @@ function TaskCard({
             >
               <button
                 className="main-output"
+                style={{ aspectRatio: task.aspect_ratio.replace(":", " / ") }}
                 onClick={() =>
                   preview({
                     paths,
@@ -309,6 +313,7 @@ function TaskCard({
               >
                 <Media
                   path={paths[current]}
+                  thumbnail={960}
                   alt={`${task.name} 第 ${current + 1} 张`}
                 />
                 <span className="expand-hint">
@@ -325,7 +330,7 @@ function TaskCard({
                       aria-label={t("查看第 ") + (i + 1) + t(" 张")}
                       aria-pressed={current === i}
                     >
-                      <Media path={path} alt={t("缩略图 ") + (i + 1)} />
+                      <Media path={path} thumbnail={160} alt={t("缩略图 ") + (i + 1)} />
                     </button>
                   ))}
                 </div>
@@ -388,12 +393,6 @@ function TaskCard({
 }
 
 export default function App() {
-  const [mode, setMode] = useState<"images" | "harness">("images");
-  useEffect(() => {
-    // Modal and dropdown portals live outside the shell, so theme the root.
-    document.documentElement.dataset.studioMode = mode;
-    return () => { delete document.documentElement.dataset.studioMode; };
-  }, [mode]);
   const t = useTranslation();
   const { preferences, update: updatePreferences } = usePreferences();
   const [batches, setBatches] = useState<Batch[]>([]);
@@ -443,18 +442,7 @@ export default function App() {
   const [modal, setModal] = useState<
     "new" | "rename" | "settings" | "about" | "output" | null
   >(null);
-  const [settingsInitialTab, setSettingsInitialTab] = useState<"general" | "cloud" | "notifications">("general");
-  const openSettings = () => { setSettingsInitialTab("general"); setModal("settings"); };
-  useEffect(() => {
-    const openCloud = () => { setSettingsInitialTab("cloud"); setModal("settings"); };
-    window.addEventListener("vbs:open-cloud-settings", openCloud);
-    const openNotifications = () => { setSettingsInitialTab("notifications"); setModal("settings"); };
-    window.addEventListener("vbs:open-notification-settings", openNotifications);
-    return () => {
-      window.removeEventListener("vbs:open-cloud-settings", openCloud);
-      window.removeEventListener("vbs:open-notification-settings", openNotifications);
-    };
-  }, []);
+  const openSettings = () => setModal("settings");
   const [newName, setNewName] = useState("");
   const [renameProject, setRenameProject] = useState<{ id: string; name: string }>();
   const [output, setOutput] = useState("");
@@ -468,6 +456,8 @@ export default function App() {
   const referenceInput = useRef<HTMLInputElement>(null);
   const customInput = useRef<HTMLInputElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
+  const activeProject = useRef(activeId);
+  useLayoutEffect(() => { activeProject.current = activeId; }, [activeId]);
   const stamps = useRef<Record<string, string>>({});
   const pending = useRef(new Set<string>());
   const refreshing = useRef<Promise<Batch[]> | null>(null);
@@ -527,8 +517,13 @@ export default function App() {
     setBatches(visible);
     setConnected(true);
     const changed = values.filter(
-      (batch) => stamps.current[batch.id] !== batch.updated_at,
+      (batch) => !batch.archived && stamps.current[batch.id] !== batch.updated_at,
     );
+    // Load the open project first; all task summaries still feed the global queue.
+    const projects = groupBatches(values).filter(project => !project.archived);
+    const current = projects.find(project => project.id === activeProject.current) ?? projects[0];
+    const priority = new Set(current?.batches.map(batch => batch.id));
+    changed.sort((a, b) => Number(priority.has(b.id)) - Number(priority.has(a.id)));
     for (let i = 0; i < changed.length; i += 4) {
       await Promise.all(
         changed.slice(i, i + 4).map(async (batch) => {
@@ -610,6 +605,7 @@ export default function App() {
       })),
     );
   const entries = entriesFor(rounds);
+  const history = useConversationWindow(activeId, entries.map(entry => entry.task.id), scroller);
   const queuedChronological = entriesFor(
     queueAll ? batches.filter((batch) => !batch.archived) : rounds,
   ).sort((a, b) =>
@@ -621,7 +617,7 @@ export default function App() {
   const filteredRefs = references.filter((ref) =>
     (ref.category_id || ref.path.split("/")[1]) === category,
   );
-  const roundIds = rounds.map((batch) => batch.id).join(",");
+  const roundIds = rounds.filter(batch => generatingPhases.includes(batch.phase)).map(batch => batch.id).join(",");
   useEffect(() => {
     if (connected && !workspace) setActiveId(workspaces[0]?.id || "");
   }, [activeId, workspace?.id, workspaces.length, connected]);
@@ -679,14 +675,9 @@ export default function App() {
   }, [notice]);
   function jump(entry: Entry) {
     setTreeCollapsed(false);
-    setActiveId(workspaceId(entry.batch, batches));
-    setTimeout(
-      () =>
-        document
-          .getElementById("task-" + entry.task.id)
-          ?.scrollIntoView({ behavior: "smooth", block: "center" }),
-      100,
-    );
+    const targetProject = workspaceId(entry.batch, batches);
+    setActiveId(targetProject);
+    history.jump(targetProject, entry.task.id);
   }
   function switchWorkspace(id: string, preserveComposer = false) {
     if (id === activeId) return;
@@ -797,14 +788,7 @@ export default function App() {
       setPrompt("");
       setSelected([]);
       setEditing(undefined);
-      setTimeout(
-        () =>
-          scroller.current?.scrollTo({
-            top: scroller.current.scrollHeight,
-            behavior: "smooth",
-          }),
-        100,
-      );
+      history.latest();
       notify(t("任务已保存，提交批次后开始生成"));
     });
   }
@@ -924,7 +908,7 @@ export default function App() {
   return (
     <div
       className={
-        "studio-shell " + (mode === "harness" ? "harness-mode " : "") +
+        "studio-shell " +
         (resizing ? "resizing " : "") +
         (!sidebar ? "sidebar-hidden " : "") +
         (!queue ? "queue-hidden" : "")
@@ -943,34 +927,21 @@ export default function App() {
             Vertex<span>Studio</span>
           </strong>
         </div>
-        <div className="studio-mode-switch" aria-label={t("工作模式")}>
-          <button aria-pressed={mode === "images"} onClick={() => setMode("images")}>
-            <Sparkles size={13} aria-hidden />
-            {t("生图")}
-          </button>
-          <button aria-pressed={mode === "harness"} onClick={() => setMode("harness")}>
-            <Layers size={13} aria-hidden />
-            Harness
-          </button>
-        </div>
         <span className="brand-divider" aria-hidden />
         <div className="top-actions">
           <button
             onClick={() => {
-              if (mode === "harness") { openSettings(); return; }
               setNewName("");
               setModal("new");
             }}
           >
-            {mode === "harness" ? <Settings2 size={14} aria-hidden /> : <FolderPlus size={14} aria-hidden />}
-            {t(mode === "harness" ? "设置" : "新建项目")}
+            <FolderPlus size={14} aria-hidden />
+            {t("新建项目")}
           </button>
-          {mode === "images" && (
-            <button onClick={toggleSidebar}>
-              <LayoutPanelLeft size={14} aria-hidden />
-              {t("视图")}
-            </button>
-          )}
+          <button onClick={toggleSidebar}>
+            <LayoutPanelLeft size={14} aria-hidden />
+            {t("视图")}
+          </button>
           <button onClick={() => setModal("about")}>
             <Info size={14} aria-hidden />
             {t("关于")}
@@ -1019,8 +990,7 @@ export default function App() {
           </div>
         )}
       </header>
-      <HarnessPane active={mode === "harness"} blocked={!!modal || !!preview} />
-      {mode === "images" && narrow && sidebar && (
+      {narrow && sidebar && (
         <button
           className="sidebar-scrim"
           aria-label={t("关闭侧栏遮罩")}
@@ -1028,7 +998,7 @@ export default function App() {
         />
       )}
       {
-        <aside inert={mode === "harness"}
+        <aside
           className={
             "sidebar resizable-sidebar " +
             (sidebarWidth < 160 && !narrow ? "compact " : "") +
@@ -1321,7 +1291,7 @@ export default function App() {
           />
         </aside>
       }
-      <main inert={mode === "harness"}
+      <main
         className={"workspace " + (!entries.length ? "empty-workspace" : "")}
       >
         <div className="workspace-heading">
@@ -1342,7 +1312,7 @@ export default function App() {
             </button>
           )}
         </div>
-        <div className="conversation" ref={scroller}>
+        <div className="conversation" ref={scroller} onScroll={history.onScroll}>
           {!entries.length && (
             <div className="empty-welcome" aria-hidden="true">
               <div className="welcome-art">
@@ -1357,7 +1327,14 @@ export default function App() {
               <p>{t("在下方输入画面描述或拖入参考图，支持将多个创意加入同一批次并行生成。")}</p>
             </div>
           )}
-          {entries.map((entry) => (
+          {history.previous && (
+            <div className="history-navigation">
+              <button className="secondary-button" onClick={() => history.page(-1)}>
+                {t("加载更早的任务")}
+              </button>
+            </div>
+          )}
+          {entries.slice(history.start, history.end).map((entry) => (
             <TaskCard
               key={entry.task.id}
               entry={entry}
@@ -1392,6 +1369,16 @@ export default function App() {
               openFolder={(batch) => void openFolder(batch)}
             />
           ))}
+          {history.next && (
+            <div className="history-navigation">
+              <button className="secondary-button" onClick={() => history.page(1)}>
+                {t("加载更新的任务")}
+              </button>
+              <button className="text-button" onClick={history.latest}>
+                {t("回到最新")}
+              </button>
+            </div>
+          )}
         </div>
         <div className="composer-zone">
           <div className="composer-context">
@@ -1536,6 +1523,7 @@ export default function App() {
                       }
                     >
                       <Media
+                        thumbnail={160}
                         path={referencePath(ref, currentRefsBatch(ref))}
                         alt={filename(ref.path)}
                       />
@@ -1712,7 +1700,7 @@ export default function App() {
         </div>
       </main>
       {queue && (
-        <aside inert={mode === "harness"} className="queue" aria-label={t("生成队列")}>
+        <aside className="queue" aria-label={t("生成队列")}>
           <div className="section-heading">
             <span>
               <Layers size={16} />
@@ -1930,15 +1918,9 @@ export default function App() {
       )}
       {modal === "settings" && (
         <SettingsPanel
-          initialTab={settingsInitialTab}
           config={config}
           close={() => setModal(null)}
           configured={setConfig}
-          stopHarness={mode === "harness" ? async () => {
-            await window.studio?.harnessView?.(false, false);
-            await api("/harness/stop", "POST");
-            window.dispatchEvent(new Event("vbs:harness-stopped"));
-          } : undefined}
           checkConnection={cloudConnection.check}
           archivedProjects={archivedProjects}
           openArchived={async id => { await api(`/batches/${id}/open-folder`, "POST"); }}

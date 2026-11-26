@@ -221,31 +221,6 @@ class MaintenanceTests(unittest.TestCase):
         finally:
             restored.close()
 
-    def test_harness_shutdown_cancels_queued_callbacks_without_lock_inversion(self):
-        from backend.harness_batch import HarnessBatch
-        broker = HarnessBatch(self.studio)
-        release = threading.Event()
-        entered = [threading.Event(), threading.Event()]
-        def active(index):
-            entered[index].set()
-            release.wait(3)
-        try:
-            for index in range(2):
-                broker._pool.submit(active, index)
-            self.assertTrue(all(event.wait(1) for event in entered))
-            queued = broker._pool.submit(lambda: None)
-            def callback(_):
-                with broker._lock:
-                    pass
-            queued.add_done_callback(callback)
-            started = time.monotonic()
-            broker.close(wait=False)
-            self.assertLess(time.monotonic() - started, .5)
-            self.assertTrue(queued.cancelled())
-        finally:
-            release.set()
-            broker.close()
-
 
 if __name__ == '__main__':
     unittest.main()

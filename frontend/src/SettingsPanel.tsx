@@ -32,7 +32,6 @@ export function SettingsPanel({
   deleteArchived,
   openArchived,
   checkConnection,
-  stopHarness,
   initialTab = "general",
 }: {
   config?: PublicConfig;
@@ -42,7 +41,6 @@ export function SettingsPanel({
   deleteArchived?: (id: string) => Promise<void>;
   openArchived?: (batchId: string) => Promise<void>;
   checkConnection?: () => Promise<void>;
-  stopHarness?: () => Promise<void>;
   initialTab?: "general" | "cloud" | "notifications";
 }) {
   const t = useTranslation(),
@@ -193,7 +191,6 @@ export function SettingsPanel({
               )}
               <div className="settings-divider" />
               <div className="settings-management">
-                {stopHarness && <button className="text-button" disabled={busy} onClick={() => void run(stopHarness)}>{t("关闭 Harness 后台")}</button>}
                 {window.studio && (
                   <button
                     className="text-button danger"

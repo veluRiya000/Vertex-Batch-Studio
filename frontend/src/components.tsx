@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, X } from "lucide-react";
 import { imageUrl } from "./api";
+import { requestThumbnail } from "./thumbnail-loader";
+import type { ThumbnailSize } from "./thumbnail-loader";
 import { useTranslation } from "./i18n";
 
 export function Media({
@@ -10,30 +12,51 @@ export function Media({
   alt,
   className = "",
   onClick,
+  thumbnail,
 }: {
   path: string;
   alt: string;
   className?: string;
   onClick?: () => void;
+  thumbnail?: ThumbnailSize;
 }) {
   const t = useTranslation();
   const [src, setSrc] = useState("");
   const [failed, setFailed] = useState(false);
+  const placeholder = useRef<HTMLSpanElement>(null);
+  const visible = useRef(false);
+  const [nearby, setNearby] = useState(false);
+  useEffect(() => {
+    if (!thumbnail || visible.current || !placeholder.current) return;
+    if (typeof IntersectionObserver === "undefined") {
+      visible.current = true;
+      setNearby(true);
+      return;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some(entry => entry.isIntersecting)) return;
+      visible.current = true;
+      setNearby(true);
+      observer.disconnect();
+    }, { rootMargin: "250px" });
+    observer.observe(placeholder.current);
+    return () => observer.disconnect();
+  }, [thumbnail, failed]);
+
   useEffect(() => {
     let active = true;
     setFailed(false);
     setSrc("");
-    void imageUrl(path)
-      .then((value) => {
-        if (active) setSrc(value);
-      })
-      .catch(() => {
-        if (active) setFailed(true);
-      });
-    return () => {
-      active = false;
-    };
-  }, [path]);
+    const resolve = (value: string) => { if (active) setSrc(value); };
+    const reject = () => { if (active) setFailed(true); };
+    if (thumbnail) {
+      if (!nearby) return;
+      const cancel = requestThumbnail(path, thumbnail, { resolve, reject });
+      return () => { active = false; cancel(); };
+    }
+    void imageUrl(path).then(resolve, reject);
+    return () => { active = false; };
+  }, [path, thumbnail, nearby]);
   return failed ? (
     <span className="media-error">{t("图片暂不可用")}</span>
   ) : src ? (
@@ -42,10 +65,11 @@ export function Media({
       alt={alt}
       className={className}
       onClick={onClick}
+      decoding="async"
       onError={() => setFailed(true)}
     />
   ) : (
-    <span className={"media-loading " + className} />
+    <span ref={placeholder} className={"media-loading " + (thumbnail && !nearby ? "media-deferred " : "") + className} />
   );
 }
 export interface Option {
